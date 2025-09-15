@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { pool } from '@/lib/db';
+import { pool, deleteUserDatabase } from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
 
 // Get specific project
-export async function GET({ params }) {
+export async function GET(request, { params }) {
     try {
-        const { projectId } = await params;
         const authResult = await requireAuth();
+        const { projectId } = await params;
 
         if (authResult.error) {
             return NextResponse.json(
@@ -85,7 +85,7 @@ export async function PUT(request, { params }) {
 }
 
 // Delete project
-export async function DELETE({ params }) {
+export async function DELETE(request, { params }) {
     try {
         const authResult = await requireAuth();
         const { projectId } = await params;
@@ -97,9 +97,27 @@ export async function DELETE({ params }) {
             );
         }
 
+        // Get project details first
+        const projectResult = await pool.query(`
+            SELECT database_name 
+            FROM user_projects 
+            WHERE id = $1 AND user_id = $2 AND is_active = true
+        `, [projectId, authResult.user.id]);
+
+        if (projectResult.rows.length === 0) {
+            return NextResponse.json(
+                { error: 'Project not found' },
+                { status: 404 }
+            );
+        }
+
+        const { database_name } = projectResult.rows[0];
+
+        // Delete the associated database
+        await deleteUserDatabase(database_name);
+
         const result = await pool.query(`
-            UPDATE user_projects 
-            SET is_active = false, updated_at = NOW()
+            DELETE FROM user_projects 
             WHERE id = $1 AND user_id = $2 AND is_active = true
             RETURNING id
         `, [projectId, authResult.user.id]);

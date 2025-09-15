@@ -57,6 +57,36 @@ export async function createUserDatabase(userId, projectName) {
     }
 }
 
+// Function to delete a user database in Neon
+export async function deleteUserDatabase(dbName) {
+    try {
+        const response = await fetch(
+            `https://console.neon.tech/api/v2/projects/${process.env.NEON_PROJECT_ID}/branches/${process.env.NEON_BRANCH_ID}/databases/${dbName}`,
+            {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${process.env.NEON_API_KEY}`,
+                    'Accept': 'application/json'
+                }
+            }
+        );
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Failed to delete database: ${response.status} ${response.statusText} - ${errorText}`);
+        }
+
+        return {
+            success: true,
+            databaseName: dbName,
+            message: `Database ${dbName} deleted successfully`
+        };
+    } catch (error) {
+        console.error('Error deleting user database:', error);
+        throw error;
+    }
+}
+
 // Function to get connection to a specific user database
 export async function getUserDatabaseConnection(connectionString) {
     return new Pool({

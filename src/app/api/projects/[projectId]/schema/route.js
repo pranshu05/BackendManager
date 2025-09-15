@@ -3,7 +3,7 @@ import { pool, getDatabaseSchema } from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
 
 // Get database schema
-export async function GET({ params }) {
+export async function GET(request, { params }) {
     try {
         const authResult = await requireAuth();
         const { projectId } = await params;

@@ -17,8 +17,8 @@ export async function POST() {
         if (sessionToken) {
             // Remove session from database
             await pool.query(
-                'DELETE FROM user_sessions WHERE session_token = $1',
-                [sessionToken]
+                'DELETE FROM user_sessions WHERE user_id = $1',
+                [authResult.user.id]
             );
         }
 
