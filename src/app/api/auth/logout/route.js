@@ -1,0 +1,37 @@
+import { NextResponse } from 'next/server';
+import { pool } from '@/lib/db';
+import { getSessionCookie, clearSessionCookie, requireAuth } from '@/lib/auth';
+
+export async function POST() {
+    try {
+        const sessionToken = getSessionCookie();
+        const authResult = await requireAuth();
+
+        if (authResult.error) {
+            return NextResponse.json(
+                { error: authResult.error },
+                { status: authResult.status }
+            );
+        }
+
+        if (sessionToken) {
+            // Remove session from database
+            await pool.query(
+                'DELETE FROM user_sessions WHERE session_token = $1',
+                [sessionToken]
+            );
+        }
+
+        // Clear cookie
+        clearSessionCookie();
+
+        return NextResponse.json({ message: 'Logout successful' });
+
+    } catch (error) {
+        console.error('Logout error:', error);
+        return NextResponse.json(
+            { error: 'Internal server error' },
+            { status: 500 }
+        );
+    }
+}

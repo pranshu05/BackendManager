@@ -9,15 +9,24 @@
         "lint": "eslint"
     },
     "dependencies": {
+        "bcryptjs": "^3.0.2",
+        "jsonwebtoken": "^9.0.2",
+        "next": "15.5.3",
+        "pg": "^8.16.3",
+        "rate-limiter-flexible": "^7.3.1",
         "react": "19.1.0",
         "react-dom": "19.1.0",
-        "next": "15.5.3"
+        "winston": "^3.17.0",
+        "zod": "^4.1.8"
     },
     "devDependencies": {
+        "@eslint/eslintrc": "^3",
         "@tailwindcss/postcss": "^4",
-        "tailwindcss": "^4",
+        "@types/bcryptjs": "^2.4.6",
+        "@types/jsonwebtoken": "^9.0.10",
+        "@types/pg": "^8.15.5",
         "eslint": "^9",
         "eslint-config-next": "15.5.3",
-        "@eslint/eslintrc": "^3"
+        "tailwindcss": "^4"
     }
 }
