@@ -27,28 +27,7 @@ This sprint mainly focuses on user registration and authentication to allow acce
 ## Priority  
 - **Critical** – Users must log in before accessing the system.  
 
-
-
-# Sprint 2: Database Basics
-
-## Title
-Database Initialization and NLP-based Table Creation
-
-## Goal
-Enable users to create new databases and define tables using natural language, with visibility of the created database on the dashboard.
-
-## Features
-- **Database creation:** Users can create a database using plain English requests.  
-- **Validation & conflict checks:** Handles invalid names, reserved words, and duplicate column names, providing friendly feedback.  
-- **Immediate dashboard listing:** Newly created databases and tables are immediately visible on the dashboard.
-
-## Focus On
-- Reliable NLP interpretation for table creation.  
-- Smooth integration between database creation and dashboard display.  
-- Core backend stability for handling database operations.
-
-## Estimated Time
-2–3 weeks
+---
 
 # Sprint 2: Database Basics
 
