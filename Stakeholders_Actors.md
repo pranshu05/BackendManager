@@ -17,3 +17,7 @@ Database Administrators are professionals responsible for the installation, conf
 ### Legal and Regulatory Bodies  
 This stakeholder group ensures that DBuddy complies with a wide range of data privacy, governance, and security regulations. They are not active users of the platform but have indirect influence over how it is designed and maintained. Their main interest is that sensitive data is handled responsibly, securely, and in full accordance with regional and global data protection laws. 
 
+---
+
+## End Users  
+End users represent the broader community that directly interacts with DBuddy. They may range from students running database queries for academic projects to professionals using the tool for real-world business decision-making. Their expectations include ease of use, efficiency, and accuracy of results. The satisfaction of this group ultimately determines DBuddy’s long-term success and adoption rate.  
