@@ -8,7 +8,7 @@ To ensure that requirements were captured nicely, we applied a **multi-technique
 **Interviews and Online Surveys**
 
 **Justification:**  
-We designed and circulated a structured Google Form survey targeting non-technical stakeholders such as _analysts, marketers, and students_. [**Dbuddy (Responses)**](https://docs.google.com/spreadsheets/d/15JCPJNc5GeOoPcmQ81w43NOQnzw3iqjqYQgYIPhSGHs/edit?gid=1240202950#gid=1240202950). This method was selected because surveys allow reaching a wider audience efficiently while capturing both quantitative feedback (usage frequency, feature importance ratings) and qualitative insights (pain points, suggestions).
+We designed and circulated a structured Google Form survey targeting non-technical stakeholders such as _analysts, marketers, and students_. [**Dbuddy (Responses)**](https://docs.google.com/spreadsheets/d/15JCPJNc5GeOoPcmQ81w43NOQnzw3iqjqYQgYIPhSGHs/edit?gid=1240202950#gid=1240202950) .This method was selected because surveys allow reaching a wider audience efficiently while capturing both quantitative feedback (usage frequency, feature importance ratings) and qualitative insights (pain points, suggestions).
 
 The responses revealed clear priorities:
 
