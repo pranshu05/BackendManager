@@ -37,3 +37,51 @@
 | As a student, I want to create a new table and use it to store the data without using SQL, so that I can build my project database without writing any SQL code. | _Success Criteria:_ <br> • The student creates a table using natural language.<br> • Columns, names, and simple data types can be specified.<br> • The new table is created and visible in schema view.<br><br> _Failure Criteria:_ <br> • Unable to create table due to errors.<br> • Created table does not match specifications.<br> • Process is more complex than just writing SQL. |
 
 ---
+
+## 6) Update Tables
+
+| *Front of the Card* | *Back of the Card* |
+|------------------------|-----------------------|
+| As a registered user, I want to update existing tables using buttons and natural language, so that I can easily make changes without SQL queries. | *Success Criteria:* <br> • User can insert, update, or delete via buttons or natural language.<br> • System translates instructions into SQL.<br> • Updates are applied successfully.<br><br> *Failure Criteria:* <br> • Buttons don’t trigger updates.<br> • Natural language is ignored.<br> • User does not know if the update succeeded. |
+
+---
+
+## 7) Table Filtering
+
+| *Front of the Card* | *Back of the Card* |
+|------------------------|-----------------------|
+| As a marketer, I want to filter data in a table view without writing code, so that I can quickly find specific information, like "all users from Mumbai." | *Success Criteria:* <br> • Marketer selects a database and adds filter criteria.<br> • The system filters and shows correct data.<br><br> *Failure Criteria:* <br> • Database inaccessible.<br> • Incorrect or irrelevant results shown. |
+
+---
+
+## 8) Error Messages
+
+| *Front of the Card* | *Back of the Card* |
+|------------------------|-----------------------|
+| As a non-technical user, I want to get an error message if my query fails so that I can understand what I did wrong and fix it. | *Success Criteria:* <br> • System provides a clear error message in simple English.<br> • Error identifies the likely cause.<br><br> *Failure Criteria:* <br> • No error message is displayed.<br> • Cryptic technical error shown (e.g., ERROR: 42P01).<br> • User cannot fix query and gives up. |
+
+---
+
+## 9) Project Search
+
+| *Front of the Card* | *Back of the Card* |
+|------------------------|-----------------------|
+| As a Dbuddy user, I want to search for my projects by name or keyword, so that I can quickly locate and open the correct project without scrolling. | *Success Criteria:* <br> • Search bar above project list.<br> • Supports full or partial names.<br> • Results filter in real-time.<br> • “No projects found” shown when no match.<br> • Clicking opens project.<br><br> *Failure Criteria:* <br> • Search bar missing or broken.<br> • Irrelevant or incorrect results.<br> • Search is case-sensitive or too slow. |
+
+---
+
+## 10) Create New Database
+
+| *Front of the Card* | *Back of the Card* |
+|------------------------|-----------------------|
+| As a start-up team member, I want to create a completely new, empty database directly from DBuddy, so that I can start a new project without using external tools. | *Success Criteria:* <br> • "Create New Database" option exists.<br> • User enters details.<br> • DBuddy connects to new database.<br><br> *Failure Criteria:* <br> • Database not created.<br> • Database not shown in project list. |
+
+---
+
+## 11) Team Collaboration
+
+| Front of the Card | Back of the Card |
+|------------------------|-----------------------|
+| As a Team Member, I want to collaborate on a database project with real-time updates, so that my team can work together efficiently. | Success Criteria: <br> • User shares project with team.<br> • Team members receive notifications and access.<br> • Changes sync in real-time.<br><br> Failure Criteria: <br> • Unable to share project.<br> • Permission conflicts.<br> • Changes not synced in real-time. |
+
+---
