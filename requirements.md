@@ -66,48 +66,74 @@
 > **Source (Elicitation):** User surveys indicated a demand for a visual interface that allows database manipulation without writing any code.
 
 
+</br>
+
 # Non-Functional Requirements for DBuddy
 
-These define quality standards and constraints:
+This document defines the quality attributes and constraints for the DBuddy application.
 
-## Usability
+---
 
--   **UI/UX**: The system shall have a simple, clean, and intuitive user
-    interface, inspired by platforms like Notion.
--   **Responsiveness**: The application's layout must be responsive,
-    adapting seamlessly to various screen sizes (desktops, tablets, and
-    mobile phones).
--   **Transparency**: To build user trust and facilitate learning, the
-    system shall show the generated SQL queries.
--   **Error Handling**: All error messages must be displayed in clear,
-    simple language, avoiding technical terms.
+## Usability (NFR-US)
 
-## Performance
+| ID           | Requirement                                                                              |
+| :----------- | :--------------------------------------------------------------------------------------- |
+| *NFR-US-001* | The system shall provide a clean, simple, and intuitive user interface.                  |
+| *NFR-US-002* | The system's layout must be responsive, adapting to desktop, tablet, and mobile screens. |
+| *NFR-US-003* | The system shall display the generated SQL query to the user for transparency and learning.|
+| *NFR-US-004* | The system must present all error messages in clear, non-technical language.             |
 
--   **Concurrency**: Handle multiple users/projects concurrently.
+> *Elicitation Source:* Non-technical users (survey) and Group Brainstorming.
 
-## Reliability & Availability
+---
 
--   **Connection Stability**: The system must ensure stable and
-    persistent connections to the user's database.
+## Performance (NFR-PE)
 
-## Security
+| ID           | Requirement                                                               |
+| :----------- | :------------------------------------------------------------------------ |
+| *NFR-PE-001* | The system must be capable of managing and querying multiple user projects concurrently. |
 
--   **Authentication & Encryption**: Use secure authentication and
-    encrypted connections.
+> *Elicitation Source:* Non-technical users (survey): One of the responses featured a need to have a database that could easily manage a number of personal projects concurrently.
 
-## Scalability
+---
 
--   **Growth Support**: The system must support growing datasets, an
-    increasing number of projects, and increasing user load.
--   **Extensibility**: Modular backend to allow adding future features
-    easily.
+## Reliability & Availability (NFR-RA)
 
-## Maintainability
+| ID           | Requirement                                                                          |
+| :----------- | :----------------------------------------------------------------------------------- |
+| *NFR-RA-001* | The system must maintain stable and persistent database connections during user sessions. |
 
--   **Architecture**: The code shall follow a modular architecture with
-    a clear separation between the frontend and backend.
--   **Documentation**: The code must be well-documented for easy
-    maintenance, updates, and expansion.
--   **Development Process**: Must support agile incremental
-    improvements.
+> *Elicitation Source:* Expert consultation through an Interview. How was it identified: Interviewee pointed out reliability challenges in frequent queries (OLAP systems).
+
+---
+
+## Security (NFR-SE)
+
+| ID           | Requirement                                                                            |
+| :----------- | :------------------------------------------------------------------------------------- |
+| *NFR-SE-001* | The system must implement secure authentication and session management to protect user data. |
+
+> *Elicitation Source:* Non-technical users through the survey revealed a need for access based control that requires authentication. How was it identified: By circulating a survey form across stakeholders.
+
+---
+
+## Scalability (NFR-SC)
+
+| ID           | Requirement                                                                                      |
+| :----------- | :----------------------------------------------------------------------------------------------- |
+| *NFR-SC-001* | The architecture must support a growing number of users, projects, and data volume.              |
+| *NFR-SC-002* | The backend must be modular to facilitate the addition of new features with minimal refactoring. |
+
+> *Elicitation Source:* Non-technical users through the survey revealed a need for scalability of Dbuddy that could allow a number of users, with each one being able to access all of their databases.
+
+---
+
+## Maintainability (NFR-MA)
+
+| ID           | Requirement                                                                                |
+| :----------- | :----------------------------------------------------------------------------------------- |
+| *NFR-MA-001* | The system shall be built on a modular architecture with a clear separation of concerns. |
+| *NFR-MA-002* | The codebase must be well-documented to support future development and maintenance.        |
+| *NFR-MA-003* | The development process must follow agile principles to support incremental improvements.    |
+
+> *Elicitation Source:* Technical users(survey) and group brainstorming. How was it identified: Raised during team brainstorming as a dev necessity.
