@@ -24,8 +24,6 @@ This sprint mainly focuses on user registration and authentication to allow acce
 ## Timeline  
 - **Estimated Time:** 2–3 weeks  
 
-## Priority  
-- **Critical** – Users must log in before accessing the system.  
 
 ---
 
@@ -74,3 +72,69 @@ Implement features that support data manipulation using CRUD operations, mock da
 
 ## Estimated Time
 2–3 weeks
+
+---
+
+# Sprint 4: Smart Queries & NLP Integration
+
+## Title
+Natural Language Querying and Error Handling
+
+## Goal
+Allow users to query databases in plain English and ensure errors are communicated clearly in user-friendly messages.
+
+## Features
+- **NLP-SQL Translation:** Users should be able to query the database in plain English using a friendly interface.
+- **Query Execution:** After the query is executed, either the query result or an error message is displayed.
+
+## Focus On
+- Saving users from the burden of writing SQL queries by providing NLP-SQL translation.
+- Supporting user’s understanding by displaying error messages in non-technical terms.
+
+## Estimated Time
+2–3 weeks
+
+---
+
+# Sprint 5: Database Insights and Optimization
+
+## Title
+Optimization and History Tracking
+
+## Goal
+Provide insights into query performance through optimization suggestions, maintain logs/query history for transparency and user reference, and search functionality.
+
+## Features
+- **Optimization:** User is provided with suggestions/modifications that can be made into the database for improving the performance (e.g., removal of repeated data).
+- **Query Logs:** Users are able to access their past queries easily along with their results.
+- **Search Bar:** Users can easily search their database project using keywords or project name.
+
+## Focus On
+- Generating meaningful optimization suggestions to help users improve their database.
+- Provides transparency and allows users to make use of their past queries easily. Users can come back to those queries that failed earlier.
+
+## Estimated Time
+2–3 weeks
+
+---
+
+# Sprint 6: QA, Testing & Polishing
+
+## Title
+Quality Assurance and User Experience Enhancements
+
+## Goal
+Refine the platform through testing, mobile responsiveness, UI/UX improvements, and bug fixes to prepare for deployment.
+
+## Features
+- **Responsiveness:** Allow users to access Dbuddy on mobile.
+- **Documentation:** For end users and admins.
+
+## Focus On
+- Cross-device responsiveness to ensure that user experience is not compromised.
+- System stability and enhancement through bug fixing.
+
+## Estimated Time
+2–3 weeks
+
+---
