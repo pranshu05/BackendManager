@@ -85,3 +85,44 @@
 | As a Team Member, I want to collaborate on a database project with real-time updates, so that my team can work together efficiently. | Success Criteria: <br> • User shares project with team.<br> • Team members receive notifications and access.<br> • Changes sync in real-time.<br><br> Failure Criteria: <br> • Unable to share project.<br> • Permission conflicts.<br> • Changes not synced in real-time. |
 
 ---
+
+
+## 12) Database Optimization
+
+| *Front of the Card* | *Back of the Card* |
+|------------------------|-----------------------|
+| As a Database administrator, I want a tool that can analyze the database and suggest performance improvements to users, so that I can optimize the database. | *Success Criteria:* <br> • "Optimize/Analysis" tab exists.<br> • Tool scans DB.<br> • Suggestions are clear and actionable.<br><br> *Failure Criteria:* <br> • Incorrect suggestions harming data.<br> • Generic, non-useful suggestions. |
+
+---
+
+## 13) Performance Monitoring
+
+| *Front of the Card* | *Back of the Card* |
+|------------------------|-----------------------|
+| As a non-technical user, I want to monitor PostgreSQL performance metrics in real-time, so that I can identify and resolve bottlenecks. | *Success Criteria:* <br> • User selects DB.<br> • Execution time visible.<br><br> *Failure Criteria:* <br> • No metrics available.<br> • Admin can’t access DB.<br> • Hardware overload. |
+
+---
+
+## 14) Export Query Results
+
+| *Front of the Card* | *Back of the Card* |
+|------------------------|-----------------------|
+| As a normal user, I want to export or download the results of my query so that I can access the data anytime. | *Success Criteria:* <br> • "Export/Download" button shown.<br> • Clicking downloads results.<br> • File contains all data.<br> • File is in CSV/JSON/Excel.<br> • File opens successfully.<br><br> *Failure Criteria:* <br> • No download option.<br> • Button does nothing.<br> • File empty, corrupted, or wrong format.<br> • Error during download. |
+
+---
+
+## 15) Mobile Responsiveness
+
+| *Front of the Card* | *Back of the Card* |
+|------------------------|-----------------------|
+| As a mobile user, I want the interface to adjust to my screen size so that I can access the database irrespective of the device I use. | *Success Criteria:* <br> • Interface adapts responsively.<br> • Text and buttons remain legible.<br> • No horizontal scrolling needed.<br><br> *Failure Criteria:* <br> • Layout breaks.<br> • Buttons too small.<br> • User must zoom or scroll sideways. |
+
+---
+
+## 16) Query History
+
+| *Front of the Card* | *Back of the Card* |
+|------------------------|-----------------------|
+| As a non-technical user, I want to view my past queries in a simple timeline, so that I can easily re-run or modify them without starting over. | *Success Criteria:* <br> • "Query History/Timeline" tab exists.<br> • Past queries shown in plain English + SQL.<br> • Each query has timestamp, status, size.<br> • User can re-run or edit queries.<br><br> *Failure Criteria:* <br> • No history shown.<br> • Queries only in SQL.<br> • Incomplete entries.<br> • Re-run or edit doesn’t work. |
+
+---
