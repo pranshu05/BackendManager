@@ -52,3 +52,24 @@
 - **User Story 15:** Mobile-responsive interface
 - **User Story 3:** Visualize PostgreSQL schema
 - **User Story 14:** Export/download results
+
+# Conflicts within Epics
+
+## Contradictions in Goals  
+- **Non-technical users (Epic 2)** want ease of use – quickly creating databases/tables without worrying about schema quality.  
+- **Database Administrators (Epic 4)** want well-structured, optimized databases, which may conflict with the “quick and easy” approach of non-technical users.  
+
+### Resolution Strategy  
+- **Incremental Delivery**:  
+  - First, deliver a basic table creation flow (**Epic 2**) so non-technical users get value quickly.  
+  - Then, iteratively add optimization checks/suggestions (**Epic 4**) based on DBA input.  
+
+- **Feedback Loops**:  
+  - Run usability testing sessions with non-technical users to evaluate if optimization prompts are overwhelming.  
+  - Adjust language and guidance based on feedback.  
+
+---
+
+## Mock Data Generation vs. Query Accuracy  
+- **Epic 2: No-Code Database** – *Story 2*: Generate mock data for tables.  
+- **Epic 3: Data Exploration & Querying** – *Story 4*: Run queries in plain English.  
