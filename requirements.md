@@ -1,7 +1,6 @@
 # Functional Requirements for DBuddy
 
 
-
 ## 1. User Management (FR-UM)
 
 | ID          | Requirement                                                              |
@@ -80,8 +79,7 @@ This document defines the quality attributes and constraints for the DBuddy appl
 | :----------- | :--------------------------------------------------------------------------------------- |
 | *NFR-US-001* | The system shall provide a clean, simple, and intuitive user interface.                  |
 | *NFR-US-002* | The system's layout must be responsive, adapting to desktop, tablet, and mobile screens. |
-| *NFR-US-003* | The system shall display the generated SQL query to the user for transparency and learning.|
-| *NFR-US-004* | The system must present all error messages in clear, non-technical language.             |
+| *NFR-US-003* | The system must present all error messages in clear, non-technical language. |
 
 > *Elicitation Source:* Non-technical users (survey) and Group Brainstorming.
 
@@ -91,7 +89,7 @@ This document defines the quality attributes and constraints for the DBuddy appl
 
 | ID           | Requirement                                                               |
 | :----------- | :------------------------------------------------------------------------ |
-| *NFR-PE-001* | The system must be capable of managing and querying multiple user projects concurrently. |
+| *NFR-PE-001* | The system shall be capable of managing and querying multiple user projects concurrently. |
 
 > *Elicitation Source:* Non-technical users (survey): One of the responses featured a need to have a database that could easily manage a number of personal projects concurrently.
 
@@ -103,7 +101,7 @@ This document defines the quality attributes and constraints for the DBuddy appl
 | :----------- | :----------------------------------------------------------------------------------- |
 | *NFR-RA-001* | The system must maintain stable and persistent database connections during user sessions. |
 
-> *Elicitation Source:* Expert consultation through an Interview. How was it identified: Interviewee pointed out reliability challenges in frequent queries (OLAP systems).
+> *Elicitation Source:* Expert consultation through an Interview. How was it identified: Interview pointed out reliability challenges in frequent queries (OLAP systems).
 
 ---
 
@@ -122,9 +120,9 @@ This document defines the quality attributes and constraints for the DBuddy appl
 | ID           | Requirement                                                                                      |
 | :----------- | :----------------------------------------------------------------------------------------------- |
 | *NFR-SC-001* | The architecture must support a growing number of users, projects, and data volume.              |
-| *NFR-SC-002* | The backend must be modular to facilitate the addition of new features with minimal refactoring. |
+| *NFR-SC-002* | The backend should be modular to facilitate the addition of new features with minimal refactoring. |
 
-> *Elicitation Source:* Non-technical users through the survey revealed a need for scalability of Dbuddy that could allow a number of users, with each one being able to access all of their databases.
+> *Elicitation Source:* Group brainstorming. How was it identified: Raised during team brainstorming .
 
 ---
 
@@ -132,8 +130,8 @@ This document defines the quality attributes and constraints for the DBuddy appl
 
 | ID           | Requirement                                                                                |
 | :----------- | :----------------------------------------------------------------------------------------- |
-| *NFR-MA-001* | The system shall be built on a modular architecture with a clear separation of concerns. |
-| *NFR-MA-002* | The codebase must be well-documented to support future development and maintenance.        |
-| *NFR-MA-003* | The development process must follow agile principles to support incremental improvements.    |
+| *NFR-MA-001* | The system should be built on a modular architecture with a clear separation of concerns. |
+| *NFR-MA-002* | The codebase should be well-documented to support future development and maintenance.        |
+| *NFR-MA-003* | The development process should follow agile principles to support incremental improvements.    |
 
-> *Elicitation Source:* Technical users(survey) and group brainstorming. How was it identified: Raised during team brainstorming as a dev necessity.
+> *Elicitation Source:* Group brainstorming. How was it identified: Raised during team brainstorming as a dev necessity.
