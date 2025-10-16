@@ -44,6 +44,52 @@ export const querySchema = z.object({
     naturalLanguageInput: z.string().optional()
 });
 
+// AI-driven project creation schema
+export const aiCreateProjectSchema = z.object({
+    naturalLanguageInput: z.string()
+        .min(10, 'Project description must be at least 10 characters')
+        .max(1000, 'Project description must be less than 1000 characters')
+});
+
+// AI analyze request schema
+export const aiAnalyzeRequestSchema = z.object({
+    naturalLanguageInput: z.string()
+        .min(5, 'Request must be at least 5 characters')
+        .max(500, 'Request must be less than 500 characters'),
+    projectId: z.string().uuid('Invalid project ID'),
+    actionType: z.enum(['create_table', 'add_column', 'auto', 'general']).optional(),
+    tableName: z.string().optional()
+});
+
+// AI execute confirmed schema
+export const aiExecuteConfirmedSchema = z.object({
+    projectId: z.string().uuid('Invalid project ID'),
+    sql: z.string().min(1, 'SQL statement is required'),
+    naturalLanguageInput: z.string().optional(),
+    queryType: z.string().optional()
+});
+
+// AI update project schema
+export const aiUpdateProjectSchema = z.object({
+    naturalLanguageInput: z.string()
+        .min(5, 'Update description must be at least 5 characters')
+        .max(1000, 'Update description must be less than 1000 characters'),
+    projectId: z.string().uuid('Invalid project ID')
+});
+
+// AI execute batch schema
+export const aiExecuteBatchSchema = z.object({
+    projectId: z.string().uuid('Invalid project ID'),
+    operations: z.array(z.object({
+        type: z.string().optional(),
+        target: z.string().optional(),
+        sql: z.string().min(1, 'SQL statement is required'),
+        explanation: z.string().optional(),
+        risk_level: z.enum(['low', 'medium', 'high']).optional()
+    })).min(1, 'At least one operation is required'),
+    naturalLanguageInput: z.string().optional()
+});
+
 // Validation helper function
 export function validateInput(schema, data) {
     try {

@@ -45,6 +45,7 @@ export const config = {
         '/',
         '/dashboard/:path*',
         '/api/projects/:path*',
+        '/api/ai/:path*',
         '/api/auth/logout',
         '/api/auth/me',
     ],
