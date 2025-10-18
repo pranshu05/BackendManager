@@ -14,6 +14,57 @@ export async function loginUser({ email, password }) {
     return res.json();
 }
 
+//This function used to verify that the entered email exists
+//OTP Mail sent to the entered email address 
+export async function checkemail({ email }) {
+    const res = await fetch("/api/auth/emailcheck", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+    });
+
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Password reset failed. Account may not exist.");
+    }
+    return res.json();
+}
+
+
+
+export async function otpcheck({email,otp})
+{
+    const res = await fetch("/api/auth/otpcheck", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email,otp}),
+    });
+    if(!res.ok)
+    {
+        const error = await res.json();
+        throw new Error("OTP verification failed.");
+    }
+    return res.json();
+}
+
+
+export async function resetPassword({ email, newpwd }) {
+    const res = await fetch("/api/auth/updatepwd", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, newpwd }),
+    });
+
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Password reset failed.");
+    }
+
+    return res.json();
+}
+
+
+
 export async function registerUser({ name, email, password }) {
     const res = await fetch("/api/auth/register", {
         method: "POST",
@@ -29,6 +80,8 @@ export async function registerUser({ name, email, password }) {
 
     return res.json();
 }
+
+
 
 export async function fetchProjects(session) {
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : process.env.NEXTAUTH_URL || 'http://localhost:3000';
