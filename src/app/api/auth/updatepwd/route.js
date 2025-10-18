@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import {pool} from "@/lib/db";
 import { hashPassword } from "@/lib/auth";
-import { hash } from "bcryptjs";
 
 export async function POST(request){
     try{
@@ -25,7 +24,7 @@ export async function POST(request){
 
     const hashedPassword = await hashPassword(newpwd);
     console.log("Hashed new password for email:", hashedPassword);
-    const res = await pool.query(
+    await pool.query(
   'UPDATE users SET password_hash = $1 WHERE email = $2',
   [hashedPassword, email]
 );
@@ -33,8 +32,8 @@ export async function POST(request){
     return NextResponse.json({message: "Password updated successfully"}, {status: 200});
 
     }
-    catch(err){
-        console.log("Error in pwd update");
+    catch(error){
+        console.log("Error in pwd update:", error);
         return NextResponse.json({error: "Error in Password Update"}, {status: 500});
     }
 }

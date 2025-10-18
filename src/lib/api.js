@@ -7,8 +7,8 @@ export async function loginUser({ email, password }) {
     });
 
     if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || "Login failed");
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Login failed");
     }
 
     return res.json();
@@ -24,8 +24,8 @@ export async function checkemail({ email }) {
     });
 
     if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || "Password reset failed. Account may not exist.");
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Password reset failed. Account may not exist.");
     }
     return res.json();
 }
@@ -41,7 +41,7 @@ export async function otpcheck({email,otp})
     });
     if(!res.ok)
     {
-        const error = await res.json();
+        await res.json();
         throw new Error("OTP verification failed.");
     }
     return res.json();
@@ -56,8 +56,8 @@ export async function resetPassword({ email, newpwd }) {
     });
 
     if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || "Password reset failed.");
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Password reset failed.");
     }
 
     return res.json();
