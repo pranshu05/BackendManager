@@ -94,8 +94,37 @@ export async function getUserDatabaseConnection(connectionString) {
         ssl: { rejectUnauthorized: false },
         max: 5,
         idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 2000,
+        connectionTimeoutMillis: 4000, // Increased timeout
     });
+}
+
+// Function to wait for database to be ready
+export async function waitForDatabaseReady(connectionString, maxAttempts = 4, delayMs = 1000) {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const pool = new Pool({
+            connectionString,
+            ssl: { rejectUnauthorized: false },
+            max: 1,
+            connectionTimeoutMillis: 4000,
+        });
+
+        try {
+            // Try to connect and execute a simple query
+            await pool.query('SELECT 1');
+            await pool.end();
+            return true;
+        } catch (error) {
+            await pool.end();
+            
+            if (attempt === maxAttempts) {
+                throw new Error(`Database not ready after ${maxAttempts} attempts: ${error.message}`);
+            }
+            
+            // Wait before next attempt with exponential backoff
+            await new Promise(resolve => setTimeout(resolve, delayMs * attempt));
+        }
+    }
+    return false;
 }
 
 // Function to execute queries safely

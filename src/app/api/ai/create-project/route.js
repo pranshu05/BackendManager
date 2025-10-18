@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { pool, createUserDatabase, getUserDatabaseConnection } from '@/lib/db';
+import { pool, createUserDatabase, getUserDatabaseConnection, waitForDatabaseReady } from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
 import { inferDatabaseSchema, generateCreateTableStatements } from '@/lib/ai';
 
@@ -92,7 +92,27 @@ export async function POST(request) {
 
         const project = projectResult.rows[0];
 
-        // Step 4: Generate and execute CREATE TABLE statements
+        // Step 4: Wait for database to be ready
+        try {
+            await waitForDatabaseReady(dbDetails.connectionString);
+        } catch (waitError) {
+            console.error('Database readiness check failed:', waitError);
+            return NextResponse.json(
+                { 
+                    error: 'Database was created but is not yet ready',
+                    details: waitError.message,
+                    project: {
+                        id: project.id,
+                        projectName: project.project_name,
+                        databaseName: project.database_name
+                    },
+                    suggestion: 'Please try creating tables manually or wait a few moments and retry'
+                },
+                { status: 503 }
+            );
+        }
+
+        // Step 5: Generate and execute CREATE TABLE statements
         const createTableSQL = generateCreateTableStatements(tables);
         const sqlStatements = createTableSQL.split(';').filter(stmt => stmt.trim() !== '');
         
