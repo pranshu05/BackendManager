@@ -15,10 +15,10 @@ export default function SignupForm() {
         setLoading(true);
         setError("");
 
-        try {
-            const user = await registerUser(form);
-            console.log("Registered:", user);
-            window.location.href = "/dashboard"; // redirect after signup
+         try {
+            await registerUser(form);
+            alert("Email verification link has been sent to your email addres");
+           
         } catch (err) {
             setError(err.message);
         } finally {

@@ -68,8 +68,8 @@ export default function Page() {
                         <CardContent>
                             <Tabs defaultValue="login" className="w-full">
                                 <TabsList className="grid w-full grid-cols-2">
-                                    <TabsTrigger value="login">Sign In</TabsTrigger>
-                                    <TabsTrigger value="signup">Sign Up</TabsTrigger>
+                                    <TabsTrigger value="login" className="cursor-pointer  data-[state=active]:hover:border-accent-foreground   hover:border-accent-foreground">Sign In</TabsTrigger>
+                                    <TabsTrigger value="signup" className="cursor-pointer   data-[state=active]:hover:border-accent-foreground  hover:border-accent-foreground">Sign Up</TabsTrigger>
                                 </TabsList>
 
                                 <TabsContent value="login">

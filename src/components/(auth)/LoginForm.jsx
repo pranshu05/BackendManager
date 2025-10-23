@@ -46,6 +46,7 @@ export default function LoginForm() {
                     value={form.password}
                     onChange={(e) => setForm({ ...form, password: e.target.value })}
                 />
+                <a href="/reset" className="text-sm flex justify-end">Forgot Password?</a>
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? "Signing in..." : "Sign In"}
