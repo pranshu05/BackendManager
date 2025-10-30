@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { pool, executeQuery } from '@/lib/db';
+import { pool, executeQuery, getDatabaseSchema } from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
 
 // Create table
@@ -96,60 +96,60 @@ export async function POST(request, { params }) {
 
 
 export async function GET(request, { params }) {
-  try {
-    const authResult = await requireAuth();
-      const { projectId } = await params;
+    try {
+        const authResult = await requireAuth();
+        const { projectId } = await params;
 
-    if (authResult.error) {
-      return NextResponse.json({ error: authResult.error }, { status: authResult.status });
+        if (authResult.error) {
+            return NextResponse.json({ error: authResult.error }, { status: authResult.status });
+        }
+        const projectResult = await pool.query(
+            `
+            SELECT connection_string
+            FROM user_projects 
+            WHERE id = $1::uuid AND user_id = $2 AND is_active = true
+            `,
+            [projectId, authResult.user.id]
+        );
+
+        if (projectResult.rows.length === 0) {
+            return NextResponse.json({ error: "Project not found" }, { status: 404 });
+        }
+
+        const connectionString = projectResult.rows[0].connection_string;
+
+        const schemaInfo = await getDatabaseSchema(connectionString);
+        const url = new URL(request.url);
+        const tableName = url.searchParams.get("table");
+        const limitParam = url.searchParams.get("limit");
+
+
+        if (!tableName) {
+            return NextResponse.json({ tables: schemaInfo });
+        }
+        let query;
+        let queryParams = [];
+
+
+
+        const parsedLimit = Number.parseInt(limitParam, 10);
+        if (!Number.isNaN(parsedLimit) && parsedLimit > 0) {
+            query = `SELECT * FROM "${tableName}" LIMIT $1;`;
+            queryParams = [parsedLimit];
+        } else {
+            query = `SELECT * FROM "${tableName}";`;
+            queryParams = [];
+        }
+
+        const result = await executeQuery(connectionString, query, queryParams);
+
+        return NextResponse.json({
+            table: tableName,
+            columns: schemaInfo.find((t) => t.name === tableName)?.columns || [],
+            rows: result.rows,
+        });
+    } catch (error) {
+        console.error("Error in getting table info", error);
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
-   const projectResult = await pool.query(
-  `
-  SELECT connection_string
-  FROM user_projects 
-  WHERE id = $1::uuid AND user_id = $2 AND is_active = true
-  `,
-  [projectId, authResult.user.id]
-);
-
-    if (projectResult.rows.length === 0) {
-      return NextResponse.json({ error: "Project not found" }, { status: 404 });
-    }
-
-    const connectionString = projectResult.rows[0].connection_string;
-
-    const schemaInfo = await getDatabaseSchema(connectionString);
-const url = new URL(request.url);
-const tableName = url.searchParams.get("table");
-const limitParam = url.searchParams.get("limit");
-    
-   
-    if (!tableName) {
-      return NextResponse.json({ tables: schemaInfo });
-    } 
-let query;
-let queryParams = [];
-
-
-
-const parsedLimit = Number.parseInt(limitParam, 10);
-if (!Number.isNaN(parsedLimit) && parsedLimit > 0) {
-  query = `SELECT * FROM "${tableName}" LIMIT $1;`;
-  queryParams = [parsedLimit];
-} else {
-  query = `SELECT * FROM "${tableName}";`;
-  queryParams = [];
-}
-
-const result = await executeQuery(connectionString, query, queryParams);
-
-    return NextResponse.json({
-      table: tableName,
-      columns: schemaInfo.find((t) => t.name === tableName)?.columns || [],
-      rows: result.rows,
-    });
-  } catch (error) {
-    console.error("Error in getting table info", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
 }
