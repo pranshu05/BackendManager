@@ -169,12 +169,10 @@ One-Click Deployment</div></b></li>
       });
 
       console.log("Email sent: ");
-      // return NextResponse.json({message:"Email sent successfully",info:info })
-
+     
     } catch (err) {
     
       console.log("Error sending email: ", err);
-      // return NextResponse.json({error:"Error sending email"})
     }
    return NextResponse.redirect(`${process.env.web_url}`);
 
