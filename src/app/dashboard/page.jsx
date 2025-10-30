@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import Header from "@/components/ui/header";
 import { ProjectCard } from "@/components/(dashboard)/ProjectCard";
 import { Database, LogOut, CheckCircle, Table, User } from "lucide-react";
