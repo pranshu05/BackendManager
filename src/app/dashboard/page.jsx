@@ -2,11 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import Header from "@/components/ui/header";
 import { ProjectCard } from "@/components/(dashboard)/ProjectCard";
 import {
     Database,
-    LogOut,
     CheckCircle,
     Table,
 } from "lucide-react";
@@ -54,24 +53,7 @@ export default function DashboardPage() {
     return (
         <div className="min-h-screen bg-gradient-to-br from-background via-accent/20 to-secondary/30">
             {/* Header */}
-            <header className="bg-card/80 backdrop-blur-sm border-b border-border px-6 py-4">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                        <div className="p-2 bg-primary rounded-xl">
-                            <Database className="w-6 h-6 text-primary-foreground" />
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-bold text-foreground">DBuddy</h1>
-                            <p className="text-sm text-primary">Your Database Companion</p>
-                        </div>
-                    </div>
-                    <Button variant="outline" size="sm" asChild>
-                        <a onClick={handleLogout}>
-                            <LogOut className="w-4 h-4" />
-                        </a>
-                    </Button>
-                </div>
-            </header>
+             <Header />
 
             {/* Main content */}
             <main className="p-6 max-w-7xl mx-auto space-y-8">
