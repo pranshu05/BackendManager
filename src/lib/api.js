@@ -75,7 +75,11 @@ export async function registerUser({ name, email, password }) {
 
     if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.message || "Registration failed");
+        // Create error object with additional data for rate limiting
+        const err = new Error(error.error || error.message || "Registration failed");
+        err.statusCode = res.status;
+        err.remainingTime = error.remainingTime;
+        throw err;
     }
 
     return res.json();
