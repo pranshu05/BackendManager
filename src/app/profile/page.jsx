@@ -39,22 +39,33 @@ export default function ProfilePage() {
     }
   };
 
-  const ProfileLink = ({ icon: Icon, title, subtitle, hasEdit = false }) => (
-    <div className="flex items-center justify-between w-full">
-      <div className="flex items-center space-x-4">
-        <Icon className="w-6 h-6 text-[#1e4a8a] flex-shrink-0" />
+// Example ProfileLink component update inside profile/page.jsx (if needed)
+function ProfileLink({ icon: Icon, title, subtitle, hasEdit = false, onEdit }) {
+  return (
+    <div className="flex items-center justify-between bg-white/0 p-2">
+      <div className="flex items-start space-x-4">
+        <Icon className="w-6 h-6 text-[#1e4a8a] mt-1 flex-shrink-0" />
         <div>
-          <h2 className="text-lg font-semibold text-[#1e4a8a]">{title}</h2>
+          <h3 className="text-lg font-semibold text-[#1e4a8a]">{title}</h3>
           <p className="text-sm text-gray-600">{subtitle}</p>
         </div>
       </div>
+
       {hasEdit && (
-        <button className="text-[#1e4a8a] hover:text-[#1e3a6a] p-1">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            if (typeof onEdit === "function") onEdit();
+          }}
+          className="text-[#1e4a8a] hover:text-[#16386f] cursor-pointer p-2 rounded"
+          aria-label={`Edit ${title}`}
+        >
           <SquarePen className="w-5 h-5" />
         </button>
       )}
     </div>
   );
+}
 
   return (
     /*logo*/
@@ -106,11 +117,12 @@ export default function ProfilePage() {
               icon={UserCog}
               title="Personal Information"
               subtitle="Address & Contact and Personal Information" />
-            <ProfileLink
-              icon={Search}
-              title="Password"
-              subtitle="Account Password"
-              hasEdit={true}/>
+              <ProfileLink
+                icon={Search}
+                title="Password"
+                subtitle="Account Password"
+                hasEdit={true}
+                onEdit={() => (window.location.href = "/change-password")}/>
             <ProfileLink
               icon={Briefcase}
               title="Role"
