@@ -4,12 +4,14 @@ import { useState, useEffect } from "react";
 import {
   Database,
   LogOut,
-  UserCog, 
-  Search, 
-  Briefcase, 
+  UserCog,
+  Search,
+  Briefcase,
   SquarePen,
   X,
 } from "lucide-react";
+
+import { useRouter } from "next/navigation";
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
@@ -39,22 +41,49 @@ export default function ProfilePage() {
     }
   };
 
-  const ProfileLink = ({ icon: Icon, title, subtitle, hasEdit = false }) => (
-    <div className="flex items-center justify-between w-full">
-      <div className="flex items-center space-x-4">
-        <Icon className="w-6 h-6 text-[#1e4a8a] flex-shrink-0" />
-        <div>
-          <h2 className="text-lg font-semibold text-[#1e4a8a]">{title}</h2>
-          <p className="text-sm text-gray-600">{subtitle}</p>
+  const ProfileLink = ({ icon: Icon, title, subtitle, href, hasEdit = false }) => {
+    const router = useRouter();  // ✅ this line is required
+
+    return (
+      <div className="flex items-center justify-between w-full rounded-lg p-3 hover:bg-gray-100 transition">
+        <div className="flex items-center space-x-4">
+          <Icon className="w-6 h-6 text-[#1e4a8a] flex-shrink-0" />
+
+          {!hasEdit ? (
+            <button
+              onMouseEnter={(e) => e.currentTarget.classList.add("hover-active")}
+              onMouseLeave={(e) => e.currentTarget.classList.remove("hover-active")}
+              onClick={() => router.push(href)}
+              className="text-left"
+            >
+              <h2 
+                className="text-lg font-semibold text-[#1e4a8a] hover:underline">
+                {title}
+              </h2>
+              <p className="text-sm text-gray-600">{subtitle}</p>
+            </button>
+          ) : (
+            <div 
+              onMouseEnter={(e) => e.currentTarget.classList.add("hover-active")}
+              onMouseLeave={(e) => e.currentTarget.classList.remove("hover-active")}>
+              <h2
+              className="text-lg font-semibold text-[#1e4a8a]">{title}</h2>
+              <p className="text-sm text-gray-600">{subtitle}</p>
+            </div>
+          )}
         </div>
+
+        {hasEdit && (
+          <button
+            onClick={() => router.push(href)}
+            className="text-[#1e4a8a] hover:text-[#1e3a6a] p-1"
+          >
+            <SquarePen className="w-5 h-5" />
+          </button>
+        )}
       </div>
-      {hasEdit && (
-        <button className="text-[#1e4a8a] hover:text-[#1e3a6a] p-1">
-          <SquarePen className="w-5 h-5" />
-        </button>
-      )}
-    </div>
-  );
+    );
+  };
 
   return (
     /*logo*/
@@ -71,7 +100,7 @@ export default function ProfilePage() {
         </div>
       </header>
 
-        {/* X button */}
+      {/* X button */}
       <button
         onClick={() => (window.location.href = "/dashboard")}
         className="absolute top-6 right-6 p-2 rounded-full text-[#1e4a8a] hover:bg-gray-500/10 transition-colors cursor-pointer"
@@ -105,27 +134,28 @@ export default function ProfilePage() {
             <ProfileLink
               icon={UserCog}
               title="Personal Information"
-              subtitle="Address & Contact and Personal Information" />
+              subtitle="Address & Contact and Personal Information"
+              href="/personalinformationpage" />
             <ProfileLink
               icon={Search}
               title="Password"
               subtitle="Account Password"
-              hasEdit={true}/>
+              hasEdit={true} />
             <ProfileLink
               icon={Briefcase}
               title="Role"
               subtitle={user ? user.role : "Student"}
-              hasEdit={true}/>
+              hasEdit={true} />
           </div>
 
-        {/*logout btn*/}
+          {/*logout btn*/}
           <div className="flex justify-center pt-12">
             <button
               onClick={handleLogout}
               className="bg-[#1e4a8a] hover:bg-[#1e3a6a] text-white font-semibold px-8 py-3 rounded-lg shadow-lg flex items-center space-x-2 transition-colors">
               <span>LOGOUT</span>
               <LogOut className="w-5 h-5" />
-           </button>
+            </button>
           </div>
         </div>
 
