@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { pool, createUserDatabase } from '@/lib/db';
+import { pool, createUserDatabase, getDatabaseSchema } from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
 
 // Get all projects for authenticated user
@@ -15,13 +15,35 @@ export async function GET() {
         }
 
         const result = await pool.query(`
-            SELECT id, project_name, database_name, description, is_active, created_at, updated_at
+            SELECT id, project_name, database_name, description, is_active, created_at, updated_at, connection_string
             FROM user_projects 
             WHERE user_id = $1 AND is_active = true
             ORDER BY created_at DESC
         `, [authResult.user.id]);
 
-        return NextResponse.json({ projects: result.rows });
+        // Fetch table counts for each project
+        const projectsWithTableCounts = await Promise.all(
+            result.rows.map(async (project) => {
+                try {
+                    const schemaInfo = await getDatabaseSchema(project.connection_string);
+                    const tableCount = schemaInfo.length;
+                    return {
+                        ...project,
+                        table_count: tableCount,
+                        connection_string: undefined // Remove connection_string from response for security
+                    };
+                } catch (error) {
+                    console.error(`Error fetching schema for project ${project.id}:`, error);
+                    return {
+                        ...project,
+                        table_count: 0,
+                        connection_string: undefined
+                    };
+                }
+            })
+        );
+
+        return NextResponse.json({ projects: projectsWithTableCounts });
 
     } catch (error) {
         console.error('Get projects error:', error);
