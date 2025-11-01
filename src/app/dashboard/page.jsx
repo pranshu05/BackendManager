@@ -12,13 +12,7 @@ import {
 export default function DashboardPage() {
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [projects, setProjects] = useState([]);
-    const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const fetchProjectsData = async () => {
-            try {
-                const res = await fetch("/api/projects", { cache: "no-store" });
     useEffect(() => {
         const fetchProjectsData = async () => {
             try {
@@ -29,21 +23,7 @@ export default function DashboardPage() {
                     setProjects([]);
                     return;
                 }
-                if (!res.ok) {
-                    console.error("Failed to fetch projects", res.status);
-                    setProjects([]);
-                    return;
-                }
 
-                const data = await res.json();
-                setProjects(data.projects || []);
-            } catch (err) {
-                console.error("Error fetching projects:", err);
-                setProjects([]);
-            } finally {
-                setLoading(false);
-            }
-        };
                 const data = await res.json();
                 setProjects(data.projects || []);
             } catch (err) {
@@ -67,7 +47,6 @@ export default function DashboardPage() {
         }
     };
 
-    console.log("Projects data:", projects);
     console.log("Projects data:", projects);
 
     return (
