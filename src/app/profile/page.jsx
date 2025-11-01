@@ -39,7 +39,6 @@ export default function ProfilePage() {
     }
   };
 
-// Example ProfileLink component update inside profile/page.jsx (if needed)
 function ProfileLink({ icon: Icon, title, subtitle, hasEdit = false, onEdit }) {
   return (
     <div className="flex items-center justify-between bg-white/0 p-2">
@@ -58,8 +57,7 @@ function ProfileLink({ icon: Icon, title, subtitle, hasEdit = false, onEdit }) {
             if (typeof onEdit === "function") onEdit();
           }}
           className="text-[#1e4a8a] hover:text-[#16386f] cursor-pointer p-2 rounded"
-          aria-label={`Edit ${title}`}
-        >
+          aria-label={`Edit ${title}`}>
           <SquarePen className="w-5 h-5" />
         </button>
       )}
