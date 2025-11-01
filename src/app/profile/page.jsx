@@ -4,12 +4,14 @@ import { useState, useEffect } from "react";
 import {
   Database,
   LogOut,
-  UserCog, 
-  Search, 
-  Briefcase, 
+  UserCog,
+  Search,
+  Briefcase,
   SquarePen,
   X,
 } from "lucide-react";
+
+import { useRouter } from "next/navigation";
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
@@ -39,33 +41,48 @@ export default function ProfilePage() {
     }
   };
 
-// Example ProfileLink component update inside profile/page.jsx (if needed)
-function ProfileLink({ icon: Icon, title, subtitle, hasEdit = false, onEdit }) {
-  return (
-    <div className="flex items-center justify-between bg-white/0 p-2">
-      <div className="flex items-start space-x-4">
-        <Icon className="w-6 h-6 text-[#1e4a8a] mt-1 flex-shrink-0" />
-        <div>
-          <h3 className="text-lg font-semibold text-[#1e4a8a]">{title}</h3>
-          <p className="text-sm text-gray-600">{subtitle}</p>
-        </div>
-      </div>
+  const ProfileLink = ({ icon: Icon, title, subtitle, href, hasEdit = false }) => {
 
-      {hasEdit && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            if (typeof onEdit === "function") onEdit();
-          }}
-          className="text-[#1e4a8a] hover:text-[#16386f] cursor-pointer p-2 rounded"
-          aria-label={`Edit ${title}`}
-        >
-          <SquarePen className="w-5 h-5" />
-        </button>
-      )}
-    </div>
-  );
-}
+    return (
+      <div className="flex items-center justify-between w-full rounded-lg p-3 hover:bg-gray-100 transition">
+        <div className="flex items-center space-x-4">
+          <Icon className="w-6 h-6 text-[#1e4a8a] flex-shrink-0" />
+
+          {!hasEdit ? (
+            <button
+              onMouseEnter={(e) => e.currentTarget.classList.add("hover-active")}
+              onMouseLeave={(e) => e.currentTarget.classList.remove("hover-active")}
+              onClick={() => (window.location.href = href)}
+              className="cursor-pointer text-left"
+            >
+              <h2 
+                className="text-lg font-semibold text-[#1e4a8a] hover:underline">
+                {title}
+              </h2>
+              <p className="text-sm text-gray-600">{subtitle}</p>
+            </button>
+          ) : (
+            <div 
+              onMouseEnter={(e) => e.currentTarget.classList.add("hover-active")}
+              onMouseLeave={(e) => e.currentTarget.classList.remove("hover-active")}>
+              <h2
+              className="text-lg font-semibold text-[#1e4a8a]">{title}</h2>
+              <p className="text-sm text-gray-600">{subtitle}</p>
+            </div>
+          )}
+        </div>
+
+        {hasEdit && (
+          <button
+            onClick={() => (window.location.href = href)}
+            className="cursor-pointer text-[#1e4a8a] hover:text-[#1e3a6a] p-1"
+          >
+            <SquarePen className="w-5 h-5" />
+          </button>
+        )}
+      </div>
+    );
+  };
 
   return (
     /*logo*/
@@ -82,7 +99,7 @@ function ProfileLink({ icon: Icon, title, subtitle, hasEdit = false, onEdit }) {
         </div>
       </header>
 
-        {/* X button */}
+      {/* X button */}
       <button
         onClick={() => (window.location.href = "/dashboard")}
         className="absolute top-6 right-6 p-2 rounded-full text-[#1e4a8a] hover:bg-gray-500/10 transition-colors cursor-pointer"
@@ -116,28 +133,30 @@ function ProfileLink({ icon: Icon, title, subtitle, hasEdit = false, onEdit }) {
             <ProfileLink
               icon={UserCog}
               title="Personal Information"
-              subtitle="Address & Contact and Personal Information" />
-              <ProfileLink
-                icon={Search}
-                title="Password"
-                subtitle="Account Password"
-                hasEdit={true}
-                onEdit={() => (window.location.href = "/change-password")}/>
+              subtitle="Address & Contact and Personal Information"
+              href="/personalinformationpage" />
+            <ProfileLink
+              icon={Search}
+              title="Password"
+              subtitle="Account Password"
+              hasEdit={true}
+              href = "/change-password" />
             <ProfileLink
               icon={Briefcase}
               title="Role"
               subtitle={user ? user.role : "Student"}
-              hasEdit={true}/>
+              hasEdit={true}
+              href = "change-password" />
           </div>
 
-        {/*logout btn*/}
+          {/*logout btn*/}
           <div className="flex justify-center pt-12">
             <button
               onClick={handleLogout}
               className="bg-[#1e4a8a] hover:bg-[#1e3a6a] text-white font-semibold px-8 py-3 rounded-lg shadow-lg flex items-center space-x-2 transition-colors">
               <span>LOGOUT</span>
               <LogOut className="w-5 h-5" />
-           </button>
+            </button>
           </div>
         </div>
 
