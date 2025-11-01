@@ -89,6 +89,10 @@ export function ProjectCard({ project }) {
                         size="sm"
                         className="flex-1"
                         disabled={project.database.status !== 'connected'}
+                          onClick={() => {
+                            // Open database action
+                            window.location.href = `/dashboard/projects/${project.id}`;
+                        }}
                     >
                         <ExternalLink className="w-4 h-4 mr-1" />
                         Open

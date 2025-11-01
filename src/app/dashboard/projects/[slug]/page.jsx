@@ -5,12 +5,14 @@ import Header from "@/components/ui/header";
 import Sidebar from "../../../../components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import Dropdown from "@/components/ui/dropdown";
-import { ArrowLeft, Database, Funnel, PencilLine, Trash, Download, Sparkles } from "lucide-react";
+import { ArrowLeft, Database, Funnel,Trash, Download, Sparkles } from "lucide-react";
+import { set } from "zod";
 
 export default function DashboardPage() {
   const params = useParams();
   const projectid = params.slug;
-  const [projectdetail,] = useState({ name: "Employee Management System", description: "Database to manage employee records", tables: '5' });
+  const [projects, setProjects] = useState([]);
+  const [projectdetail,setprojectdetail] = useState({});
   const [page, setpage] = useState("table");
   const [selectedTable, setSelectedTable] = useState(null);
   const [tableData, setTableData] = useState(null);
@@ -18,28 +20,240 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(false);
   const [limit, ] = useState(5);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [editingCell, setEditingCell] = useState(null); 
+  const [editedvalue, seteditedvalue] = useState("");
+  const [deletebtn,setdeletebtn]=useState(false);
+  const [deleteRows,setdeleteRows]=useState([]);
+  //DElete rows is an array of objects, where each object contains primary key cols and
+  //their values for rows to be deleted
+
+
+
+
+    useEffect(() => {
+        const fetchProjectsData = async () => {
+            try {
+                const res = await fetch("/api/projects", { cache: "no-store" });
+
+                if (!res.ok) {
+                    console.error("Failed to fetch projects", res.status);
+                    setProjects([]);
+                    return;
+                }
+
+                const data = await res.json();
+                setProjects(data.projects || []);
+                console.log("Fetched something: ",data);
+            } catch (err) {
+                console.error("Error fetching projects:", err);
+                setProjects([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchProjectsData();
+       
+      },[]);
+
+useEffect(()=>{
+ if(projects.length>0){
+          const proj=projects.find(p=>String(p.id)===String(projectid));
+          if(proj){
+            setprojectdetail(proj);
+          }
+        }
+},[projects])
+
+  // Clear selected rows when table changes
   useEffect(() => {
+    setdeleteRows([]);
+  }, [selectedTable]);
+
+
+  const handleCellClick = (rowIndex, colName, value) => {
+  setEditingCell({ rowIndex, colName, value });
+  seteditedvalue(String(value ?? ""));
+  };
+
+
+
+const handledelete=async(e)=>{
+    if(deleteRows.length==0){
+      alert("No rows selected for deletion");
+      return;
+    }
+    console.log("Deleting rows: ",deleteRows);
+    //Confirm deletion
+    const proceed=window.confirm(`Are you sure you want to delete ${deleteRows.length} rows? This action cannot be undone.`);
+    if(!proceed){
+      setdeleteRows([]);
+      return;
+    }
+    try{
+      const pkcolarray=[];
+      //Get primary key columns from table metadata
+      tableData.columns.forEach(col=>{
+        if(col.constraint==="PRIMARY KEY"){
+          pkcolarray.push(col.name);
+        }
+      });
+    
+      //pkvaluesarray will be array of objects, wwhere each obj has pk cols and value for record 
+      //to be deleted
+      const pkValuesArray=deleteRows.map(rowObj=>{
+        const pkVals={};
+        pkcolarray.forEach(colName=>{
+          pkVals[colName]=rowObj[colName];
+        });
+        return pkVals;
+      });
+
+      const payload={
+        projectId:projectid,
+        table:selectedTable || tableData.table,
+        pkcols:pkcolarray,
+        pkvalues:pkValuesArray
+      };
+
+      const res=await fetch('/api/projects/delete',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(payload)
+      });
+      const result=await res.json();
+      if(!res.ok){
+        alert(result?.error || 'Failed to delete rows');
+        return;
+      }
+      //On successful deletion, refetch table data
+      alert(`Successfully deleted ${deleteRows.length} rows.`);
+      setdeleteRows([]);
+      setTableData(prev=>{
+        if(!prev) return prev;
+        const filteredRows=prev.rows.filter((row,i)=>{
+          //Check if this row was deleted
+          return !deleteRows.some(dr=>{
+            return pkcolarray.every(colName=>{
+              return row[colName]===dr[colName];
+            });
+          });
+        });
+        return {...prev, rows:filteredRows};
+      });
+   
+    }catch(err){
+      alert('Error deleting rows',err);
+    }finally{
+      return;
+    }
+  }
+
+
+
+  const handleCellKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+     
+      if (!editingCell || editedvalue === editingCell.value) {
+        setEditingCell(null);
+        return;
+      }
+
+      const proceed = window.confirm(
+        `Are you sure you want to update this value?\nFrom: ${editingCell.value}\nTo: ${editedvalue}`
+      );
+
+      if (!proceed) {
+        setEditingCell(null);
+        return;
+      }
+
+      // Prevent sending empty or whitespace-only values
+      if (String(editedvalue).trim() === "") {
+        alert('Value cannot be empty');
+        return;
+      }
+      //Here, we call API for updating in the database neon
+      (async () => {
+      
+        try {
+          // determine primary key column from metadata
+          const pkCol = tableData?.columns?.find(c => c.constraint === 'PRIMARY KEY')?.name || tableData?.columns?.[0]?.name;
+          const row = tableData.rows[editingCell.rowIndex];
+          const payload = {
+            projectId: projectid,
+            table: selectedTable || tableData.table,
+            pkColumn: pkCol,
+            pkValue: row[pkCol],
+            column: editingCell.colName,
+            newValue: String(editedvalue).trim(),
+            oldValue: editingCell.value
+          };
+
+          const res = await fetch('/api/projects/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+          const result = await res.json();
+          if (!res.ok) {
+            // show error to user
+            alert(result?.error || 'Failed to update value');
+          } else {
+           
+            //Updating local table data
+            const updatedRow = result.row;
+            setTableData(prev => {
+              if (!prev) return prev;
+              const rows = prev.rows.map((r, idx) => {
+                if (idx !== editingCell.rowIndex) return r;
+             
+                return updatedRow;
+              });
+              return { ...prev, rows };
+            });
+          }
+        } catch (err) {
+          alert('Error updating value',err);
+        } finally {
+         
+          setEditingCell(null);
+        }
+      })();
+    } 
+    else if (e.key === "Escape") {
+      setEditingCell(null);
+    }
+  };
+  useEffect(() => {
+     if (!projectid) return;
     const fetchTables = async () => {
       try {
-        const res = await fetch(`/api/projects/${projectid}/tables`);
+       const res = await fetch(`/api/projects/${projectid}/tables`, {
+       credentials: "include",
+});
+
         const data = await res.json();
         if (!res.ok) {
           console.error("Failed to fetch tables:", data.error);
           return;
         }
-        console.log("Fetched tables:", data.tables);
+      
         const names = data.tables.map((t) => t.name);
         settablelist(names);
 
         if (names.length > 0) {
           setSelectedTable(names[0]);
           fetchtabledata(names[0]);
+       
         }
       } catch (err) {
         console.error("Error fetching tables:", err);
       }
     };
-
+   
     if (projectid) fetchTables();
   }, [projectid]);
 
@@ -47,7 +261,10 @@ export default function DashboardPage() {
   const fetchtabledata = async (tablename, recordLimit = limit) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/projects/${projectid}/tables?table=${tablename}&limit=${recordLimit}`)
+      const res = await fetch(`/api/projects/${projectid}/tables?table=${tablename}&limit=${recordLimit}`, {
+  credentials: "include",
+});
+
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to fetch table data");
       setTableData(data);
@@ -57,10 +274,6 @@ export default function DashboardPage() {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    console.log("Table data fetched is: ", tableData);
-  }, [tableData])
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-background via-accent/20 to-secondary/30">
@@ -79,9 +292,9 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="details flex flex-col justify-center">
-            <span className=" text-xs  md:text-xl">{projectdetail.name}</span>
+            <span className=" text-xs  md:text-xl">{projectdetail.project_name}</span>
             <span className="text-gray-600  text-xs  md:text-sm">{projectdetail.description}</span>
-            <span className="text-xs text-gray-600"> 📊 {projectdetail.tables} Tables</span>
+            <span className="text-xs text-gray-600"> 📊  Tables</span>
           </div>
 
         </div>
@@ -98,6 +311,7 @@ export default function DashboardPage() {
               onSelect={(t) => {
                 setSelectedTable(t)
                 fetchtabledata(t);
+                setIsExpanded(false)
               }
               }
             />
@@ -111,8 +325,13 @@ export default function DashboardPage() {
           <div className="mockbutton  h-28 gap-2 bg-white items-center flex-col  max-[510]:h-65   min-[820]:flex-row min-[820]:h-19 flex p-4 justify-between">
             <div className="frontbtn flex flex-row gap-2 max-[510]:flex-col max-[510]:w-full max-[510]:gap-3">
               <Button className=" max-[510]:w-full hover:cursor-pointer">+ Insert Row</Button>
-              <Button className="text-black bg-sidebar border-1 hover:bg-gray-300 hover:cursor-pointer"><PencilLine /> Update</Button>
-              <Button className="text-black bg-sidebar border-1 hover:bg-gray-300 hover:cursor-pointer"><Trash /> Delete</Button>
+             
+              <Button className="text-black bg-sidebar border-1 hover:bg-gray-300 hover:cursor-pointer" onClick={async ()=>{
+                if(deletebtn){
+                  await handledelete();
+                }
+                setdeletebtn(!deletebtn);
+              }}><Trash />{!deletebtn ? "Delete" : `Selected: ${deleteRows.length}`}</Button>
             </div>
             <div className="endbtn flex gap-4 max-[510]:gap-2 max-[510]:flex-col max-[510]:w-full">
               <Button className="text-black bg-sidebar border-1 hover:bg-gray-300 hover:cursor-pointer"><Sparkles />Generate Mock Data</Button>
@@ -127,6 +346,9 @@ export default function DashboardPage() {
                 <table className="min-w-max w-full table-auto">
                   <thead className="tb_head">
                     <tr>
+                      {
+                      deletebtn?<th className="px-4 py-2 border-b text-center whitespace-nowrap"> </th>:null
+                      }
                       {tableData.columns.map((col) => (
                         <th key={col.name} className="px-4 py-2 border-b whitespace-nowrap">
                           {col.name}
@@ -139,9 +361,68 @@ export default function DashboardPage() {
                       (
                         tableData.rows.map((row, i) => (
                           <tr key={i} className="border-b">
-                            {tableData.columns.map((col) => (
-                              <td key={col.name} className="px-4 py-2 text-center whitespace-nowrap">
-                                {String(row[col.name] ?? "")}
+                            {
+                            deletebtn?deletebtn?<td className="px-4 py-2 text-center whitespace-nowrap hover:bg-sidebar hover:border-1 cursor-pointer">
+                            <input 
+                              type="checkbox" 
+
+                              //here, in check we actually keep those rows checked
+                              //whose PK(s) are there in deleteRows
+                              checked={deleteRows.some(dr => 
+                                // Get all PK columns
+                                tableData.columns
+                                  .filter(c => c.constraint === 'PRIMARY KEY')
+                                  .every(pkCol => row[pkCol.name] === dr[pkCol.name])
+                              )}
+                              onChange={(e) => {
+
+                                // Get all PK columns
+                                const pkCols = tableData.columns.filter(c => c.constraint === 'PRIMARY KEY');
+                                const columnsToUse = pkCols;
+                                
+                                // pkValues object stores PKs for rows to be deleted
+                                const pkValues = {};
+                                columnsToUse.forEach(col => {
+                                  pkValues[col.name] = row[col.name];
+                                });
+
+                                if (e.target.checked) {
+                                  setdeleteRows(prev => [...prev, pkValues]);
+                                } else {
+                                  setdeleteRows(prev => prev.filter(val => 
+                                    !columnsToUse.every(col => val[col.name] === row[col.name])
+                                  ));
+                                }
+                              }}
+                            />
+                            </td>:null:null
+                            }
+                             {
+                            tableData.columns.map((col) => (
+                              <td
+                                key={col.name}
+                                className={`px-4 py-2 text-center whitespace-nowrap hover:bg-sidebar hover:border-1 cursor-pointer ${
+                                  editingCell?.rowIndex === i && editingCell?.colName === col.name
+                                    ? "hover:bg-sidebar ring-2 ring-blue-500 ring-opacity-50"
+                                    : ""
+                                }`}
+                                onClick={() =>{ 
+                              
+                               handleCellClick(i, col.name, row[col.name])}
+                                }
+                              >
+                                {editingCell?.rowIndex === i && editingCell?.colName === col.name ? (
+                                  <input
+                                    type="text"
+                                    className="w-full px-2 py-1 text-center focus:outline-none"
+                                    value={editedvalue}
+                                    onChange={(e) => seteditedvalue(e.target.value)}
+                                    onKeyDown={handleCellKeyDown}
+                                    autoFocus
+                                  />
+                                ) : (
+                                  String(row[col.name] ?? "")
+                                )}
                               </td>
                             ))}
                           </tr>
@@ -181,7 +462,23 @@ export default function DashboardPage() {
             }
 
           </div>
-        </div> : <></>}
+        </div> : <>
+        {/* Other pages here */}
+
+        {
+          page=="query"?<div>
+            Query Page
+
+
+          </div>:
+          page=="optimization"?<div>
+            Optimization page
+          </div>:
+          page=="history"?<div>
+         History Page
+          </div>:<></>
+        }
+        </>}   
       </div>
     </div>
   );

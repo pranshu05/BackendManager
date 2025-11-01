@@ -30,7 +30,13 @@ const header = () => {
                         </div>
                     </div>
                     <div className="side flex items-center">
-                        <CircleUserRound  className='hover:cursor-pointer' />
+                <Button
+                variant="outline"
+                size="sm"
+                onClick={() => (window.location.href = "/profile")}
+                className="cursor-pointer">
+                      <CircleUserRound  className='hover:cursor-pointer' />
+                </Button>
                     <Button variant="outline" size="sm" asChild>
                         <a onClick={handleLogout} className='hover:cursor-pointer'>
                             <LogOut className="w-4 h-4" />
