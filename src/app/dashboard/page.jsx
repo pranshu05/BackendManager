@@ -1,15 +1,24 @@
 "use client";
-
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ProjectCard } from "@/components/(dashboard)/ProjectCard";
-import { Database, LogOut, CheckCircle, Table, User } from "lucide-react";
+import {
+    Database,
+    CheckCircle,
+    Table,
+} from "lucide-react";
 
 export default function DashboardPage() {
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [projects, setProjects] = useState([]);
+    const [loading, setLoading] = useState(true);
 
+    useEffect(() => {
+        const fetchProjectsData = async () => {
+            try {
+                const res = await fetch("/api/projects", { cache: "no-store" });
     useEffect(() => {
         const fetchProjectsData = async () => {
             try {
@@ -20,7 +29,21 @@ export default function DashboardPage() {
                     setProjects([]);
                     return;
                 }
+                if (!res.ok) {
+                    console.error("Failed to fetch projects", res.status);
+                    setProjects([]);
+                    return;
+                }
 
+                const data = await res.json();
+                setProjects(data.projects || []);
+            } catch (err) {
+                console.error("Error fetching projects:", err);
+                setProjects([]);
+            } finally {
+                setLoading(false);
+            }
+        };
                 const data = await res.json();
                 setProjects(data.projects || []);
             } catch (err) {
@@ -44,6 +67,7 @@ export default function DashboardPage() {
         }
     };
 
+    console.log("Projects data:", projects);
     console.log("Projects data:", projects);
 
     return (
