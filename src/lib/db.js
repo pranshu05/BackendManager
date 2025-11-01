@@ -9,6 +9,14 @@ const pool = new Pool({
     connectionTimeoutMillis: 2000,
 });
 
+// Cache user database connection pools to avoid recreating them
+const userPoolCache = new Map();
+const POOL_TTL = 30 * 60 * 1000; // 30 minutes
+
+// Cache database schemas to reduce repeated queries
+const schemaCache = new Map();
+const SCHEMA_TTL = 5 * 60 * 1000; // 5 minutes
+
 // Function to create a new user database in Neon
 export async function createUserDatabase(userId, projectName) {
     const dbName = `${userId.replace(/-/g, '_')}_${projectName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
@@ -60,6 +68,9 @@ export async function createUserDatabase(userId, projectName) {
 // Function to delete a user database in Neon
 export async function deleteUserDatabase(dbName) {
     try {
+        // Clear cached pool and schema for this database
+        clearDatabaseCache(dbName);
+
         const response = await fetch(
             `https://console.neon.tech/api/v2/projects/${process.env.NEON_PROJECT_ID}/branches/${process.env.NEON_BRANCH_ID}/databases/${dbName}`,
             {
@@ -87,15 +98,63 @@ export async function deleteUserDatabase(dbName) {
     }
 }
 
-// Function to get connection to a specific user database
+// Get cached or create new user database connection pool
 export async function getUserDatabaseConnection(connectionString) {
-    return new Pool({
+    // Check if we have a cached pool
+    const cached = userPoolCache.get(connectionString);
+    
+    if (cached && Date.now() - cached.timestamp < POOL_TTL) {
+        return cached.pool;
+    }
+
+    // Create new pool
+    const newPool = new Pool({
         connectionString,
         ssl: { rejectUnauthorized: false },
         max: 5,
         idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 4000, // Increased timeout
+        connectionTimeoutMillis: 4000,
     });
+
+    // Cache it
+    userPoolCache.set(connectionString, {
+        pool: newPool,
+        timestamp: Date.now()
+    });
+
+    // Clean up old pools periodically
+    cleanupOldPools();
+
+    return newPool;
+}
+
+// Clear cache for a specific database
+function clearDatabaseCache(dbName) {
+    // Remove from pool cache
+    for (const [connString, data] of userPoolCache.entries()) {
+        if (connString.includes(dbName)) {
+            data.pool.end().catch(console.error);
+            userPoolCache.delete(connString);
+        }
+    }
+
+    // Remove from schema cache
+    for (const [key] of schemaCache.entries()) {
+        if (key.includes(dbName)) {
+            schemaCache.delete(key);
+        }
+    }
+}
+
+// Cleanup old pools from cache
+function cleanupOldPools() {
+    const now = Date.now();
+    for (const [connString, data] of userPoolCache.entries()) {
+        if (now - data.timestamp > POOL_TTL) {
+            data.pool.end().catch(console.error);
+            userPoolCache.delete(connString);
+        }
+    }
 }
 
 // Function to wait for database to be ready
@@ -148,6 +207,7 @@ export async function executeQuery(connectionString, query, params = []) {
         throw new Error('Invalid query: SELECT query appears to be incomplete');
     }
 
+    // Use cached pool (don't end it after query)
     const userPool = await getUserDatabaseConnection(connectionString);
 
     try {
@@ -162,13 +222,22 @@ export async function executeQuery(connectionString, query, params = []) {
         }
         
         throw error;
-    } finally {
-        await userPool.end();
     }
+    // NOTE: No longer ending pool here - it's cached and reused
 }
 
-// Function to get database schema information
-export async function getDatabaseSchema(connectionString) {
+// Get database schema with caching
+export async function getDatabaseSchema(connectionString, forceRefresh = false) {
+    const cacheKey = connectionString;
+    
+    // Check cache first
+    if (!forceRefresh) {
+        const cached = schemaCache.get(cacheKey);
+        if (cached && Date.now() - cached.timestamp < SCHEMA_TTL) {
+            return cached.data;
+        }
+    }
+
     const query = `
         SELECT 
             t.table_name,
@@ -210,11 +279,32 @@ export async function getDatabaseSchema(connectionString) {
             }
         });
 
-        return Object.values(tables);
+        const schemaData = Object.values(tables);
+
+        // Cache the result
+        schemaCache.set(cacheKey, {
+            data: schemaData,
+            timestamp: Date.now()
+        });
+
+        return schemaData;
     } catch (error) {
         console.error('Error fetching schema:', error);
         throw error;
     }
+}
+
+// Invalidate schema cache for a connection
+export function invalidateSchemaCache(connectionString) {
+    schemaCache.delete(connectionString);
+}
+
+// Get cache statistics for monitoring
+export function getCacheStats() {
+    return {
+        poolCacheSize: userPoolCache.size,
+        schemaCacheSize: schemaCache.size
+    };
 }
 
 export { pool };

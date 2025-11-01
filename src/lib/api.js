@@ -30,8 +30,6 @@ export async function checkemail({ email }) {
     return res.json();
 }
 
-
-
 export async function otpcheck({email,otp})
 {
     const res = await fetch("/api/auth/otpcheck", {
@@ -47,7 +45,6 @@ export async function otpcheck({email,otp})
     return res.json();
 }
 
-
 export async function resetPassword({ email, newpwd }) {
     const res = await fetch("/api/auth/updatepwd", {
         method: "POST",
@@ -62,8 +59,6 @@ export async function resetPassword({ email, newpwd }) {
 
     return res.json();
 }
-
-
 
 export async function registerUser({ name, email, password }) {
     const res = await fetch("/api/auth/register", {
@@ -83,24 +78,4 @@ export async function registerUser({ name, email, password }) {
     }
 
     return res.json();
-}
-
-
-
-export async function fetchProjects(session) {
-    const baseUrl = typeof window !== 'undefined' ? window.location.origin : process.env.NEXTAUTH_URL || 'http://localhost:3000';
-    const res = await fetch(`${baseUrl}/api/projects`, {
-        headers: {
-            Cookie: `dbuddy-session=${session}`,
-        },
-        cache: "no-store", // always fresh
-    });
-
-    if (!res.ok) {
-        console.error("Failed to fetch projects", res.status, await res.text());
-        return [];
-    }
-
-    const data = await res.json();
-    return data.projects || [];
 }

@@ -10,6 +10,32 @@ const groq = createGroq({
 const DEFAULT_MODEL = 'llama-3.3-70b-versatile';
 
 /**
+ * Clean markdown code blocks from AI responses
+ * Used throughout this file to parse JSON responses
+ */
+function cleanMarkdownCodeBlocks(text) {
+    let cleaned = text.trim();
+    if (cleaned.startsWith('```json')) {
+        cleaned = cleaned.replace(/```json\n?/, '').replace(/\n?```$/, '');
+    } else if (cleaned.startsWith('```')) {
+        cleaned = cleaned.replace(/```\n?/, '').replace(/\n?```$/, '');
+    }
+    return cleaned.trim();
+}
+
+/**
+ * Parse JSON response from AI with error handling
+ */
+function parseAIResponse(text) {
+    try {
+        const cleaned = cleanMarkdownCodeBlocks(text);
+        return JSON.parse(cleaned);
+    } catch (error) {
+        throw new Error(`Failed to parse AI response: ${error.message}`);
+    }
+}
+
+/**
  * Analyze natural language input and infer database schema for a new project
  * @param {string} naturalLanguageInput - User's project description
  * @returns {Promise<{projectName: string, description: string, tables: Array}>}
@@ -60,17 +86,8 @@ Important:
             maxTokens: 2000,
         });
 
-        // Extract JSON from response (handle potential markdown code blocks)
-        let jsonText = text.trim();
-
-        // Remove markdown code blocks if present
-        if (jsonText.startsWith('```json')) {
-            jsonText = jsonText.replace(/```json\n?/, '').replace(/\n?```$/, '');
-        } else if (jsonText.startsWith('```')) {
-            jsonText = jsonText.replace(/```\n?/, '').replace(/\n?```$/, '');
-        }
-
-        const schema = JSON.parse(jsonText);
+        // Use helper function instead of duplicate code
+        const schema = parseAIResponse(text);
 
         // Validate schema structure
         if (!schema.projectName || !schema.tables || !Array.isArray(schema.tables)) {
@@ -113,7 +130,7 @@ export function generateCreateTableStatements(tables) {
  * Analyze natural language request to create a table in existing database
  * @param {string} naturalLanguageInput - User's table creation request
  * @param {Array} existingSchema - Current database schema
- * @returns {Promise<{action: string, proposed_sql: string, explanation: string, requires_confirmation: boolean}>}
+ * @returns {Promise<{action: string, proposed_sql: string, explaination: string, requires_confirmation: boolean}>}
  */
 export async function analyzeCreateTableRequest(naturalLanguageInput, existingSchema) {
     const schemaContext = existingSchema.length > 0
@@ -138,7 +155,7 @@ Return ONLY valid JSON in this exact format (no markdown, no extra text):
 {
   "action": "create_table",
   "proposed_sql": "CREATE TABLE table_name (...);",
-  "explanation": "Brief explanation of the table design and why these columns were chosen",
+  "explaination": "Brief explaination of the table design and why these columns were chosen",
   "requires_confirmation": true
 }`;
 
@@ -150,16 +167,8 @@ Return ONLY valid JSON in this exact format (no markdown, no extra text):
             maxTokens: 1500,
         });
 
-        let jsonText = text.trim();
-
-        // Remove markdown code blocks if present
-        if (jsonText.startsWith('```json')) {
-            jsonText = jsonText.replace(/```json\n?/, '').replace(/\n?```$/, '');
-        } else if (jsonText.startsWith('```')) {
-            jsonText = jsonText.replace(/```\n?/, '').replace(/\n?```$/, '');
-        }
-
-        const result = JSON.parse(jsonText);
+        // Use helper function
+        const result = parseAIResponse(text);
 
         // Ensure requires_confirmation is always true
         result.requires_confirmation = true;
@@ -176,7 +185,7 @@ Return ONLY valid JSON in this exact format (no markdown, no extra text):
  * @param {string} naturalLanguageInput - User's column addition request
  * @param {Array} existingSchema - Current database schema
  * @param {string} tableName - Target table name (if specified)
- * @returns {Promise<{action: string, proposed_sql: string, explanation: string, requires_confirmation: boolean}>}
+ * @returns {Promise<{action: string, proposed_sql: string, explaination: string, requires_confirmation: boolean}>}
  */
 export async function analyzeAddColumnRequest(naturalLanguageInput, existingSchema, tableName = null) {
     const schemaContext = existingSchema.length > 0
@@ -202,7 +211,7 @@ Return ONLY valid JSON in this exact format (no markdown, no extra text):
 {
   "action": "add_column",
   "proposed_sql": "ALTER TABLE table_name ADD COLUMN column_name data_type constraints;",
-  "explanation": "Brief explanation of the column addition and data type choice",
+  "explaination": "Brief explaination of the column addition and data type choice",
   "requires_confirmation": true
 }`;
 
@@ -214,16 +223,8 @@ Return ONLY valid JSON in this exact format (no markdown, no extra text):
             maxTokens: 1500,
         });
 
-        let jsonText = text.trim();
-
-        // Remove markdown code blocks if present
-        if (jsonText.startsWith('```json')) {
-            jsonText = jsonText.replace(/```json\n?/, '').replace(/\n?```$/, '');
-        } else if (jsonText.startsWith('```')) {
-            jsonText = jsonText.replace(/```\n?/, '').replace(/\n?```$/, '');
-        }
-
-        const result = JSON.parse(jsonText);
+        // Use helper function
+        const result = parseAIResponse(text);
 
         // Ensure requires_confirmation is always true
         result.requires_confirmation = true;
@@ -239,7 +240,7 @@ Return ONLY valid JSON in this exact format (no markdown, no extra text):
  * General SQL query generation from natural language
  * @param {string} naturalLanguageInput - User's query request
  * @param {Array} existingSchema - Current database schema
- * @returns {Promise<{action: string, proposed_sql: string, explanation: string, requires_confirmation: boolean}>}
+ * @returns {Promise<{action: string, proposed_sql: string, explaination: string, requires_confirmation: boolean}>}
  */
 export async function generateSQLFromNaturalLanguage(naturalLanguageInput, existingSchema) {
     const schemaContext = existingSchema.length > 0
@@ -258,7 +259,7 @@ Return ONLY valid JSON in this exact format (no markdown, no extra text):
 {
   "action": "create_table" | "add_column" | "insert" | "select" | "update" | "delete" | "other",
   "proposed_sql": "SQL statement here",
-  "explanation": "Brief explanation of what the query does",
+  "explaination": "Brief explaination of what the query does",
   "requires_confirmation": true
 }`;
 
@@ -270,16 +271,8 @@ Return ONLY valid JSON in this exact format (no markdown, no extra text):
             maxTokens: 1500,
         });
 
-        let jsonText = text.trim();
-
-        // Remove markdown code blocks if present
-        if (jsonText.startsWith('```json')) {
-            jsonText = jsonText.replace(/```json\n?/, '').replace(/\n?```$/, '');
-        } else if (jsonText.startsWith('```')) {
-            jsonText = jsonText.replace(/```\n?/, '').replace(/\n?```$/, '');
-        }
-
-        const result = JSON.parse(jsonText);
+        // Use helper function
+        const result = parseAIResponse(text);
 
         // Ensure requires_confirmation is always true
         result.requires_confirmation = true;
@@ -339,7 +332,7 @@ Return ONLY valid JSON in this exact format (no markdown, no extra text):
       "type": "create_table" | "alter_table" | "create_index" | "drop_table" | "drop_column" | "modify_column" | "other",
       "target": "table_name or target entity",
       "sql": "SQL statement",
-      "explanation": "Why this operation is needed",
+      "explaination": "Why this operation is needed",
       "risk_level": "low" | "medium" | "high"
     }
   ],
@@ -365,16 +358,8 @@ Important guidelines:
             maxTokens: 3000,
         });
 
-        let jsonText = text.trim();
-
-        // Remove markdown code blocks if present
-        if (jsonText.startsWith('```json')) {
-            jsonText = jsonText.replace(/```json\n?/, '').replace(/\n?```$/, '');
-        } else if (jsonText.startsWith('```')) {
-            jsonText = jsonText.replace(/```\n?/, '').replace(/\n?```$/, '');
-        }
-
-        const result = JSON.parse(jsonText);
+        // Use helper function
+        const result = parseAIResponse(text);
 
         // Validate structure
         if (!result.operations || !Array.isArray(result.operations)) {
@@ -388,63 +373,5 @@ Important guidelines:
     } catch (error) {
         console.error('Error analyzing project update request:', error);
         throw new Error(`Failed to analyze update request: ${error.message}`);
-    }
-}
-
-/**
- * Generate migration suggestions between current and desired schema
- * @param {string} desiredChanges - Description of desired state
- * @param {Array} existingSchema - Current database schema
- * @returns {Promise<{migrations: Array, rollback_sql: Array}>}
- */
-export async function generateMigrationPlan(desiredChanges, existingSchema) {
-    const schemaContext = existingSchema.length > 0
-        ? existingSchema.map(t => `${t.name}: ${t.columns.map(c => `${c.name} ${c.type}`).join(', ')}`).join('\n')
-        : 'Empty database';
-
-    const prompt = `You are a database migration expert. Generate a safe migration plan.
-
-Current Schema:
-${schemaContext}
-
-Desired Changes: "${desiredChanges}"
-
-Create a step-by-step migration plan with forward and rollback SQL.
-
-Return ONLY valid JSON in this exact format (no markdown):
-{
-  "migrations": [
-    {
-      "step": 1,
-      "description": "What this step does",
-      "forward_sql": "SQL to apply the change",
-      "rollback_sql": "SQL to undo the change",
-      "dependencies": []
-    }
-  ],
-  "summary": "Overview of the migration",
-  "warnings": ["Any potential issues or data loss warnings"]
-}`;
-
-    try {
-        const { text } = await generateText({
-            model: groq(DEFAULT_MODEL),
-            prompt,
-            temperature: 0.3,
-            maxTokens: 2500,
-        });
-
-        let jsonText = text.trim();
-
-        if (jsonText.startsWith('```json')) {
-            jsonText = jsonText.replace(/```json\n?/, '').replace(/\n?```$/, '');
-        } else if (jsonText.startsWith('```')) {
-            jsonText = jsonText.replace(/```\n?/, '').replace(/\n?```$/, '');
-        }
-
-        return JSON.parse(jsonText);
-    } catch (error) {
-        console.error('Error generating migration plan:', error);
-        throw new Error(`Failed to generate migration plan: ${error.message}`);
     }
 }

@@ -1,30 +1,21 @@
 import { NextResponse } from 'next/server';
 import { pool, createUserDatabase, getUserDatabaseConnection, waitForDatabaseReady } from '@/lib/db';
-import { requireAuth } from '@/lib/auth';
+import { withAuth, createTimer, logQueryHistory, detectQueryType } from '@/lib/api-helpers';
+import { withRateLimit } from '@/lib/rate-limitter';
 import { inferDatabaseSchema, generateCreateTableStatements } from '@/lib/ai';
 
-/**
- * POST /api/ai/create-project
- * Create a new project with database from natural language description
- */
-export async function POST(request) {
-    const startTime = Date.now();
-    
-    try {
-        const authResult = await requireAuth();
+// POST /api/ai/create-project Create a new project with database from natural language description
 
-        if (authResult.error) {
-            return NextResponse.json(
-                { error: authResult.error },
-                { status: authResult.status }
-            );
-        }
+export const POST = withRateLimit(
+    withAuth(async (request, _context, user) => {
+        const timer = createTimer();
 
         const { naturalLanguageInput } = await request.json();
 
+        // Validate required fields
         if (!naturalLanguageInput || typeof naturalLanguageInput !== 'string' || naturalLanguageInput.trim() === '') {
             return NextResponse.json(
-                { error: 'Natural language description is required' },
+                { error: 'Natural language description is required and must be a non-empty string' },
                 { status: 400 }
             );
         }
@@ -36,9 +27,9 @@ export async function POST(request) {
         } catch (aiError) {
             console.error('AI schema inference error:', aiError);
             return NextResponse.json(
-                { 
+                {
                     error: 'Failed to infer database schema from description',
-                    details: aiError.message 
+                    details: aiError.message
                 },
                 { status: 400 }
             );
@@ -49,12 +40,12 @@ export async function POST(request) {
         // Validate project name doesn't already exist
         const existingProject = await pool.query(
             'SELECT id FROM user_projects WHERE user_id = $1 AND project_name = $2',
-            [authResult.user.id, projectName]
+            [user.id, projectName]
         );
 
         if (existingProject.rows.length > 0) {
             return NextResponse.json(
-                { 
+                {
                     error: 'Project with this name already exists',
                     suggestion: 'Please modify your description to create a unique project name'
                 },
@@ -65,13 +56,13 @@ export async function POST(request) {
         // Step 2: Create database via Neon API
         let dbDetails;
         try {
-            dbDetails = await createUserDatabase(authResult.user.id, projectName);
+            dbDetails = await createUserDatabase(user.id, projectName);
         } catch (dbError) {
             console.error('Database creation error:', dbError);
             return NextResponse.json(
-                { 
+                {
                     error: 'Failed to create database',
-                    details: dbError.message 
+                    details: dbError.message
                 },
                 { status: 500 }
             );
@@ -83,7 +74,7 @@ export async function POST(request) {
             VALUES ($1, $2, $3, $4, $5)
             RETURNING id, project_name, database_name, description, created_at
         `, [
-            authResult.user.id,
+            user.id,
             projectName,
             dbDetails.databaseName,
             description || naturalLanguageInput,
@@ -98,7 +89,7 @@ export async function POST(request) {
         } catch (waitError) {
             console.error('Database readiness check failed:', waitError);
             return NextResponse.json(
-                { 
+                {
                     error: 'Database was created but is not yet ready',
                     details: waitError.message,
                     project: {
@@ -115,7 +106,7 @@ export async function POST(request) {
         // Step 5: Generate and execute CREATE TABLE statements
         const createTableSQL = generateCreateTableStatements(tables);
         const sqlStatements = createTableSQL.split(';').filter(stmt => stmt.trim() !== '');
-        
+
         const userPool = await getUserDatabaseConnection(dbDetails.connectionString);
         const executionResults = [];
 
@@ -137,21 +128,15 @@ export async function POST(request) {
                         });
 
                         // Log successful query in query_history
-                        await pool.query(`
-                            INSERT INTO query_history (
-                                project_id, user_id, query_text, query_type, 
-                                natural_language_input, execution_time_ms, success
-                            )
-                            VALUES ($1, $2, $3, $4, $5, $6, $7)
-                        `, [
-                            project.id,
-                            authResult.user.id,
-                            trimmedSQL,
-                            'CREATE',
+                        await logQueryHistory({
+                            projectId: project.id,
+                            userId: user.id,
+                            queryText: trimmedSQL,
+                            queryType: detectQueryType(trimmedSQL),
                             naturalLanguageInput,
-                            executionTime,
-                            true
-                        ]);
+                            executionTimeMs: executionTime,
+                            success: true
+                        });
 
                     } catch (queryError) {
                         const executionTime = Date.now() - queryStartTime;
@@ -165,22 +150,16 @@ export async function POST(request) {
                         });
 
                         // Log failed query
-                        await pool.query(`
-                            INSERT INTO query_history (
-                                project_id, user_id, query_text, query_type,
-                                natural_language_input, execution_time_ms, success, error_message
-                            )
-                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-                        `, [
-                            project.id,
-                            authResult.user.id,
-                            trimmedSQL,
-                            'CREATE',
+                        await logQueryHistory({
+                            projectId: project.id,
+                            userId: user.id,
+                            queryText: trimmedSQL,
+                            queryType: detectQueryType(trimmedSQL),
                             naturalLanguageInput,
-                            executionTime,
-                            false,
+                            executionTimeMs: executionTime,
+                            success: false,
                             errorMessage
-                        ]);
+                        });
 
                         // Continue with next statement instead of stopping
                         console.error(`Failed to execute: ${trimmedSQL}`, queryError);
@@ -192,7 +171,7 @@ export async function POST(request) {
             await userPool.end();
         }
 
-        const totalExecutionTime = Date.now() - startTime;
+        const { executionTime: totalExecutionTime } = timer.end();
         const failedQueries = executionResults.filter(r => !r.success);
 
         return NextResponse.json({
@@ -218,15 +197,6 @@ export async function POST(request) {
             totalExecutionTime,
             naturalLanguageInput
         });
-
-    } catch (error) {
-        console.error('Create project with AI error:', error);
-        return NextResponse.json(
-            { 
-                error: 'Internal server error',
-                details: error.message 
-            },
-            { status: 500 }
-        );
-    }
-}
+    }),
+    { isAI: true }
+);

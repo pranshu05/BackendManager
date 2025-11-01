@@ -1,62 +1,26 @@
 import { NextResponse } from 'next/server';
-import { pool, getDatabaseSchema } from '@/lib/db';
-import { requireAuth } from '@/lib/auth';
+import { getDatabaseSchema } from '@/lib/db';
+import { withProjectAuth } from '@/lib/api-helpers';
+import { withRateLimit } from '@/lib/rate-limitter';
 import { analyzeProjectUpdateRequest } from '@/lib/ai';
 
-/**
- * POST /api/ai/update-project
- * Analyze natural language update request for existing project
- * Returns proposed SQL operations with risk assessment
- */
-export async function POST(request) {
-    try {
-        const authResult = await requireAuth();
+// POST /api/ai/update-project Analyze natural language update request for existing project. Returns proposed SQL operations with risk assessment
 
-        if (authResult.error) {
+export const POST = withRateLimit(
+    withProjectAuth(async (request, _context, _user, projectData) => {
+        const { naturalLanguageInput } = await request.json();
+
+        if (typeof naturalLanguageInput !== 'string' || naturalLanguageInput.trim() === '') {
             return NextResponse.json(
-                { error: authResult.error },
-                { status: authResult.status }
-            );
-        }
-
-        const { naturalLanguageInput, projectId } = await request.json();
-
-        // Validate input
-        if (!naturalLanguageInput || typeof naturalLanguageInput !== 'string' || naturalLanguageInput.trim() === '') {
-            return NextResponse.json(
-                { error: 'Natural language update description is required' },
+                { error: 'Natural language update description must be a non-empty string' },
                 { status: 400 }
             );
         }
-
-        if (!projectId) {
-            return NextResponse.json(
-                { error: 'Project ID is required' },
-                { status: 400 }
-            );
-        }
-
-        // Verify project ownership and get details
-        const projectResult = await pool.query(`
-            SELECT id, project_name, database_name, connection_string, description
-            FROM user_projects 
-            WHERE id = $1 AND user_id = $2 AND is_active = true
-        `, [projectId, authResult.user.id]);
-
-        if (projectResult.rows.length === 0) {
-            return NextResponse.json(
-                { error: 'Project not found or access denied' },
-                { status: 404 }
-            );
-        }
-
-        const project = projectResult.rows[0];
-        const connectionString = project.connection_string;
 
         // Fetch current database schema
         let schema = [];
         try {
-            schema = await getDatabaseSchema(connectionString);
+            schema = await getDatabaseSchema(projectData.connection_string);
         } catch (schemaError) {
             console.error('Error fetching schema:', schemaError);
             return NextResponse.json(
@@ -83,7 +47,7 @@ export async function POST(request) {
             analysisResult = await analyzeProjectUpdateRequest(
                 naturalLanguageInput, 
                 schema, 
-                project.project_name
+                projectData.project_name
             );
         } catch (aiError) {
             console.error('AI analysis error:', aiError);
@@ -107,9 +71,9 @@ export async function POST(request) {
         return NextResponse.json({
             success: true,
             project: {
-                id: project.id,
-                name: project.project_name,
-                database: project.database_name
+                id: projectData.id,
+                name: projectData.project_name,
+                database: projectData.database_name
             },
             currentSchema: schema.map(t => ({
                 name: t.name,
@@ -131,19 +95,10 @@ export async function POST(request) {
                 riskBreakdown: riskSummary,
                 highRiskOperations: analysisResult.operations
                     .filter(op => op.risk_level === 'high')
-                    .map(op => ({ type: op.type, target: op.target, explanation: op.explanation }))
+                    .map(op => ({ type: op.type, target: op.target, explaination: op.explaination }))
             },
             naturalLanguageInput
         });
-
-    } catch (error) {
-        console.error('Update project analysis error:', error);
-        return NextResponse.json(
-            { 
-                error: 'Internal server error',
-                details: error.message 
-            },
-            { status: 500 }
-        );
-    }
-}
+    }),
+    { isAI: true }
+);

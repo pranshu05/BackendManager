@@ -1,141 +1,62 @@
 import { NextResponse } from 'next/server';
-import { pool, deleteUserDatabase } from '@/lib/db';
-import { requireAuth } from '@/lib/auth';
+import { deleteUserDatabase, pool } from '@/lib/db';
+import { withProjectAuth } from '@/lib/api-helpers';
 
 // Get specific project
-export async function GET(request, { params }) {
-    try {
-        const authResult = await requireAuth();
-        const { projectId } = await params;
-
-        if (authResult.error) {
-            return NextResponse.json(
-                { error: authResult.error },
-                { status: authResult.status }
-            );
+export const GET = withProjectAuth(async (_request, _context, _user, project) => {
+    return NextResponse.json({ 
+        project: {
+            id: project.id,
+            project_name: project.project_name,
+            database_name: project.database_name,
+            connection_string: project.connection_string
         }
-
-        const result = await pool.query(`
-            SELECT id, project_name, database_name, description, connection_string, created_at, updated_at
-            FROM user_projects 
-            WHERE id = $1 AND user_id = $2 AND is_active = true
-        `, [projectId, authResult.user.id]);
-
-        if (result.rows.length === 0) {
-            return NextResponse.json(
-                { error: 'Project not found' },
-                { status: 404 }
-            );
-        }
-
-        return NextResponse.json({ project: result.rows });
-
-    } catch (error) {
-        console.error('Get project error:', error);
-        return NextResponse.json(
-            { error: 'Internal server error' },
-            { status: 500 }
-        );
-    }
-}
+    });
+});
 
 // Update project
-export async function PUT(request, { params }) {
-    try {
-        const { projectId } = await params;
-        const authResult = await requireAuth();
+export const PUT = withProjectAuth(async (request, _context, user, project) => {
+    const { projectName, description } = await request.json();
 
-        if (authResult.error) {
-            return NextResponse.json(
-                { error: authResult.error },
-                { status: authResult.status }
-            );
-        }
+    const result = await pool.query(`
+        UPDATE user_projects 
+        SET project_name = COALESCE($1, project_name),
+            description = COALESCE($2, description),
+            updated_at = NOW()
+        WHERE id = $3 AND user_id = $4 AND is_active = true
+        RETURNING id, project_name, database_name, description, updated_at
+    `, [projectName, description, project.id, user.id]);
 
-        const { projectName, description } = await request.json();
-
-        const result = await pool.query(`
-            UPDATE user_projects 
-            SET project_name = COALESCE($1, project_name),
-                description = COALESCE($2, description),
-                updated_at = NOW()
-            WHERE id = $3 AND user_id = $4 AND is_active = true
-            RETURNING id, project_name, database_name, description, updated_at
-        `, [projectName, description, projectId, authResult.user.id]);
-
-        if (result.rows.length === 0) {
-            return NextResponse.json(
-                { error: 'Project not found' },
-                { status: 404 }
-            );
-        }
-
-        return NextResponse.json({
-            message: 'Project updated successfully',
-            project: result.rows[0]
-        });
-
-    } catch (error) {
-        console.error('Update project error:', error);
+    if (result.rows.length === 0) {
         return NextResponse.json(
-            { error: 'Internal server error' },
-            { status: 500 }
+            { error: 'Project not found' },
+            { status: 404 }
         );
     }
-}
+
+    return NextResponse.json({
+        message: 'Project updated successfully',
+        project: result.rows[0]
+    });
+});
 
 // Delete project
-export async function DELETE(request, { params }) {
-    try {
-        const authResult = await requireAuth();
-        const { projectId } = await params;
+export const DELETE = withProjectAuth(async (_request, _context, user, project) => {
+    // Delete the associated database
+    await deleteUserDatabase(project.database_name);
 
-        if (authResult.error) {
-            return NextResponse.json(
-                { error: authResult.error },
-                { status: authResult.status }
-            );
-        }
+    const result = await pool.query(`
+        DELETE FROM user_projects 
+        WHERE id = $1 AND user_id = $2 AND is_active = true
+        RETURNING id
+    `, [project.id, user.id]);
 
-        // Get project details first
-        const projectResult = await pool.query(`
-            SELECT database_name 
-            FROM user_projects 
-            WHERE id = $1 AND user_id = $2 AND is_active = true
-        `, [projectId, authResult.user.id]);
-
-        if (projectResult.rows.length === 0) {
-            return NextResponse.json(
-                { error: 'Project not found' },
-                { status: 404 }
-            );
-        }
-
-        const { database_name } = projectResult.rows[0];
-
-        // Delete the associated database
-        await deleteUserDatabase(database_name);
-
-        const result = await pool.query(`
-            DELETE FROM user_projects 
-            WHERE id = $1 AND user_id = $2 AND is_active = true
-            RETURNING id
-        `, [projectId, authResult.user.id]);
-
-        if (result.rows.length === 0) {
-            return NextResponse.json(
-                { error: 'Project not found' },
-                { status: 404 }
-            );
-        }
-
-        return NextResponse.json({ message: 'Project deleted successfully' });
-
-    } catch (error) {
-        console.error('Delete project error:', error);
+    if (result.rows.length === 0) {
         return NextResponse.json(
-            { error: 'Internal server error' },
-            { status: 500 }
+            { error: 'Project not found' },
+            { status: 404 }
         );
     }
-}
+
+    return NextResponse.json({ message: 'Project deleted successfully' });
+});
