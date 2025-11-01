@@ -1,0 +1,249 @@
+body {
+  min-height: 100vh;
+  padding: 20px;
+  background: linear-gradient(to bottom, #f6f6e6 10%, #CBDCEB 50%, #c7defa 80%);
+  display: flex;
+  flex-direction: column;
+  font-family: 'Inter', sans-serif;
+}
+
+.choose-role-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 800px; 
+  padding: 20px;
+  box-sizing: border-box;
+  justify-content: center;
+}
+
+.header {
+  display: inline-flex;
+  top : 30px;
+  margin-bottom: 40px;
+  width: 100%;
+  padding-left: 10px; 
+  justify-content: flex-start; 
+}
+
+
+go-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.dbuddy{
+  margin-left: -20px;
+  display: inline-flex;
+  height: 40px;
+  width: 200px;
+  align-items: center;
+  gap : 10px;
+  justify-content: left;
+}
+
+.dbbuddy-title {
+  font-size: 24px;
+  font-weight: bold;
+  color: #333;
+  margin: 0;
+  line-height: 1;
+}
+
+.dblogo {
+  padding: 0.5rem; 
+  background-color: #133E87; 
+  border-radius: 0.75rem; 
+}
+
+.db-icon { 
+  width: 1.5rem; 
+  height: 1.5rem; 
+  color: #ffffff; 
+}
+
+.dbbuddy-slogan {
+  /* margin-top: 2px; */
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+  line-height: 1;
+  width : auto ;
+  flex-direction: column; 
+  white-space: nowrap;
+}
+
+
+
+.logo-text p{
+  color: #133E87;
+  flex-direction: column; 
+  
+}
+
+.role-selection-card {
+  padding: 40px 60px; 
+  border-radius: 8px;
+  text-align: center;
+  width: 100%;
+  max-width: 450px; 
+  align-items: center; 
+  margin-left:  480px;
+  justify-content: center;
+}
+
+.role-sym {
+  border: 2px solid white; 
+  padding: 8px; 
+  border-radius: 5px;
+  position : absolute ;
+  margin-top: -70px;
+  margin-left: 120px;
+  background-color: #0a2a5e;
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  align-items: center;
+  justify-content: center;
+}
+
+.role-icon {
+  font-size: 60px;   
+  color: white;
+}
+
+.role-selection-card h2 {
+  font-size: 26px;
+  color: #133E87;
+  margin-top: 40px;
+  margin-bottom: 30px;
+  font-weight: 600;
+}
+
+.role-options {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start; 
+  margin-bottom: 30px;
+  width: 100%; 
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  margin-bottom: 15px;
+  font-size: 18px;
+  color: #133E87;
+  cursor: pointer;
+  width: 100%;
+}
+
+.radio-label input[type="radio"] {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #a0c4ff; 
+  border-radius: 50%;
+  margin-right: 15px;
+  position: relative;
+  cursor: pointer;
+  outline: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
+
+.radio-label input[type="radio"]:checked {
+  border-color: #3f51b5; 
+  background-color: #3f51b5; 
+}
+
+.radio-label input[type="radio"]:checked::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background-color: #fff; 
+  border-radius: 50%;
+  display: block;
+}
+
+.other-role-input {
+  width: 100%; 
+  padding: 10px 20px;
+  margin-top: 0;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 16px;
+  color: #333;
+  margin-left: 0px; 
+  background-color: white;
+}
+
+.role-options h3{
+  color: #133E87;
+  margin-left: 4px; 
+}
+
+.other-role-input::placeholder {
+  color: #999;
+}
+
+.button-group {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.change-role-button,
+.cancel-button {
+  width: 100%;
+  padding: 12px 15px;
+  border: none;
+  border-radius: 5px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  font-weight: 600;
+}
+
+.change-role-button {
+  background-color: #133E87; 
+  color: white;
+}
+
+.change-role-button:hover {
+  background-color: #303f9f; 
+}
+
+.cancel-button {
+  background-color: #133E87; 
+  color: white;
+}
+
+.cancel-button:hover {
+  background-color: #303f9f;
+}
+
+.home-btn{
+  position: absolute;
+  right: 100px;
+  background-color: #0a2a5e;
+  color: white;
+  border: none;
+  padding: 6px 6px;
+  font-size: 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.home-icon {
+  font-size: 26px;   
+  color: white;
+}
