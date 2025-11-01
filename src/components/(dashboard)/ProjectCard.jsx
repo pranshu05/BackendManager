@@ -90,15 +90,17 @@ export function ProjectCard({ project }) {
                     <Link
                         href={`/dashboard/projects/${project.id}`}
                         className="flex-1"
-                        disabled={project.database.status !== 'connected'}
-                          onClick={() => {
-                            // Open database action
-                            window.location.href = `/dashboard/projects/${project.id}`;
-                        }}
+                        onClick={(e) => { if (project.database.status !== 'connected') { e.preventDefault(); } }}
                     >
-                        <ExternalLink className="w-4 h-4 mr-1" />
-                        Open
-                    </Button>
+                        <Button
+                            size="sm"
+                            className="w-full"
+                            disabled={project.database.status !== 'connected'}
+                        >
+                            <ExternalLink className="w-4 h-4 mr-1" />
+                            Open
+                        </Button>
+                    </Link>
                     <Button
                         size="sm"
                         variant="outline"

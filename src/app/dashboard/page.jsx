@@ -7,6 +7,8 @@ import {
     Database,
     CheckCircle,
     Table,
+    User,
+    LogOut
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -153,7 +155,7 @@ export default function DashboardPage() {
 
                 {/* Quick Stats */}
                 <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-                    <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
+                    <Card className="bg-gradient-to-r from-secondary/10 to-secondary/5 border-secondary/20">
                         <CardContent className="pt-6">
                             <div className="flex items-center space-x-2">
                                 <Database className="w-8 h-8 text-primary" />
