@@ -40,7 +40,7 @@ function handledatatype(value, dataType, nullable) {
         if (typeof v === 'object') return v;
         try {
             return JSON.parse(String(v));
-        } catch (e) {
+        } catch {
             throw new Error('Invalid JSON value');
         }
     }
