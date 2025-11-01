@@ -89,8 +89,8 @@ export default function ProfilePage() {
     <div className="min-h-screen bg-gradient-to-b from-yellow-50 to-blue-100 relative p-6">
       <header className="absolute top-6 left-6">
         <div className="flex items-center space-x-2">
-          <div className="p-2 bg-[#1e4a8a] rounded-xl">
-            <Database className="w-6 h-6 text-white" />
+          <div className="db-logo">
+            <Database className="db-icon" />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-[#1e4a8a]">DBuddy</h1>
@@ -146,7 +146,7 @@ export default function ProfilePage() {
               title="Role"
               subtitle={user ? user.role : "Student"}
               hasEdit={true}
-              href = "change-password" />
+              href = "/rolepage" />
           </div>
 
           {/*logout btn*/}
