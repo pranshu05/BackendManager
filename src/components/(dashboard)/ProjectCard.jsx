@@ -1,4 +1,6 @@
 import React from 'react';
+import Link from 'next/link';
+import PropTypes from 'prop-types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -85,14 +87,20 @@ export function ProjectCard({ project }) {
 
                 {/* Actions */}
                 <div className="flex space-x-2">
-                    <Button
-                        size="sm"
+                    <Link
+                        href={`/dashboard/projects/${project.id}`}
                         className="flex-1"
-                        disabled={project.database.status !== 'connected'}
+                        onClick={(e) => { if (project.database.status !== 'connected') { e.preventDefault(); } }}
                     >
-                        <ExternalLink className="w-4 h-4 mr-1" />
-                        Open
-                    </Button>
+                        <Button
+                            size="sm"
+                            className="w-full"
+                            disabled={project.database.status !== 'connected'}
+                        >
+                            <ExternalLink className="w-4 h-4 mr-1" />
+                            Open
+                        </Button>
+                    </Link>
                     <Button
                         size="sm"
                         variant="outline"
@@ -110,3 +118,18 @@ export function ProjectCard({ project }) {
         </Card>
     );
 }
+
+ProjectCard.propTypes = {
+    project: PropTypes.shape({
+        id: PropTypes.string.isRequired,
+        name: PropTypes.string.isRequired,
+        description: PropTypes.string,
+        database: PropTypes.shape({
+            name: PropTypes.string.isRequired,
+            status: PropTypes.oneOf(['connected', 'creating', 'error']).isRequired,
+            tables: PropTypes.number.isRequired,
+            lastModified: PropTypes.string.isRequired,
+        }).isRequired,
+        createdAt: PropTypes.string.isRequired,
+    }).isRequired,
+};

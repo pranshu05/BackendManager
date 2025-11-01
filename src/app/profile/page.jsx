@@ -42,7 +42,6 @@ export default function ProfilePage() {
   };
 
   const ProfileLink = ({ icon: Icon, title, subtitle, href, hasEdit = false }) => {
-    const router = useRouter();  // ✅ this line is required
 
     return (
       <div className="flex items-center justify-between w-full rounded-lg p-3 hover:bg-gray-100 transition">
@@ -53,8 +52,8 @@ export default function ProfilePage() {
             <button
               onMouseEnter={(e) => e.currentTarget.classList.add("hover-active")}
               onMouseLeave={(e) => e.currentTarget.classList.remove("hover-active")}
-              onClick={() => router.push(href)}
-              className="text-left"
+              onClick={() => (window.location.href = href)}
+              className="cursor-pointer text-left"
             >
               <h2 
                 className="text-lg font-semibold text-[#1e4a8a] hover:underline">
@@ -75,8 +74,8 @@ export default function ProfilePage() {
 
         {hasEdit && (
           <button
-            onClick={() => router.push(href)}
-            className="text-[#1e4a8a] hover:text-[#1e3a6a] p-1"
+            onClick={() => (window.location.href = href)}
+            className="cursor-pointer text-[#1e4a8a] hover:text-[#1e3a6a] p-1"
           >
             <SquarePen className="w-5 h-5" />
           </button>
@@ -140,12 +139,14 @@ export default function ProfilePage() {
               icon={Search}
               title="Password"
               subtitle="Account Password"
-              hasEdit={true} />
+              hasEdit={true}
+              href = "/change-password" />
             <ProfileLink
               icon={Briefcase}
               title="Role"
               subtitle={user ? user.role : "Student"}
-              hasEdit={true} />
+              hasEdit={true}
+              href = "change-password" />
           </div>
 
           {/*logout btn*/}
