@@ -1,15 +1,11 @@
 "use client";
+
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ProjectCard } from "@/components/(dashboard)/ProjectCard";
-import {
-    Database,
-    CheckCircle,
-    Table,
-    User,
-    LogOut
-} from "lucide-react";
+import ImportDatabase from '@/components/(dashboard)/ImportDatabase';
+import { Database, LogOut, CheckCircle, Table, User } from "lucide-react";
 
 export default function DashboardPage() {
     const [projects, setProjects] = useState([]);
@@ -105,8 +101,22 @@ export default function DashboardPage() {
                         <h2 className="text-2xl font-semibold text-foreground">
                             Your Projects
                         </h2>
-                        <div className="text-sm text-muted-foreground">
-                            {projects.length} project{projects.length !== 1 ? "s" : ""}
+                        <div className="flex items-center gap-4">
+                            <div className="text-sm text-muted-foreground">
+                                {projects.length} project{projects.length !== 1 ? "s" : ""}
+                            </div>
+                            <ImportDatabase onImported={(proj) => {
+                                // Refresh project list by re-fetching
+                                (async () => {
+                                    try {
+                                        const res = await fetch('/api/projects', { cache: 'no-store' });
+                                        const data = await res.json();
+                                        setProjects(data.projects || []);
+                                    } catch (err) {
+                                        console.error('Failed to refresh projects after import', err);
+                                    }
+                                })();
+                            }} />
                         </div>
                     </div>
 
@@ -155,7 +165,7 @@ export default function DashboardPage() {
 
                 {/* Quick Stats */}
                 <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-                    <Card className="bg-gradient-to-r from-secondary/10 to-secondary/5 border-secondary/20">
+                    <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
                         <CardContent className="pt-6">
                             <div className="flex items-center space-x-2">
                                 <Database className="w-8 h-8 text-primary" />
