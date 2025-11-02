@@ -1,5 +1,5 @@
-import { pool } from './db';
-import { requireAuth } from './auth';
+import { pool } from '@/lib/db';
+import { requireAuth } from '@/lib/auth';
 import { NextResponse } from 'next/server';
 
 // Verify that the user owns the project

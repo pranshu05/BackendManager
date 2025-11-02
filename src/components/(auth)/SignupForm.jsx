@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { registerUser } from "@/lib/api";
+import { registerUser } from "@/lib/auth-helpers";
 
 export default function SignupForm() {
     const [form, setForm] = useState({ name: "", email: "", password: "" });

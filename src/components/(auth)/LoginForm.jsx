@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { loginUser } from "@/lib/api";
+import { loginUser } from "@/lib/auth-helpers";
 
 export default function LoginForm() {
     const [form, setForm] = useState({ email: "", password: "" });
