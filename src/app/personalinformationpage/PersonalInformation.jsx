@@ -14,7 +14,7 @@ const PersonalInformation = () => {
     <div className="personal-info-page">
       <h1 className="title">
         Personal Information {}
-        <button onClick = {() => router.push("/dashboard")}className="home-btn"> 
+        <button onClick = {() => window.location.href='/dashboard'}className="home-btn"> 
             <FaHome className="home-icon" />
         </button>
       </h1>
@@ -26,7 +26,7 @@ const PersonalInformation = () => {
         <GeneralInformation />
       </div>
 
-      <button onClick={() => router.back()} className="back-btn-personal-info" >Back</button>
+      <button onClick={() => window.location.href='/profile'} className="back-btn-personal-info" >Back</button>
     </div>
   );
 }

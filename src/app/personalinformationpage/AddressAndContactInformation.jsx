@@ -8,7 +8,7 @@ const AddressAndContactInformation = () => {
         <div className="info-card">
             <div className="card-header">
                 <h3>Address and Contact Information</h3>
-                <MdOutlineEdit className="edit-icon" />
+                <MdOutlineEdit onClick={() => (window.location.href = '/addressform')} className="edit-icon" />
             </div>
 
             <div className="card-section">
