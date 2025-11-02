@@ -5,7 +5,7 @@ import Header from "@/components/ui/header";
 import Sidebar from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import Dropdown from "@/components/ui/dropdown";
-import { ArrowLeft, Database, Funnel, Trash, Download, Sparkles } from "lucide-react";
+import { ArrowLeft, Database, Funnel, Trash, Download, Sparkles, Send } from "lucide-react";
 
 export default function DashboardPage() {
     const params = useParams();
@@ -23,6 +23,7 @@ export default function DashboardPage() {
     const [editedvalue, seteditedvalue] = useState("");
     const [deletebtn, setdeletebtn] = useState(false);
     const [deleteRows, setdeleteRows] = useState([]);
+    const [query, setQuery] = useState("");
     //DElete rows is an array of objects, where each object contains primary key cols and
     //their values for rows to be deleted
 
@@ -111,7 +112,7 @@ export default function DashboardPage() {
                 pkvalues: pkValuesArray
             };
 
-            const res = await fetch('/api/projects/delete', {
+            const res = await fetch(`/api/projects/${projectid}/delete`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -177,7 +178,7 @@ export default function DashboardPage() {
                     const pkCol = tableData?.columns?.find(c => c.constraint === 'PRIMARY KEY')?.name || tableData?.columns?.[0]?.name;
                     const row = tableData.rows[editingCell.rowIndex];
                     const payload = {
-                        projectId: projectid,
+                       
                         table: selectedTable || tableData.table,
                         pkColumn: pkCol,
                         pkValue: row[pkCol],
@@ -186,7 +187,7 @@ export default function DashboardPage() {
                         oldValue: editingCell.value
                     };
 
-                    const res = await fetch('/api/projects/update', {
+                    const res = await fetch(`/api/projects/${projectid}/update`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
@@ -288,14 +289,16 @@ export default function DashboardPage() {
                     <div className="details flex flex-col justify-center">
                         <span className=" text-xs  md:text-xl">{projectdetail.project_name}</span>
                         <span className="text-gray-600  text-xs  md:text-sm">{projectdetail.description}</span>
-                        <span className="text-xs text-gray-600"> 📊  Tables</span>
+                        <span className="text-xs text-gray-600"> 📊 {projectdetail.table_count} Tables</span>
                     </div>
                 </div>
             </div>
             <div className="content flex flex-row w-full flex-1 min-h-0">
                 <Sidebar active={page} onSelectPage={(newPage) => setpage(newPage)} />
-                {page == "table" ? <div className="rightcontent flex flex-col w-full border-1 overflow-x-hidden min-h-0">
-                    <div className="table_select h-14 flex flex-row items-center bg-white sm:p-4 gap-2 max-[510]:flex-col max-[510]:h-25">
+
+                <div className="rightcontent flex flex-col w-full border-1 overflow-x-hidden overflow-y-scroll min-h-0 h-screen">
+                {page=="table"?<>
+                     <div className="table_select h-14 flex flex-row items-center bg-white sm:p-4 gap-2 max-[510]:flex-col max-[510]:h-25">
                         Table Explorer
                         <Dropdown
                             items={tablelist}
@@ -450,23 +453,79 @@ export default function DashboardPage() {
                         }
 
                     </div>
-                </div> : <>
-                    {/* Other pages here */}
-                    {
-                        page == "query" ? <div>
-                            Query Page
-
-
-                        </div> :
-                            page == "optimization" ? <div>
-                                Optimization page
-                            </div> :
-                                page == "history" ? <div>
-                                    History Page
-                                </div> : <></>
-                    }
-                </>}
+                    </>
+                    :page=="query"?
+                    <>
+                      <div className="flex flex-col h-full my-20">
+                      <div className="bg-white rounded-xl shadow-lg px-8 py-10 mx-10 flex flex-col gap-30">
+                        <div className="query_head flex flex-col gap-3">
+                        <p>Ask Your Database</p>
+                             <textarea 
+                            value={query}
+                            onChange={e => setQuery(e.target.value)}
+                            placeholder="Ask your database in plain English... e.g., 'Show all employees in HR department'"
+                            className=" min-h-[48px] max-h-[120px] overflow-auto resize-none text-gray-800"
+                            rows={2}
+                            style={{ transition: "height 0.2s" }}
+                          />
+                        
+                        </div>
+                        
+                        <div className="flex justify-between ">
+                        <div className="flex flex-wrap gap-3 mb-6 w-4/5">
+                          {[
+                            "Show all employees in Engineering department",
+                            "Find employees with salary greater than $80,000",
+                            "Count total employees by department",
+                            "Show recent performance reviews",
+                          ].map((ex) => (
+                            <button
+                              key={ex}
+                              type="button"
+                              className="flex items-center gap-2 bg-sidebar border-1 hover:bg-gray-300 hover:cursor-pointer text-gray-800 text-sm font-medium px-4 py-2 rounded-md border-gray-200 shadow-sm"
+                              onClick={() => setQuery(ex)}
+                            >
+                                <Sparkles  className="w-4 h-4 text-gray-500"/>
+                           
+                              {ex}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="runbtn flex flex-col justify-end">
+                         <Button className=" max-[510]:w-full hover:cursor-pointer">
+                            <Send className="w-5 h-5 text-white"  />
+                            Run Query
+                         </Button>
+                        </div>
+                        
+                        </div>
+                      </div>
+                      <div className="text-center mt-16 text-gray-500">
+                       
+                        <div className="text-lg font-medium flex justify-center items-center flex-col">
+                             <Sparkles  className="w-10 h-10 text-gray-500"/>
+                          Ask anything about your data<br />
+                          <span className="text-base text-gray-400">
+                            Use natural language to query your database. No SQL knowledge required.
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    </>
+                    :page=="history"?<>
+                        History Page
+                    </> :
+                    page=="optimization"?<>
+                        Optimization Page
+                    </> :
+                    <>
+                    </>
+                
+                   }
+                    
+                </div>
+              
             </div>
-        </div>
+        </div> 
     );
 }

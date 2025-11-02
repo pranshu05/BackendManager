@@ -1,39 +1,25 @@
 import { NextResponse } from 'next/server';
-import { pool, executeQuery, getDatabaseSchema } from '@/lib/db';
-import { requireAuth } from '@/lib/auth';
+import {executeQuery, getDatabaseSchema } from '@/lib/db';
+import { withProjectAuth } from '@/lib/api-helpers';
 
 //Delete records
 
-export async function POST(request) {
-    try {
-        const authResult = await requireAuth();
-        if (authResult.error) {
-            return NextResponse.json(
-                { error: authResult.error },
-                { status: authResult.status }
-            );
+export const POST=withProjectAuth(async (request,_context,user,project)=> {
+     try {
+        const body=await request.json();
+        const {table,pkcols,pkvalues } = body;
+          if (!project || !project.connection_string) {
+            return NextResponse.json({ error: 'Project information is missing' }, { status: 400 });
         }
 
-        //After successful authentication
-        const body=await request.json();
-        const { projectId,table,pkcols,pkvalues } = body;
-        if (!projectId || !table || !pkcols || !pkvalues) {
+        if (!table || !pkcols || !pkvalues) {
             return NextResponse.json(
                 { error: 'Missing required fields: projectId, table, pkcols, pkvalues' },
                 { status: 400 }
             );
         }
 
-           const projRes = await pool.query(
-            'SELECT connection_string FROM user_projects WHERE id = $1 AND user_id = $2 AND is_active = true',
-            [projectId, authResult.user.id]
-        );
-
-        if (projRes.rows.length === 0) {
-            return NextResponse.json({ error: 'Project not found or access denied' }, { status: 404 });
-        }
-
-const connectionString = projRes.rows[0].connection_string;
+   const connectionString = project.connection_string;
 
 if (!Array.isArray(pkvalues) || pkvalues.length === 0 || typeof pkvalues[0] !== 'object' || Array.isArray(pkvalues[0]))
      {
@@ -120,4 +106,6 @@ if (!Array.isArray(pkvalues) || pkvalues.length === 0 || typeof pkvalues[0] !== 
             { status: 500 }
         );
     }
-}
+});
+
+

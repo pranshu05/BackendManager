@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { pool, executeQuery, getDatabaseSchema } from '@/lib/db';
-import { requireAuth } from '@/lib/auth';
+import { withProjectAuth } from '@/lib/api-helpers';
 
 function escapeIdentifier(name) {
     return '"' + String(name).replace(/"/g, '""') + '"';
@@ -63,30 +63,20 @@ function handledatatype(value, dataType, nullable) {
     return String(v);
 }
 
-export async function POST(request) {
+export const POST = withProjectAuth(async (request, _context, user, project) => {
     try {
-        const authResult = await requireAuth();
-        if (authResult.error) 
-        {
-            return NextResponse.json({ error: authResult.error }, { status: authResult.status });
-        }
         const body = await request.json();
-        const { projectId, table, pkColumn, pkValue, column, newValue, oldValue } = body || {};
+        const { table, pkColumn, pkValue, column, newValue, oldValue } = body || {};
 
-        if (!projectId || !table || !column || (typeof pkValue === 'undefined')) {
-            return NextResponse.json({ error: 'Missing required fields: projectId, table, pkValue, column' }, { status: 400 });
+        if (!project || !project.connection_string) {
+            return NextResponse.json({ error: 'Project information is missing' }, { status: 400 });
         }
 
-        const projRes = await pool.query(
-            'SELECT connection_string FROM user_projects WHERE id = $1 AND user_id = $2 AND is_active = true',
-            [projectId, authResult.user.id]
-        );
-
-        if (projRes.rows.length === 0) {
-            return NextResponse.json({ error: 'Project not found or access denied' }, { status: 404 });
+        if (!table || !column || (typeof pkValue === 'undefined')) {
+            return NextResponse.json({ error: 'Missing required fields: table, pkValue, column' }, { status: 400 });
         }
 
-        const connectionString = projRes.rows[0].connection_string;
+        const connectionString = project.connection_string;
 
         // Validate schema
         let schema;
@@ -156,7 +146,7 @@ export async function POST(request) {
         try {
             await pool.query(
                 'INSERT INTO query_history (project_id, user_id, query_text, query_type, success) VALUES ($1,$2,$3,$4,$5)',
-                [projectId, authResult.user.id, queryText, 'UPDATE', true]
+                [project.id, user.id, queryText, 'UPDATE', true]
             );
         } catch (logErr) {
             console.error('Failed to log update:', logErr);
@@ -168,4 +158,4 @@ export async function POST(request) {
         console.error('Update route error:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
-}
+});
