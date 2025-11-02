@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { checkemail, otpcheck, resetPassword } from "@/lib/api";
+import { checkemail, otpcheck, resetPassword } from "@/lib/auth-helpers";
 
 export default function forgotpwd() {
     const [form, setForm] = useState({ email: "" });
