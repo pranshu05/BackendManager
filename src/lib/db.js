@@ -17,6 +17,9 @@ const POOL_TTL = 30 * 60 * 1000; // 30 minutes
 const schemaCache = new Map();
 const SCHEMA_TTL = 5 * 60 * 1000; // 5 minutes
 
+// Simple in-memory connection manager to keep pools per imported project
+const pools = new Map();
+
 // Function to create a new user database in Neon
 export async function createUserDatabase(userId, projectName) {
     const dbName = `${userId.replace(/-/g, '_')}_${projectName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
@@ -47,7 +50,7 @@ export async function createUserDatabase(userId, projectName) {
 
         const result = await response.json();
 
-        // Neon doesn’t directly return a ready-to-use connection string here.
+        // Neon doesn't directly return a ready-to-use connection string here.
         // We can create it with the branch connection URI + ?dbname=<dbName>
         const baseUri = process.env.NEON_BASE_URI; // e.g. postgres://user:pass@host:port
         const connectionString = `${baseUri}/${dbName}`;
@@ -98,7 +101,7 @@ export async function deleteUserDatabase(dbName) {
     }
 }
 
-// Get cached or create new user database connection pool
+// Function to get connection to a specific user database (with SSL fallback)
 export async function getUserDatabaseConnection(connectionString) {
     // Check if we have a cached pool
     const cached = userPoolCache.get(connectionString);
@@ -107,25 +110,94 @@ export async function getUserDatabaseConnection(connectionString) {
         return cached.pool;
     }
 
-    // Create new pool
-    const newPool = new Pool({
+    // First try connecting with SSL
+    try {
+        const sslPool = new Pool({
+            connectionString,
+            ssl: {
+                rejectUnauthorized: false // Required for Neon and some cloud databases
+            },
+            max: 5,
+            idleTimeoutMillis: 30000,
+            connectionTimeoutMillis: 4000,
+        });
+        
+        // Test the SSL connection
+        await sslPool.query('SELECT 1');
+        
+        // Cache it
+        userPoolCache.set(connectionString, {
+            pool: sslPool,
+            timestamp: Date.now()
+        });
+
+        // Clean up old pools periodically
+        cleanupOldPools();
+
+        return sslPool;
+    } catch (error) {
+        // If SSL connection fails, try without SSL
+        if (error.message.includes('does not support SSL') || error.code === 'ECONNREFUSED') {
+            try {
+                const nonSslPool = new Pool({
+                    connectionString,
+                    ssl: false,
+                    max: 5,
+                    idleTimeoutMillis: 30000,
+                    connectionTimeoutMillis: 4000,
+                });
+                
+                // Test the non-SSL connection
+                await nonSslPool.query('SELECT 1');
+                
+                // Cache it
+                userPoolCache.set(connectionString, {
+                    pool: nonSslPool,
+                    timestamp: Date.now()
+                });
+
+                // Clean up old pools periodically
+                cleanupOldPools();
+
+                return nonSslPool;
+            } catch (nonSslError) {
+                throw new Error(`Failed to connect to database: ${nonSslError.message}`);
+            }
+        }
+        throw new Error(`Failed to connect to database: ${error.message}`);
+    }
+}
+
+// Pool management functions for imported projects
+export function createPool(key, connectionString) {
+    if (pools.has(key)) {
+        return pools.get(key);
+    }
+
+    const p = new Pool({
         connectionString,
         ssl: { rejectUnauthorized: false },
-        max: 5,
+        max: 10,
         idleTimeoutMillis: 30000,
         connectionTimeoutMillis: 4000,
     });
 
-    // Cache it
-    userPoolCache.set(connectionString, {
-        pool: newPool,
-        timestamp: Date.now()
-    });
+    pools.set(key, p);
+    return p;
+}
 
-    // Clean up old pools periodically
-    cleanupOldPools();
+export function getPool(key) {
+    return pools.get(key);
+}
 
-    return newPool;
+export async function removePool(key) {
+    const p = pools.get(key);
+    if (p) {
+        await p.end();
+        pools.delete(key);
+        return true;
+    }
+    return false;
 }
 
 // Clear cache for a specific database
@@ -303,7 +375,8 @@ export function invalidateSchemaCache(connectionString) {
 export function getCacheStats() {
     return {
         poolCacheSize: userPoolCache.size,
-        schemaCacheSize: schemaCache.size
+        schemaCacheSize: schemaCache.size,
+        importedPoolsSize: pools.size
     };
 }
 
