@@ -12,7 +12,7 @@ export async function POST(request) {
         }
 
         const body = await request.json();
-        const { dbType = 'postgres', host, port = 5432, username, password, database, projectName, sqlDump } = body;
+        const { host, port = 5432, username, password, database, projectName } = body;
 
         if (!host || !username || !database) {
             return NextResponse.json({ error: 'host, username and database are required' }, { status: 400 });
