@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect} from 'react';
 import './index.css'; 
 
 import { FaHome , FaMobileAlt, FaEnvelope, FaMapMarkerAlt, FaRegAddressCard } from 'react-icons/fa';
@@ -13,31 +13,73 @@ const AddressForm = () => {
   const [cityState, setCityState] = useState('');
   const [postCode, setPostCode] = useState('');
 
+    const [loading, setLoading] = useState(true);
 
-  const handleSubmit = (e) => {
+  useEffect(() => {
+    const fetchProfile = async()=>{
+      try{
+        const res = await fetch('/api/user_profiles/get');
+        if(res.ok){
+          const data = await res.json();
+          if(data.profile){
+            setMobileNumber(data.profile.phone_number || '');
+            setEmailId(data.profile.email || '');
+            setAddress(data.profile.address || '');
+            setCityState(data.profile.city || '');
+            setPostCode(data.profile.pincode || '');
+          }
+        }
+      }catch(error) {
+        console.error('Error fetching profile:', error);
+      }finally{
+        setLoading(false);
+      }
+    };
+    fetchProfile();
+  }, []);
+
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
-    console.log({
-      mobileNumber,
-      emailId,
-      address,
-      cityState,
-      postCode,
-    });
-    alert('Changes saved !')
-    window.location.href = '/personalinformationpage';
+    try {
+      const res = await fetch('/api/user_profiles/update', {
+        method: 'PUT',
+        headers:{
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          phone_number: mobileNumber,
+          address: address,
+          city: cityState,
+          pincode: postCode
+        })
+      });
+
+      if(res.ok){
+        alert('Changes saved successfully!');
+        window.location.href = '/personalinformationpage';
+      }else{
+        const error = await res.json();
+        alert(`Error: ${error.error || 'Failed to save changes'}`);
+      }
+    }catch(error){
+      console.error('Error saving profile:', error);
+      alert('Failed to save changes. Please try again.');
+    }
   };
 
-  const handleCancel = () => {
+  const handleCancel=()=> {
     window.location.href = '/personalinformationpage';
   }
 
-  const handleHome = () => {
+  const handleHome=()=> {
     window.location.href = '/dashboard';
   }
-
+  if(loading) {
+    return <div>Loading...</div>;
+  }
   return (
-
     <div className="address-form-page">
       <div className="header">
         <div className="dbuddy">
@@ -77,29 +119,29 @@ const AddressForm = () => {
               className="form-input"
               placeholder="Enter New Number"
               value={mobileNumber}
-              onChange={(e) => setMobileNumber(e.target.value)}
+              onChange={(e)=>setMobileNumber(e.target.value)}
             />
           </div>
 
           <div className="form-group">
             <label htmlFor="emailId" className="form-label">
-              <FaEnvelope /> 
-              Email ID
+              <FaEnvelope /> Email ID (Read-only)
             </label>
             <input
               type="email"
               id="emailId"
-              className="form-input-email"
-              placeholder= {emailId}
+              className="form-input"
+              placeholder="Email"
               value={emailId}
-              readOnly 
+              disabled
+              style={{backgroundColor:'#f0f0f0',cursor:'not-allowed' }}
             />
           </div>
 
           <p className="section-title">Address</p>
           <div className="form-group">
             <label htmlFor="address" className="form-label">
-              <FaRegAddressCard /> {/* React-icon for Address (general address card) */}
+              <FaRegAddressCard /> 
               Address
             </label>
             <input
@@ -108,8 +150,8 @@ const AddressForm = () => {
               className="form-input"
               placeholder="Enter new Address"
               value={address}
-              onChange={(e) => setAddress(e.target.value)}
-            />
+              onChange={(e)=>setAddress(e.target.value)}
+              />
           </div>
 
           <div className="form-group">
@@ -123,7 +165,7 @@ const AddressForm = () => {
               className="form-input"
               placeholder="Enter new City State"
               value={cityState}
-              onChange={(e) => setCityState(e.target.value)}
+              onChange={(e)=>setCityState(e.target.value)}
             />
           </div>
 
@@ -138,7 +180,7 @@ const AddressForm = () => {
               className="form-input"
               placeholder="Enter new Post Code"
               value={postCode}
-              onChange={(e) => setPostCode(e.target.value)}
+              onChange={(e)=>setPostCode(e.target.value)}
             />
           </div>
 
