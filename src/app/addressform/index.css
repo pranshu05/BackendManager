@@ -1,25 +1,29 @@
-body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: linear-gradient(to bottom, #f6f6e6 10%, #CBDCEB 50%, #c7defa 80%);
-    display: flex;
-    min-height: 100vh;
-    padding: 20px;
-    box-sizing: border-box;
+.address-form-page {
+  min-height: 100vh;
+  padding: 40px;
+  background: linear-gradient(to bottom, #f6f6e6 10%, #CBDCEB 50%, #c7defa 80%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: 'Inter', sans-serif;
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 
 .header {
-    display: flex;
-    align-items: center;
     gap: 15px;
     padding-bottom: 20px;
     border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between; 
+    align-items: center;          
+    width: 100vw;
 }
 
 
 .dbuddy{
-  margin-left: -0;
+  margin-left: 20px;
   display: inline-flex;
   height: 40px;
   width: 200px;
@@ -78,32 +82,26 @@ body {
 }
 
 .form-title {
-    font-size: 32px;
+    font-size: 100px;
     font-weight: bold;
     color: #133E87;
     margin: 0;
-    width: 580px;
 }
 
-
+.address-form {
+    width: calc(100% - 200px);
+}
 
 .address-form-container {
     justify-content: center;
     align-items: center; 
     border-radius: 12px;
-    margin-top: -35px;
-    margin-left: 440px;
+    margin-top: -15px;
     width: 600px;
     padding: 30px;
     display: flex;
     flex-direction: column;
     gap: 25px;
-}
-
-
-go-text {
-  display: flex;
-  flex-direction: column;
 }
 
 .section-title {
@@ -135,7 +133,7 @@ go-text {
 }
 
 .form-input {
-    width: 400px;
+    width: 100%;
     padding: 12px 15px;
     border: 1px solid #ddd;
     border-radius: 8px;
@@ -147,7 +145,7 @@ go-text {
 }
 
 .form-input-email {
-    width: 400px;
+    width: 100%;
     padding: 12px 15px;
     border: 1px solid #ddd;
     border-radius: 8px;
@@ -156,6 +154,7 @@ go-text {
     background-color: rgb(213, 213, 213);
     box-sizing: border-box;
     transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    
 }
 
 .form-input::placeholder {
@@ -214,14 +213,14 @@ go-text {
 }
 
 
-@media (max-width: 768px) {
+@media (max-width: 100vw) {
     .address-form-container {
         padding: 20px;
         margin: 15px;
     }
 
     .form-title {
-        font-size: 22px;
+        font-size: 30px;
     }
 
     .section-title {

@@ -56,12 +56,13 @@ const PersonalInformationForm = () => {
         </button>
       </div>
 
+
+      <div className="title">
+          <h2 className="form-title">Edit Personal Information</h2> 
+      </div>
       
 
       <div className="address-form-container">
-        <div className="title">
-          <h2 className="form-title">Edit Personal Information</h2> 
-        </div>
 
         
         <form onSubmit={handleSubmit} className="address-form">

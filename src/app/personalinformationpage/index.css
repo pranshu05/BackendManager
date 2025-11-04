@@ -13,9 +13,11 @@
   font-weight: 700;
   color: #0a2a5e;
   margin-bottom: 40px;
-  padding-left: 30px;
+  padding-left: 0px;
   align-self: flex-start;
-  
+  justify-content: space-between;
+  display: flex;
+  align-items: center;
 }
 
 .info-container {
@@ -35,7 +37,6 @@
   padding-bottom: 25px;
   padding-left: 30px;
   padding-right: 30px;
-
   flex: 1 1 450px;
   min-width: 350px;
 }
@@ -98,7 +99,7 @@
 
 .home-btn{
   position: absolute;
-  right: 100px;
+  right: 50px;
 
   background-color: #0a2a5e;
   color: white;
@@ -118,5 +119,10 @@
   .info-container {
     flex-direction: column;
     align-items: center;
+    width: calc(100vw - 10%);
+  }
+
+  .title{
+    justify-content: space-between;
   }
 }
