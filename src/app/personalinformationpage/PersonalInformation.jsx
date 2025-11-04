@@ -4,11 +4,9 @@ import AddressAndContactInformation from "./AddressAndContactInformation";
 import GeneralInformation from "./GeneralInformation";
 import { FaHome } from "react-icons/fa"; 
 import "./index.css";
-import { useRouter } from "next/navigation";
 
 
 const PersonalInformation = () => {
-  const router = useRouter();
 
   return (
     <div className="personal-info-page">
