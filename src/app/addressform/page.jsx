@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect} from 'react';
 import './index.css'; 
 
 import { FaHome , FaMobileAlt, FaEnvelope, FaMapMarkerAlt, FaRegAddressCard } from 'react-icons/fa';
@@ -13,31 +13,73 @@ const AddressForm = () => {
   const [cityState, setCityState] = useState('');
   const [postCode, setPostCode] = useState('');
 
+    const [loading, setLoading] = useState(true);
 
-  const handleSubmit = (e) => {
+  useEffect(() => {
+    const fetchProfile = async()=>{
+      try{
+        const res = await fetch('/api/user_profiles/get');
+        if(res.ok){
+          const data = await res.json();
+          if(data.profile){
+            setMobileNumber(data.profile.phone_number || '');
+            setEmailId(data.profile.email || '');
+            setAddress(data.profile.address || '');
+            setCityState(data.profile.city || '');
+            setPostCode(data.profile.pincode || '');
+          }
+        }
+      }catch(error) {
+        console.error('Error fetching profile:', error);
+      }finally{
+        setLoading(false);
+      }
+    };
+    fetchProfile();
+  }, []);
+
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
-    console.log({
-      mobileNumber,
-      emailId,
-      address,
-      cityState,
-      postCode,
-    });
-    alert('Changes saved !')
-    window.location.href = '/personalinformationpage';
+    try {
+      const res = await fetch('/api/user_profiles/update', {
+        method: 'PUT',
+        headers:{
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          phone_number: mobileNumber,
+          address: address,
+          city: cityState,
+          pincode: postCode
+        })
+      });
+
+      if(res.ok){
+        alert('Changes saved successfully!');
+        window.location.href = '/personalinformationpage';
+      }else{
+        const error = await res.json();
+        alert(`Error: ${error.error || 'Failed to save changes'}`);
+      }
+    }catch(error){
+      console.error('Error saving profile:', error);
+      alert('Failed to save changes. Please try again.');
+    }
   };
 
-  const handleCancel = () => {
+  const handleCancel=()=> {
     window.location.href = '/personalinformationpage';
   }
 
-  const handleHome = () => {
+  const handleHome=()=> {
     window.location.href = '/dashboard';
   }
-
+  if(loading) {
+    return <div>Loading...</div>;
+  }
   return (
-
     <div className="address-form-page">
       <div className="header">
         <div className="dbuddy">

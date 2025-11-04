@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState,useEffect } from 'react';
 import './index.css'; 
 import { Database } from "lucide-react";
 import { FaHome , FaLaptopCode } from "react-icons/fa";
@@ -8,6 +8,29 @@ import { FaHome , FaLaptopCode } from "react-icons/fa";
 const ChooseRole = () => {
   const [selectedRole, setSelectedRole] = useState('Student');
   const [otherRole, setOtherRole] = useState('');
+    useEffect(()=>{
+    const fetchRole =async()=>{
+      try {
+        const res = await fetch('/api/user_profiles/get');
+        if(res.ok){
+          const data = await res.json();
+          if(data.profile && data.profile.role) {
+            const currentRole = data.profile.role;
+            const predefinedRoles = ['Student', 'Employee', 'Project Manager', 'Marketer'];
+            if(predefinedRoles.includes(currentRole)){
+              setSelectedRole(currentRole);
+            }else{
+              setSelectedRole('Other');
+              setOtherRole(currentRole);
+            }
+          }
+        }
+      }catch(error){
+        console.error('Error fetching role:', error);
+      }
+    };
+    fetchRole();
+  }, [])
 
   const handleRoleChange = (event) => {
     setSelectedRole(event.target.value);
@@ -20,12 +43,32 @@ const ChooseRole = () => {
     setOtherRole(event.target.value);
   };
 
-  const handleChangeRoleClick = () => {
-    const finalRole = selectedRole === 'Other' ? otherRole : selectedRole;
-    console.log('Selected Role:', finalRole);
-    window.location.href = "/profile";
-    alert(`Role changed to: ${finalRole}`);
-  };
+const handleChangeRoleClick =async()=>{
+  const finalRole = selectedRole ==='Other'?otherRole:selectedRole;
+  
+  try{
+    const res = await fetch('/api/user_profiles/update', {
+      method: 'PUT',
+      headers:{
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        role: finalRole
+      })
+    });
+
+    if(res.ok){
+      alert(`Role changed to: ${finalRole}`);
+      window.location.href = "/profile";
+    }else{
+      const error = await res.json();
+      alert(`Error: ${error.error || 'Failed to update role'}`);
+    }
+  }catch(error) {
+    console.error('Error updating role:', error);
+    alert('Failed to update role. Please try again.');
+  }
+};
 
   const handleCancelClick = () => {
     console.log('Cancelled');

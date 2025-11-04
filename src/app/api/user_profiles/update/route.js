@@ -20,25 +20,26 @@ export async function PUT(request) {
       birth_date = null,
       organization_name = null,
       organization_type = null,
-      joining_date = null
+      joining_date = null,
+      role = null
     } = body || {};
 
     // checks date formate
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (birth_date && !dateRegex.test(birth_date)) {
-      return NextResponse.json({ error: 'birth_date must be in YYYY-MM-DD format' }, { status: 400 });
-    }
-    if (joining_date && !dateRegex.test(joining_date)) {
-      return NextResponse.json({ error: 'joining_date must be in YYYY-MM-DD format' }, { status: 400 });
-    }
+    // const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    // if(birth_date && birth_date.trim() !== '' && !dateRegex.test(birth_date)) {
+    //   return NextResponse.json({ error: 'birth_date must be in DD-MM-YYYY format' }, { status: 400 });
+    // }
+    // if(joining_date && joining_date.trim() !== '' && !dateRegex.test(joining_date)) {
+    //   return NextResponse.json({ error: 'joining_date must be in DD-MM-YYYY format' }, { status: 400 });
+    // }
 
     // upsert using on conflict (on user_id). remember what COALESCE do !
     const result = await pool.query(
-      `INSERT INTO user_profiles (
+        `INSERT INTO user_profiles (
           user_id, phone_number, address, city, pincode, nationality, birth_date,
-          organization_name, organization_type, joining_date, created_at, updated_at
+          organization_name, organization_type, joining_date, role, created_at, updated_at
         ) VALUES (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10, NOW(), NOW()
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, NOW(), NOW()
         )
         ON CONFLICT (user_id) DO UPDATE SET
           phone_number = COALESCE(EXCLUDED.phone_number, user_profiles.phone_number),
@@ -50,9 +51,10 @@ export async function PUT(request) {
           organization_name = COALESCE(EXCLUDED.organization_name, user_profiles.organization_name),
           organization_type = COALESCE(EXCLUDED.organization_type, user_profiles.organization_type),
           joining_date = COALESCE(EXCLUDED.joining_date, user_profiles.joining_date),
+          role = COALESCE(EXCLUDED.role, user_profiles.role),
           updated_at = NOW()
         RETURNING id, user_id, phone_number, address, city, pincode, nationality, birth_date,
-                  organization_name, organization_type, joining_date, created_at, updated_at
+                  organization_name, organization_type, joining_date, role, created_at, updated_at
       `,
       [
         authResult.user.id,
@@ -64,7 +66,8 @@ export async function PUT(request) {
         birth_date,
         organization_name,
         organization_type,
-        joining_date
+        joining_date,
+        role
       ]
     );
 

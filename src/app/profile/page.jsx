@@ -11,24 +11,41 @@ import {
   X,
 } from "lucide-react";
 
-import { useRouter } from "next/navigation";
 
 export default function ProfilePage() {
-  const [user, setUser] = useState(null);
-
+  const [role, setRole] = useState("Student");
   useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const res = await fetch("/api/auth/me");
-        if (res.ok) {
+    const fetchRole =async()=>{
+      try{
+        const res = await fetch("/api/user_profiles/get");
+        if(res.ok){
           const data = await res.json();
-          setUser(data.user);
+          if(data.profile && data.profile.role){
+            setRole(data.profile.role);
+          }
         }
-      } catch (error) {
-        console.error("Error fetching user:", error);
+      }catch(error){
+        console.error("Error fetching role:", error);
       }
     };
-    fetchUserData();
+    fetchRole();
+  }, []);
+
+  useEffect(()=>{
+    const fetchRole = async()=>{
+      try {
+        const res = await fetch("/api/user_profiles/get");
+        if (res.ok) {
+          const data = await res.json();
+          if(data.profile && data.profile.role) {
+            setRole(data.profile.role);
+          }
+        }
+      }catch(error) {
+        console.error("Error fetching role:", error);
+      }
+    };
+    fetchRole();
   }, []);
 
   const handleLogout = async () => {
@@ -144,7 +161,7 @@ export default function ProfilePage() {
             <ProfileLink
               icon={Briefcase}
               title="Role"
-              subtitle={user ? user.role : "Student"}
+              subtitle={role || "Student"}
               hasEdit={true}
               href = "/rolepage" />
           </div>

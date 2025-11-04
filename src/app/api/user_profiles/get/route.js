@@ -24,6 +24,7 @@ export async function GET() {
         up.organization_name, 
         up.organization_type, 
         up.joining_date, 
+        up.role,
         up.created_at, 
         up.updated_at,
         u.email,
@@ -58,7 +59,8 @@ export async function GET() {
           birth_date: null,
           organization_name: null,
           organization_type: null,
-          joining_date: null
+          joining_date: null,
+          role: null
         }
       });
     }

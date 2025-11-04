@@ -1,31 +1,74 @@
 "use client";
 
-import React, { useState } from 'react';
-import './index.css'; // Make sure this CSS file exists
+import React, { useState, useEffect  } from 'react';
+import './index.css'; 
 
-// Import icons from react-icons
 import { FaHome , FaUser , FaUniversity , FaGlobe , FaCalendarAlt } from 'react-icons/fa';
 import { Database } from "lucide-react";
 
-const PersonalInformationForm = () => {
-  const [userName, setUserName] = useState('user123');
+const PersonalInformationForm =()=>{
+  const [userName, setUserName] = useState('');
   const [DOB, setDOB] = useState('');
   const [institueName, setInstitueName] = useState('');
   const [joinDate, setJoinDate] = useState('');
   const [nationality, setNationality] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  const handleSubmit = (e) => {
+  useEffect(()=>{
+    const fetchProfile = async()=>{
+      try {
+        const res = await fetch('/api/user_profiles/get');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.profile) {
+            setUserName(data.profile.username || '');
+            setDOB(data.profile.birth_date || '');
+            setInstitueName(data.profile.organization_name || '');
+            setJoinDate(data.profile.joining_date || '');
+            setNationality(data.profile.nationality || '');
+          }
+        }
+      }catch(error) {
+        console.error('Error fetching profile:', error);
+      }finally{
+        setLoading(false);
+      }
+    };
+    fetchProfile();
+  },[]);
+
+  const handleSubmit = async(e)=>{
     e.preventDefault();
+    setLoading(true);
     
-    console.log({
-      userName,
-      DOB,
-      institueName,
-      joinDate,
-      nationality,
-    });
-    alert('Changes saved!');
-    window.location.href = '/personalinformationpage';
+    try{
+      const res = await fetch('/api/user_profiles/update', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          birth_date: DOB.trim() === '' ? null : DOB,
+          organization_name: institueName.trim() === '' ? null : institueName,
+          organization_type: 'Educational',
+          joining_date: joinDate.trim() === '' ? null : joinDate,
+          nationality: nationality.trim() === '' ? null : nationality
+        })
+      });
+
+      if(res.ok){
+        alert('Changes saved successfully!');
+        window.location.href = '/personalinformationpage';
+      }else{
+        const error = await res.json();
+        alert(`Error: ${error.error || 'Failed to save changes'}`);
+      }
+    }catch(error) {
+      console.error('Error saving profile:', error);
+      alert('Failed to save changes. Please try again.');
+    }finally{
+      setLoading(false);
+    }
   };
 
   const handleCancel = () => {
@@ -35,9 +78,10 @@ const PersonalInformationForm = () => {
   const handleHome = () => {
     window.location.href = '/dashboard';
   };
-
+  if(loading) {
+    return <div>Loading...</div>;
+  }
   return (
-
     <div className="address-form-page">
       <div className="header">
         <div className="dbuddy">
@@ -69,16 +113,16 @@ const PersonalInformationForm = () => {
           <p className="section-title">Personal Infromation</p>
           <div className="form-group">
             <label htmlFor="UserName" className="form-label">
-              <FaUser /> 
-              User Name
+              <FaUser /> User Name (Read-only)
             </label>
             <input
               type="text"
-              id="userName"
-              className="form-input-userName"
-              placeholder={userName}
+              id="UserName"
+              className="form-input"
+              placeholder="Username"
               value={userName}
-              readOnly
+              disabled
+              style={{ backgroundColor: '#f0f0f0', cursor: 'not-allowed' }}
             />
           </div>
 
@@ -91,7 +135,7 @@ const PersonalInformationForm = () => {
               type="date"
               id="DOB"
               className="form-input"
-              placeholder="Enter New DOB"
+              // placeholder="Enter New DOB"
               value={DOB}
               onChange={(e) => setDOB(e.target.value)}
             />
@@ -119,9 +163,9 @@ const PersonalInformationForm = () => {
             </label>
             <input
               type="date"
-              id="cityState"
+              id="joindate"
               className="form-input"
-              placeholder="Enter new Joining Date"
+              // placeholder="Enter new Joining Date"
               value={joinDate}
               onChange={(e) => setJoinDate(e.target.value)}
             />
@@ -143,10 +187,10 @@ const PersonalInformationForm = () => {
           </div>
 
           <div className="form-actions">
-            <button type="submit" className="save-button">
-              Save Changes
+            <button type="submit" className="save-button" disabled={loading}>
+              {loading ? 'Saving...' : 'Save Changes'}
             </button>
-            <button onClick={handleCancel} type="button" className="cancel-button">
+            <button onClick={handleCancel} type="button" className="cancel-button" disabled={loading}>
               Cancel
             </button>
           </div>
