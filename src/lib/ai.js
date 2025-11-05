@@ -24,7 +24,40 @@ function cleanMarkdownCodeBlocks(text) {
 }
 
 
+export async function generatequerysuggestions(schema){
+    const prompt = `You are a helpful assistant that generates SQL query suggestions based on the provided database schema.
+Database Schema:
+${JSON.stringify(schema, null, 2)}  
+Generate 4 diverse and relevant query suggestions in natural language that a user might want to run against this database.
+Return ONLY a JSON array of strings (no markdown, no extra text):
+[
+  "SQL query suggestion 1",
+  "SQL query suggestion 2",
+  ...
+]`;
 
+    try {
+        const { text } = await generateText({
+            model: groq(DEFAULT_MODEL),
+            prompt,
+            temperature: 0.3,
+            maxTokens: 1000,
+        });
+
+        //to clean and parse the response
+        const suggestions = parseAIResponse(text);
+       
+        //basic validation
+        if (!Array.isArray(suggestions)) {
+            throw new Error('Invalid suggestions format returned from AI');
+        }
+        console.log("Raw suggestions from AI:", suggestions);
+        return suggestions;
+    } catch (error) {
+        console.error('Error generating query suggestions:', error);
+        throw new Error(`Failed to generate query suggestions: ${error.message}`);
+    }
+}
 
 /**
  * Convert database schema to PlantUML code using AI

@@ -1,13 +1,63 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect,useCallback  } from "react";
 import { useParams } from "next/navigation";
 import Header from "@/components/ui/header";
 import Sidebar from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import Dropdown from "@/components/ui/dropdown";
 import SchemaPage from "@/components/(projects)/schema";
-import { ArrowLeft, Database, Funnel, Trash, Download, Sparkles, Send } from "lucide-react";
+import Optimization from "@/components/(projects)/optimization";
+import Query from "@/components/(projects)/query";
+import {
+  ArrowLeft,
+  Database,
+  Funnel,
+  PencilLine,
+  Trash,
+  Download,
+  Sparkles,
+  Play,
+  Send,
+  CheckCircle,
+  XCircle,
+} from "lucide-react";
 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea"; 
+
+function formatTimeAgo(dateString) {
+  const date = new Date(dateString);
+  const now = new Date();
+  const seconds = Math.round((now - date) / 1000);
+  const minutes = Math.round(seconds / 60);
+  const hours = Math.round(minutes / 60);
+  const days = Math.round(hours / 24);
+
+  const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+
+  if (seconds < 60) {
+    return rtf.format(-seconds, "second");
+  } else if (minutes < 60) {
+    return rtf.format(-minutes, "minute");
+  } else if (hours < 24) {
+    return rtf.format(-hours, "hour");
+  } else if (days < 7) {
+    return rtf.format(-days, "day");
+  } else {
+   
+    return date.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  }
+}
 
 export default function DashboardPage() {
     const params = useParams();
@@ -26,11 +76,135 @@ export default function DashboardPage() {
     const [deletebtn, setdeletebtn] = useState(false);
     const [deleteRows, setdeleteRows] = useState([]);
     const [query, setQuery] = useState("");
-
-
-
     //DElete rows is an array of objects, where each object contains primary key cols and
     //their values for rows to be deleted
+
+
+  const [queryHistory, setQueryHistory] = useState([]);   // Stores the list of history items
+  const [historyLoading, setHistoryLoading] = useState(false); // Is the history list loading?
+
+  // --- States for Edit Modal ---
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [queryToEdit, setQueryToEdit] = useState(null);
+  const [editedSql, setEditedSql] = useState("");
+  const [isModalRunning, setIsModalRunning] = useState(false);
+  const [modalError, setModalError] = useState("");
+  
+  
+  const [historyLimit, setHistoryLimit] = useState(6); // Start by showing only 6 queries
+  const [totalQueries, setTotalQueries] = useState(0); // Total queries in the database
+  
+
+  // This runs when the Editbutton is clicked
+  const handleEdit = (query) => {
+    console.log("Editing query:", query.sql);
+    setQueryToEdit(query);      
+    setEditedSql(query.sql);    
+    setModalError("");          
+    setIsEditModalOpen(true);   
+  };
+
+   // This runs when the Rerun button is clicked
+    const handleRerun = async (sql) => {
+      console.log("Rerunning query from history:", sql);
+      setHistoryLoading(true); 
+      try {
+        // Call the API to run the query
+        const res = await fetch(`/api/projects/${projectid}/query`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: sql })
+        });
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || "Failed to rerun query");
+        }
+       
+        await fetchHistory(); 
+      } catch (err) {
+        console.error("Error rerunning query:", err);
+        alert(`Error rerunning query: ${err.message}`);
+      }
+    };
+  
+    // This runs when the Run Edited Query button 
+    const handleRunEditedQuery = async () => {
+      setIsModalRunning(true); // Show loading on the popup button
+      setModalError("");
+      try {
+        // Call the API with the new SQL from the textarea
+        const res = await fetch(`/api/projects/${projectid}/query`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: editedSql }) 
+        });
+  
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || "Failed to rerun query");
+        }
+        
+        
+        await fetchHistory();       
+       
+        setIsEditModalOpen(false);  
+  
+      } catch (err) {
+        console.error("Error running edited query:", err);
+        setModalError(err.message); 
+      } finally {
+        setIsModalRunning(false); 
+      }
+    };
+  
+    // Function to fetch the query history from your API
+    const fetchHistory = useCallback(async () => {
+      if (projectid) { 
+        // Only show the main loading spinner if the history page is active
+        if (page === "history") {
+          setHistoryLoading(true);
+        }
+        try {
+          // Call your API and send the historyLimit
+          const res = await fetch(`/api/projects/${projectid}/history?limit=${historyLimit}`);
+          if (!res.ok) {
+            throw new Error("Failed to fetch query history");
+          }
+          
+          const data = await res.json(); 
+  
+          const formattedHistory = data.history.map((item) => ({
+            id: item.id,
+            title: item.natural_language_input || item.query_text,
+            sql: item.query_text,
+            status: item.success ? "success" : "error",
+            time: formatTimeAgo(item.created_at), 
+            result: item.success
+              ? `${item.execution_time_ms} ms`
+              : item.error_message,
+          }));
+          
+          setQueryHistory(formattedHistory); 
+          setTotalQueries(data.total); 
+        } catch (err) {
+          console.error("Error fetching query history:", err);
+          setQueryHistory([]);
+        } finally {
+          if (page === "history") {
+            setHistoryLoading(false); 
+          }
+        }
+      }
+    }, [page, projectid, historyLimit]);
+  
+    
+    useEffect(() => {
+      fetchHistory();
+    }, [fetchHistory]);
+    
+  
+  
+
 
     useEffect(() => {
         const fetchProjectsData = async () => {
@@ -76,8 +250,6 @@ export default function DashboardPage() {
         seteditedvalue(String(value ?? ""));
     };
 
-
-    
     const handledelete = async (e) => {
         if (deleteRows.length == 0) {
             alert("No rows selected for deletion");
@@ -85,8 +257,8 @@ export default function DashboardPage() {
         }
 
         console.log("Deleting rows: ", deleteRows);
-        //Confirm deletion
-        const proceed = window.confirm(`Are you sure you want to delete ${deleteRows.length} rows? This action cannot be undone.`);
+  // Confirm deletion
+  const proceed = window.confirm(`Are you sure you want to delete ${deleteRows.length} rows? This action cannot be undone.`);
 
         if (!proceed) {
             setdeleteRows([]);
@@ -119,11 +291,11 @@ export default function DashboardPage() {
                 pkvalues: pkValuesArray
             };
 
-            const res = await fetch(`/api/projects/${projectid}/delete`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
+      const res = await fetch(`/api/projects/${projectid}/delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
 
             const result = await res.json();
 
@@ -132,7 +304,7 @@ export default function DashboardPage() {
                 return;
             }
 
-            //On successful deletion, refetch table data
+            // On successful deletion, refetch table data
             alert(`Successfully deleted ${deleteRows.length} rows.`);
             setdeleteRows([]);
             setTableData(prev => {
@@ -148,9 +320,9 @@ export default function DashboardPage() {
                 return { ...prev, rows: filteredRows };
             });
 
-        } catch (err) {
-            alert('Error deleting rows', err);
-        } finally {
+    } catch (err) {
+      alert('Error deleting rows: ' + (err?.message || err));
+    } finally {
             return;
         }
     }
@@ -164,9 +336,9 @@ export default function DashboardPage() {
                 return;
             }
 
-            const proceed = window.confirm(
-                `Are you sure you want to update this value?\nFrom: ${editingCell.value}\nTo: ${editedvalue}`
-            );
+      const proceed = window.confirm(
+        `Are you sure you want to update this value?\nFrom: ${editingCell.value}\nTo: ${editedvalue}`
+      );
 
             if (!proceed) {
                 setEditingCell(null);
@@ -194,11 +366,11 @@ export default function DashboardPage() {
                         oldValue: editingCell.value
                     };
 
-                    const res = await fetch(`/api/projects/${projectid}/update`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
+          const res = await fetch(`/api/projects/${projectid}/update`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
 
                     const result = await res.json();
                     if (!res.ok) {
@@ -234,8 +406,8 @@ export default function DashboardPage() {
         if (!projectid) return;
         const fetchTables = async () => {
             try {
-                const res = await fetch(`/api/projects/${projectid}/tables`, {
-                    credentials: "include",
+            const res = await fetch(`/api/projects/${projectid}/tables`, {
+                  credentials: "include",
                 });
 
                 const data = await res.json();
@@ -264,10 +436,11 @@ export default function DashboardPage() {
     const fetchtabledata = async (tablename, recordLimit = limit) => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/projects/${projectid}/tables?table=${tablename}&limit=${recordLimit}`, {
-                credentials: "include",
-            });
-
+      // Build query params; if recordLimit is falsy (null/undefined), omit the limit param
+      const params = `table=${encodeURIComponent(tablename)}${recordLimit ? `&limit=${recordLimit}` : ""}`;
+      const res = await fetch(`/api/projects/${projectid}/tables?${params}`, {
+        credentials: "include",
+      });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Failed to fetch table data");
             setTableData(data);
@@ -277,7 +450,7 @@ export default function DashboardPage() {
             setLoading(false);
         }
     };
-    
+
     return (
         <div className="min-h-screen flex flex-col bg-gradient-to-br from-background via-accent/20 to-secondary/30">
             <Header />
@@ -325,16 +498,12 @@ export default function DashboardPage() {
                     <div className="mockbutton  h-28 gap-2 bg-white items-center flex-col  max-[510]:h-65   min-[820]:flex-row min-[820]:h-19 flex p-4 justify-between">
                         <div className="frontbtn flex flex-row gap-2 max-[510]:flex-col max-[510]:w-full max-[510]:gap-3">
                             <Button className=" max-[510]:w-full hover:cursor-pointer">+ Insert Row</Button>
-
-                       
-
-
-                            <Button className="text-black bg-sidebar border-1 hover:bg-gray-300 hover:cursor-pointer" onClick={async () => {
-                                if (deletebtn) {
-                                    await handledelete();
-                                }
-                                setdeletebtn(!deletebtn);
-                            }}><Trash />{!deletebtn ? "Delete" : `Selected: ${deleteRows.length}`}</Button>
+              <Button className="text-black bg-sidebar border-1 hover:bg-gray-300 hover:cursor-pointer" onClick={async () => {
+                if (deletebtn) {
+                  await handledelete();
+                }
+                setdeletebtn(!deletebtn);
+              }}><Trash />{!deletebtn ? "Delete" : `Selected: ${deleteRows.length}`}</Button>
                         </div>
                         <div className="endbtn flex gap-4 max-[510]:gap-2 max-[510]:flex-col max-[510]:w-full">
                             <Button className="text-black bg-sidebar border-1 hover:bg-gray-300 hover:cursor-pointer"><Sparkles />Generate Mock Data</Button>
@@ -467,72 +636,136 @@ export default function DashboardPage() {
                     </>
                     :page=="query"?
                     <>
-                      <div className="flex flex-col h-full my-20">
-                      <div className="bg-white rounded-xl shadow-lg px-8 py-10 mx-10 flex flex-col gap-30">
-                        <div className="query_head flex flex-col gap-3">
-                        <p>Ask Your Database</p>
-                             <textarea 
-                            value={query}
-                            onChange={e => setQuery(e.target.value)}
-                            placeholder="Ask your database in plain English... e.g., 'Show all employees in HR department'"
-                            className=" min-h-[48px] max-h-[120px] overflow-auto resize-none text-gray-800"
-                            rows={2}
-                            style={{ transition: "height 0.2s" }}
-                          />
-                        
-                        </div>
-                        
-                        <div className="flex justify-between ">
-                        <div className="flex flex-wrap gap-3 mb-6 w-4/5">
-                          {[
-                            "Show all employees in Engineering department",
-                            "Find employees with salary greater than $80,000",
-                            "Count total employees by department",
-                            "Show recent performance reviews",
-                          ].map((ex) => (
-                            <button
-                              key={ex}
-                              type="button"
-                              className="flex items-center gap-2 bg-sidebar border-1 hover:bg-gray-300 hover:cursor-pointer text-gray-800 text-sm font-medium px-4 py-2 rounded-md border-gray-200 shadow-sm"
-                              onClick={() => setQuery(ex)}
-                            >
-                                <Sparkles  className="w-4 h-4 text-gray-500"/>
-                           
-                              {ex}
-                            </button>
-                          ))}
-                        </div>
-                        <div className="runbtn flex flex-col justify-end">
-                         <Button className=" max-[510]:w-full hover:cursor-pointer">
-                            <Send className="w-5 h-5 text-white"  />
-                            Run Query
-                         </Button>
-                        </div>
-                        
-                        </div>
-                      </div>
-                      <div className="text-center mt-16 text-gray-500">
+                     <Query />
+                    </>
+                    :page=="history"?<div className="p-6 ">
                        
-                        <div className="text-lg font-medium flex justify-center items-center flex-col">
-                             <Sparkles  className="w-10 h-10 text-gray-500"/>
-                          Ask anything about your data<br />
-                          <span className="text-base text-gray-400">
-                            Use natural language to query your database. No SQL knowledge required.
-                          </span>
-                        </div>
+            <h2 className="text-2xl font-semibold mb-6 text-blue-900">
+              Query History
+            </h2>
+            
+            {/* This is the Edit Query Popup  */}
+            <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+              <DialogContent className="sm:max-w-[600px] bg-white">
+                <DialogHeader>
+                  <DialogTitle>Edit Query</DialogTitle>
+                </DialogHeader>
+                <div className="flex flex-col gap-4 py-4">
+                  <Textarea
+                    className="w-full h-48 p-2 border rounded-md font-mono bg-white"
+                    value={editedSql}
+                    onChange={(e) => setEditedSql(e.target.value)}
+                  />
+                  {modalError && (
+                    <div className="p-2 bg-red-100 text-red-700 border border-red-300 rounded-md text-sm">
+                      <strong>Error:</strong> {modalError}
+                    </div>
+                  )}
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsEditModalOpen(false)} disabled={isModalRunning}>Cancel</Button>
+                  <Button onClick={handleRunEditedQuery} disabled={isModalRunning}>
+                    {isModalRunning ? "Running..." : "Run Edited Query"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            {/* This is the History List */}
+            {historyLoading ? (
+              <div className="text-center py-12">Loading history...</div>
+            ) : queryHistory.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                No query history found.
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {queryHistory.map((query) => (
+                  <div
+                    key={query.id}
+                    className="bg-white shadow-md rounded-xl p-4 border"
+                  >
+                    {/* History Item Header */}
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={
+                            query.status === "success"
+                              ? "text-green-600"
+                              : "text-red-500"
+                          }
+                        >
+                          {query.status === "success" ? (
+                            <CheckCircle size={18} />
+                          ) : (
+                            <XCircle size={18} />
+                          )}
+                        </span>
+                        <p className="font-medium text-gray-800">
+                          {query.title}
+                        </p>
+                      </div>
+                      <div className="flex gap-3 text-gray-500">
+                        {/* Rerun Button */}
+                        <button
+                          onClick={() => handleRerun(query.sql)}
+                          className="hover:text-gray-800"
+                          title="Rerun Query"
+                        >
+                          <Play size={16} />
+                        </button>
+                        {/* Edit Button */}
+                        <button
+                          onClick={() => handleEdit(query)} 
+                          className="hover:text-gray-800"
+                          title="Edit Query"
+                        >
+                          <PencilLine size={16} />
+                        </button>
                       </div>
                     </div>
-                    </>
-                    :page=="history"?<>
-                        History Page
-                    </> :
+                    {}
+                    <code className="block bg-gray-100 text-gray-800 p-2 rounded-md text-sm mb-2">
+                      {query.sql}
+                    </code>
+                    {/* Error Message  */}
+                    {query.status === "error" && (
+                      <p className="text-sm text-red-500 mb-2">
+                        {query.result}
+                      </p>
+                    )}
+                    {/* Footer (Time & Result) */}
+                    <div className="flex justify-between text-sm text-gray-500">
+                      <span>{query.time}</span>
+                      {query.status === "success" && (
+                        <span>{query.result}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {/* Load More Button */}
+            {!historyLoading && queryHistory.length > 0 && queryHistory.length < totalQueries && (
+              <div className="mt-6 flex justify-center">
+                <Button
+                  onClick={() => setHistoryLimit(99999)} // Set limit to a large number to load all
+                  variant="outline"
+                  className="bg-white shadow-md"
+                >
+                  Load All Previous ({totalQueries - queryHistory.length} more)
+                </Button>
+              </div>
+            )}
+    
+                    </div> :
                     page=="optimization"?<>
-                        Optimization Page
+                       <Optimization />
                     </> :
-                    page=="schema"?<>
+                      page=="schema"?<>
                     <SchemaPage />
-                    </>
-                    :
+                    </> :
                     <>
                     </>
                 
@@ -541,7 +774,6 @@ export default function DashboardPage() {
                 </div>
               
             </div>
-            
         </div> 
     );
 }
