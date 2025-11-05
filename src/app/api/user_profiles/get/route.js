@@ -3,9 +3,9 @@ import { pool } from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
 
 // method is GET (returns profile with user info)
-export async function GET() {
+export async function GET(request) {
   try {
-    const authResult = await requireAuth();
+    const authResult = await requireAuth(request);
     if(authResult.error){
       return NextResponse.json({error:authResult.error}, {status:authResult.status});
     }

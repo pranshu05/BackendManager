@@ -66,15 +66,55 @@ export async function clearSessionCookie() {
     cookieStore.delete(SESSION_COOKIE_NAME);
 }
 
-// Middleware function to check authentication
-export async function requireAuth() {
-    const sessionToken = await getSessionCookie();
+// Get Bearer token from Authorization header
+export function getBearerToken(request) {
+    const authHeader = request?.headers?.get('Authorization');
+    if (!authHeader) return null;
+    
+    // Format: "Bearer <token>"
+    const parts = authHeader.split(' ');
+    if (parts.length !== 2 || parts[0] !== 'Bearer') return null;
+    
+    return parts[1];
+}
 
-    if (!sessionToken) {
-        return { error: 'No session token', status: 401 };
+// verify user with Bearer token (JWT)
+async function verifyBearerAuth(bearerToken) {
+    const decoded = verifyJWTToken(bearerToken);
+    
+    if (!decoded?.userId) {
+        return { error: 'Invalid or expired token', status: 401 };
     }
 
-    // Verify session in database
+    // verify user exists and is active
+    const { pool } = await import('./db');
+    
+    try {
+        const result = await pool.query(`
+            SELECT id, email, name
+            FROM users
+            WHERE id = $1 AND is_active = true
+        `, [decoded.userId]);
+
+        if (result.rows.length === 0) {
+            return { error: 'User not found or inactive', status: 401 };
+        }
+
+        return {
+            user: {
+                id: result.rows[0].id,
+                email: result.rows[0].email,
+                name: result.rows[0].name
+            }
+        };
+    } catch (error) {
+        console.error('Bearer auth verification error:', error);
+        return { error: 'Authentication failed', status: 500 };
+    }
+}
+
+// verify with session cookie
+async function verifySessionAuth(sessionToken) {
     const { pool } = await import('./db');
 
     try {
@@ -97,7 +137,27 @@ export async function requireAuth() {
             }
         };
     } catch (error) {
-        console.error('Auth verification error:', error);
+        console.error('Session auth verification error:', error);
         return { error: 'Authentication failed', status: 500 };
     }
+}
+
+// Middleware function to check authentication (for both Cookie and Bearer token)
+export async function requireAuth(request = null) {
+    // first try Bearer token (for API access)
+    if (request) {
+        const bearerToken = getBearerToken(request);
+        if (bearerToken) {
+            return await verifyBearerAuth(bearerToken);
+        }
+    }
+
+    // then session cookie (for web app)
+    const sessionToken = await getSessionCookie();
+    
+    if (!sessionToken) {
+        return { error: 'No authentication provided', status: 401 };
+    }
+
+    return await verifySessionAuth(sessionToken);
 }

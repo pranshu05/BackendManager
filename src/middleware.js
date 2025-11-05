@@ -23,15 +23,6 @@ export function middleware(request) {
     }
 
     // Check for session cookie on protected routes
-
-    // API route protection
-    if (!sessionToken && pathname.startsWith('/api/')) {
-        return NextResponse.json(
-            { error: 'Authentication required' },
-            { status: 401 }
-        );
-    }
-
     // Page protection
     if (!sessionToken && !pathname.startsWith('/api/')) {
         return NextResponse.redirect(new URL('/', request.url));

@@ -5,7 +5,7 @@ import { requireAuth } from '@/lib/auth';
 // method is PUT (update the user info)
 export async function PUT(request) {
   try {
-    const authResult = await requireAuth();
+    const authResult = await requireAuth(request);
     if (authResult.error) {
       return NextResponse.json({ error: authResult.error }, { status: authResult.status });
     }

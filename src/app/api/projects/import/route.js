@@ -5,7 +5,7 @@ import { requireAuth } from '@/lib/auth';
 // POST: Import an existing Postgres/Neon database
 export async function POST(request) {
     try {
-        const authResult = await requireAuth();
+        const authResult = await requireAuth(request);
 
         if (authResult.error) {
             return NextResponse.json({ error: authResult.error }, { status: authResult.status });

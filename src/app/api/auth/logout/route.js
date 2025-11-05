@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
 import { getSessionCookie, clearSessionCookie, requireAuth } from '@/lib/auth';
 
-export async function POST() {
+export async function POST(request) {
     try {
         const sessionToken = getSessionCookie();
-        const authResult = await requireAuth();
+        const authResult = await requireAuth(request);
 
         if (authResult.error) {
             return NextResponse.json(

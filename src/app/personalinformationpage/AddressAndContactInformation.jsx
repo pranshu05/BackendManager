@@ -22,9 +22,9 @@ const AddressAndContactInformation = () => {
                     if(data.profile){
                         setPhoneNumber(data.profile.phone_number || '+91 xxxxxxxxxx');
                         setEmailId(data.profile.email || 'username@gmail.com');
-                        setHomeAddress(data.profile.address || '390 Market Street, Suite 200');
-                        setCity(data.profile.city || 'SAN Francisco, LA');
-                        setPinCode(data.profile.pincode || '396001');
+                        setHomeAddress(data.profile.address || 'Not specified');
+                        setCity(data.profile.city || 'Not specified');
+                        setPinCode(data.profile.pincode || 'Not specified');
                     }
                 }
             }catch(error){

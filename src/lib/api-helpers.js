@@ -107,7 +107,7 @@ export function createSuccessResponse(data, message = null, statusCode = 200) {
 export function withAuth(handler) {
     return async (request, context) => {
         try {
-            const authResult = await requireAuth();
+            const authResult = await requireAuth(request);
 
             if (authResult.error) {
                 return NextResponse.json(
