@@ -23,6 +23,50 @@ function cleanMarkdownCodeBlocks(text) {
     return cleaned.trim();
 }
 
+
+
+
+/**
+ * Convert database schema to PlantUML code using AI
+ * @param {Array} schema - Array of table objects with columns and relationships
+ * @returns {Promise<string>} - PlantUML code
+ */
+export async function schemaToUML(schema) {
+    const prompt = `You are a software architect. Convert the following database schema into PlantUML code.
+    Schema:${JSON.stringify(schema, null, 2)}   
+    Requirements:
+    1. Represent each table as a PlantUML class.
+    2. Include columns as attributes within the class.
+    3. Use PlantUML relationships (e.g., -->) for foreign key references.
+    4. Ensure the output is valid PlantUML syntax.
+    5. Include a title for the diagram .
+    6. Use appropriate PlantUML stereotypes for tables and columns.
+    Return ONLY valid PlantUML code (no markdown, no extra text).`;
+
+    try {
+        const { text } = await generateText({
+            model: groq(DEFAULT_MODEL),
+            prompt,
+            temperature: 0.3,
+            maxTokens: 2000,
+        });
+
+        //to clean and parse the response
+        const plantUMLCode = cleanMarkdownCodeBlocks(text);
+
+        //basic validation
+        if (!plantUMLCode.startsWith('@startuml') || !plantUMLCode.endsWith('@enduml')) {
+            throw new Error('Invalid PlantUML code returned from AI');
+        }
+
+        return plantUMLCode;
+    } catch (error) {
+        console.error('Error converting schema to PlantUML:', error);
+        throw new Error(`Failed to convert schema to PlantUML: ${error.message}`);
+    }
+}
+
+
 /**
  * Parse JSON response from AI with error handling
  */

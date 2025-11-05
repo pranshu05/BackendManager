@@ -297,7 +297,6 @@ export async function executeQuery(connectionString, query, params = []) {
     }
     // NOTE: No longer ending pool here - it's cached and reused
 }
-
 // Get database schema with caching
 export async function getDatabaseSchema(connectionString, forceRefresh = false) {
     const cacheKey = connectionString;
@@ -311,22 +310,33 @@ export async function getDatabaseSchema(connectionString, forceRefresh = false) 
     }
 
     const query = `
-        SELECT 
-            t.table_name,
-            c.column_name,
-            c.data_type,
-            c.is_nullable,
-            c.column_default,
-            tc.constraint_type
-        FROM information_schema.tables t
-        LEFT JOIN information_schema.columns c 
-            ON c.table_name = t.table_name
-        LEFT JOIN information_schema.key_column_usage kcu 
-            ON kcu.table_name = t.table_name AND kcu.column_name = c.column_name
-        LEFT JOIN information_schema.table_constraints tc 
-            ON tc.constraint_name = kcu.constraint_name
-        WHERE t.table_schema = 'public'
-        ORDER BY t.table_name, c.ordinal_position;
+       SELECT 
+    t.table_name,
+    c.column_name,
+    c.data_type,
+    c.is_nullable,
+    c.column_default,
+    tc.constraint_type,
+    kcu.constraint_name,
+    ccu.table_name AS foreign_table_name,
+    ccu.column_name AS foreign_column_name
+FROM information_schema.tables t
+LEFT JOIN information_schema.columns c 
+    ON c.table_name = t.table_name AND c.table_schema = t.table_schema
+LEFT JOIN information_schema.key_column_usage kcu 
+    ON kcu.table_name = t.table_name 
+    AND kcu.column_name = c.column_name 
+    AND kcu.table_schema = t.table_schema
+LEFT JOIN information_schema.table_constraints tc 
+    ON tc.constraint_name = kcu.constraint_name 
+    AND tc.table_schema = t.table_schema
+LEFT JOIN information_schema.constraint_column_usage ccu 
+    ON ccu.constraint_name = tc.constraint_name 
+    AND ccu.constraint_schema = tc.table_schema
+WHERE t.table_schema = 'public'
+AND t.table_type = 'BASE TABLE'
+ORDER BY t.table_name, c.ordinal_position;
+
     `;
 
     try {
@@ -346,7 +356,9 @@ export async function getDatabaseSchema(connectionString, forceRefresh = false) 
                     type: row.data_type,
                     nullable: row.is_nullable === 'YES',
                     default: row.column_default,
-                    constraint: row.constraint_type
+                    constraint: row.constraint_type,
+                    foreign_table: row.foreign_table_name,
+                    foreign_column: row.foreign_column_name
                 });
             }
         });
