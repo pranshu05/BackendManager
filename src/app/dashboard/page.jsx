@@ -5,11 +5,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ProjectCard } from "@/components/(dashboard)/ProjectCard";
 import ImportDatabase from '@/components/(dashboard)/ImportDatabase';
-import { Database, LogOut, CheckCircle, Table, User } from "lucide-react";
+import { Database, LogOut, CheckCircle, Table, User , Sparkles} from "lucide-react";
+import './index.css'
+
 
 export default function DashboardPage() {
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [nlInput, setNlInput] = useState("");
+    const [creating, setCreating] = useState(false);
 
     useEffect(() => {
         const fetchProjectsData = async () => {
@@ -43,6 +47,56 @@ export default function DashboardPage() {
             console.error("Logout error:", error);
             window.location.href = "/";
         }
+    };
+
+    const handleCreateProjectandDatabase = () => {
+        // POST the natural language input to the AI create-project API
+        (async () => {
+            if (!nlInput || !nlInput.trim()) {
+                alert('Please enter a project description before creating.');
+                return;
+            }
+
+            setCreating(true);
+            try {
+                const res = await fetch('/api/ai/create-project', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ naturalLanguageInput: nlInput }),
+                    credentials: 'same-origin' // ensure session cookie is sent
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    console.error('Create project failed', data);
+                    if (res.status === 401) {
+                        // likely session expired or not authenticated
+                        alert(data.error || 'Invalid or expired session. Please log in again.');
+                        // redirect to login page
+                        return;
+                    }
+                    alert(data.error || 'Failed to create project');
+                    return;
+                }
+
+                // Success — provide feedback and refresh the page (or re-fetch projects)
+                alert(data.message || 'Project created successfully');
+                
+                // If API returned project id, optionally navigate to it.
+                if (data.project && data.project.id) {
+                    // try to navigate to project page
+                    window.location.href = `/dashboard/projects/${data.project.id}`;
+                } else {
+                    // fallback: reload to refresh the projects list
+                    window.location.reload();
+                }
+            } catch (err) {
+                console.error('Error creating project:', err);
+                alert('An unexpected error occurred while creating the project.');
+            } finally {
+                setCreating(false);
+            }
+        })();
     };
 
     console.log("Projects data:", projects);
@@ -94,6 +148,38 @@ export default function DashboardPage() {
                         knowledge required.
                     </p>
                 </div>
+
+                
+                <div className="cp-card">
+                    <div className="cp-header">
+                        <span className="cp-icon" aria-hidden>
+                            <Sparkles className="sparkles" />
+                        </span>
+                            <h2 className="cp-title">
+                                Create New Project
+                            </h2>
+                            </div>
+                                <p className="cp-subtitle">
+                                Describe your project and we'll automatically create the database and schema for you
+                                </p>
+                            <textarea
+                                className="cp-textarea"
+                                placeholder="Example: I want to create a database for managing employee records with departments, salaries, and performance reviews..."
+                                rows={5}
+                                value={nlInput}
+                                onChange={(e) => setNlInput(e.target.value)}
+                            />
+                            <button
+                                className="cp-button"
+                                type="button"
+                                onClick={handleCreateProjectandDatabase}
+                                disabled={creating || !nlInput.trim()}
+                            >
+                                <span className="cp-plus" aria-hidden></span>
+                                <span>{creating ? "Creating..." : "+ Create Project & Database"}</span>
+                            </button>
+                </div>
+                
 
                 {/* Projects */}
                 <section>

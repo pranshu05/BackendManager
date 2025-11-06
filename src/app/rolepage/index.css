@@ -1,39 +1,27 @@
-body {
+.choose-role-container {
   min-height: 100vh;
-  padding: 20px;
+  padding: 40px;
   background: linear-gradient(to bottom, #f6f6e6 10%, #CBDCEB 50%, #c7defa 80%);
   display: flex;
   flex-direction: column;
+  align-items: center;
   font-family: 'Inter', sans-serif;
-}
-
-.choose-role-container {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  max-width: 800px; 
-  padding: 20px;
-  box-sizing: border-box;
-  justify-content: center;
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 .header {
-  display: inline-flex;
-  top : 30px;
-  margin-bottom: 40px;
-  width: 100%;
-  padding-left: 10px; 
-  justify-content: flex-start; 
-}
-
-
-go-text {
-  display: flex;
-  flex-direction: column;
+    gap: 15px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between; 
+    align-items: center;          
+    width: 100vw;
 }
 
 .dbuddy{
-  margin-left: -20px;
+  margin-left: 20px;
   display: inline-flex;
   height: 40px;
   width: 200px;
@@ -45,7 +33,7 @@ go-text {
 .dbbuddy-title {
   font-size: 24px;
   font-weight: bold;
-  color: #333;
+  color: #133E87;
   margin: 0;
   line-height: 1;
 }
@@ -64,7 +52,7 @@ go-text {
 
 .dbbuddy-slogan {
   font-size: 14px;
-  color: #666;
+  color: #133E87;
   margin: 0;
   line-height: 1;
   width : auto ;
@@ -72,7 +60,24 @@ go-text {
   white-space: nowrap;
 }
 
+.home-btn{
+  position: absolute;
+  margin-top: 20px;
+  right: 50px;
+  background-color: #0a2a5e;
+  color: white;
+  border: none;
+  padding: 6px 6px;
+  font-size: 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
 
+.home-icon {
+  font-size: 26px;   
+  color: white;
+}
 
 .logo-text p{
   color: #133E87;
@@ -81,23 +86,23 @@ go-text {
 }
 
 .role-selection-card {
-  padding: 40px 60px; 
-  border-radius: 8px;
-  text-align: center;
-  width: 100%;
-  max-width: 450px; 
-  align-items: center; 
-  margin-left:  480px;
   justify-content: center;
+    align-items: center; 
+    border-radius: 12px;
+    margin-top: -15px;
+    width: 600px;
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
 }
 
 .role-sym {
   border: 2px solid white; 
   padding: 8px; 
   border-radius: 5px;
-  position : absolute ;
-  margin-top: -70px;
-  margin-left: 120px;
+  position : relative ;
+  
   background-color: #0a2a5e;
   color: white;
   cursor: pointer;
@@ -114,7 +119,7 @@ go-text {
 .role-selection-card h2 {
   font-size: 26px;
   color: #133E87;
-  margin-top: 40px;
+  margin-top: 10px;
   margin-bottom: 30px;
   font-weight: 600;
 }
@@ -229,20 +234,28 @@ go-text {
   background-color: #303f9f;
 }
 
-.home-btn{
-  position: absolute;
-  right: 100px;
-  background-color: #0a2a5e;
-  color: white;
-  border: none;
-  padding: 6px 6px;
-  font-size: 14px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
 
-.home-icon {
-  font-size: 26px;   
-  color: white;
+
+@media (max-width: 100vw) {
+    .role-selection-card {
+        padding: 20px;
+        max-width: 100vw;
+    }
+
+    .form-title {
+        font-size: 30px;
+    }
+
+    .section-title {
+        font-size: 16px;
+    }
+
+    .form-actions {
+        flex-direction: column;
+    }
+
+    .save-button,
+    .cancel-button {
+        width: 100%;
+    }
 }
