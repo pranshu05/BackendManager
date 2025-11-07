@@ -2,15 +2,16 @@ import { NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import { withProjectAuth, logQueryHistory, detectQueryType, createTimer } from '@/lib/api-helpers';
 import { withRateLimit } from '@/lib/rate-limitter';
+import { query } from 'winston';
 
 // POST /api/ai/execute-batch Execute multiple SQL statements from AI analysis in a transaction
 
 export const POST = withRateLimit(
     withProjectAuth(async (request, _context, user, project) => {
         const timer = createTimer();
-
+        
         const { operations, naturalLanguageInput } = await request.json();
-
+       
         // Validate operations input
         if (!Array.isArray(operations) || operations.length === 0) {
             return NextResponse.json(
@@ -62,9 +63,10 @@ export const POST = withRateLimit(
                     target: operation.target,
                     type: detectedQueryType,
                     executionTime,
-                    rowsAffected: result.rowCount
+                    rowsAffected: result.rowCount,
+                    queryResult: result.rows
                 });
-
+           
             } catch (queryError) {
                 const executionTime = opTimer.elapsed();
                 totalExecutionTime += executionTime;
