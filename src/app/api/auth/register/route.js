@@ -5,13 +5,32 @@ import crypto from 'crypto';
 
 export async function POST(request) {
     try {
-        const { email, password, name } = await request.json();
+        const { email, password, confirmPassword, name } = await request.json();
         const emailid = email
+
+        // Get the base URL from the request (works in all environments)
+        const url = new URL(request.url);
+        const baseUrl = ${url.protocol}//${url.host};
 
         // Validate input
         if (!email || !password || !name) {
             return NextResponse.json(
                 { error: 'Email, password, and name are required' },
+                { status: 400 }
+            );
+        }
+
+        // Validate password confirmation
+        if (!confirmPassword) {
+            return NextResponse.json(
+                { error: 'Please confirm your password' },
+                { status: 400 }
+            );
+        }
+
+        if (password !== confirmPassword) {
+            return NextResponse.json(
+                { error: 'Passwords do not match' },
                 { status: 400 }
             );
         }
@@ -50,7 +69,7 @@ export async function POST(request) {
             if (minutesUntilExpiry > (tokenExpiryMinutes - rateLimitMinutes) && minutesUntilExpiry > 0) {
                 const minutesSinceCreation = tokenExpiryMinutes - minutesUntilExpiry;
                 const remainingTime = rateLimitMinutes - minutesSinceCreation;
-                
+
                 // Only rate limit if there's actually remaining time
                 if (remainingTime > 0) {
                     return NextResponse.json({
@@ -62,7 +81,7 @@ export async function POST(request) {
 
             // If more than 2 minutes have passed, allow resending with a new token
             verification_token = crypto.randomBytes(32).toString('hex');
-            verification_link = `${process.env.web_url}/api/auth/verify?token=${verification_token}`;
+            verification_link = ${baseUrl}/api/auth/verify?token=${verification_token};
 
             const newExpiryDate = new Date();
             newExpiryDate.setMinutes(newExpiryDate.getMinutes() + tokenExpiryMinutes);
@@ -105,7 +124,7 @@ export async function POST(request) {
                 );
             }
 
-            verification_link = `${process.env.web_url}/api/auth/verify?token=${verification_token}`;
+            verification_link = ${baseUrl}/api/auth/verify?token=${verification_token};
         }
 
         //Send email for verification purpose

@@ -4,15 +4,18 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { checkemail, otpcheck, resetPassword } from "@/lib/auth-helpers";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function forgotpwd() {
     const [form, setForm] = useState({ email: "" });
     const [form2, setForm2] = useState({ email: "", otp: "" });
-    const [updatedpwd, setupdatedpwd] = useState({ email: "", newpwd: "" });
+    const [updatedpwd, setupdatedpwd] = useState({ email: "", newpwd: "", confirmPassword: "" });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [verify, setverify] = useState(false);
     const [afterverify, setafterverify] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const handleemailSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -57,6 +60,14 @@ export default function forgotpwd() {
         e.preventDefault();
         setLoading(true);
         setError("");
+
+        // Validate password confirmation
+        if (updatedpwd.newpwd !== updatedpwd.confirmPassword) {
+            setError("Passwords do not match");
+            setLoading(false);
+            return;
+        }
+
         try {
             const resetpwdresponse = await resetPassword(updatedpwd);
             console.log("Called RESETPWD and got user as:", resetpwdresponse);
@@ -103,13 +114,42 @@ export default function forgotpwd() {
                     <form onSubmit={handlenewpwd} className="space-y-4">
                         {error && <p className="text-red-500 text-sm">{error}</p>}
                         <div className="space-y-2">
-                            <label className="text-sm">Password</label>
-                            <Input
-                                type="text"
-                                placeholder="Enter New Password"
-                                value={updatedpwd.newpwd}
-                                onChange={(e) => setupdatedpwd({ ...updatedpwd, newpwd: e.target.value })}
-                            />
+                            <label className="text-sm">New Password</label>
+                            <div className="relative">
+                                <Input
+                                    type={showPassword ? "text" : "password"}
+                                    placeholder="Enter New Password"
+                                    value={updatedpwd.newpwd}
+                                    onChange={(e) => setupdatedpwd({ ...updatedpwd, newpwd: e.target.value })}
+                                    className="pr-10"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                                >
+                                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                </button>
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm">Confirm New Password</label>
+                            <div className="relative">
+                                <Input
+                                    type={showConfirmPassword ? "text" : "password"}
+                                    placeholder="Confirm New Password"
+                                    value={updatedpwd.confirmPassword}
+                                    onChange={(e) => setupdatedpwd({ ...updatedpwd, confirmPassword: e.target.value })}
+                                    className="pr-10"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                                >
+                                    {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                </button>
+                            </div>
                         </div>
                         <Button type="submit" className="w-full" disabled={loading}>
                             {loading ? "Resetting..." : "Reset Password"}
@@ -120,6 +160,3 @@ export default function forgotpwd() {
 
     );
 }
-
-
-
