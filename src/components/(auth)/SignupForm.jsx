@@ -4,19 +4,29 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { registerUser } from "@/lib/auth-helpers";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function SignupForm() {
-    const [form, setForm] = useState({ name: "", email: "", password: "" });
+    const [form, setForm] = useState({ name: "", email: "", password: "", confirmPassword: "" });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [emailSent, setEmailSent] = useState(false);
     const [canResend, setCanResend] = useState(false);
     const [resendCooldown, setResendCooldown] = useState(0);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError("");
+
+        // Validate password confirmation
+        if (form.password !== form.confirmPassword) {
+            setError("Passwords do not match");
+            setLoading(false);
+            return;
+        }
 
          try {
             await registerUser(form);
@@ -97,13 +107,45 @@ export default function SignupForm() {
             </div>
             <div className="space-y-2">
                 <label className="text-sm">Password</label>
-                <Input
-                    type="password"
-                    placeholder="Create a password"
-                    value={form.password}
-                    onChange={(e) => setForm({ ...form, password: e.target.value })}
-                    disabled={emailSent}
-                />
+                <div className="relative">
+                    <Input
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Create a password"
+                        value={form.password}
+                        onChange={(e) => setForm({ ...form, password: e.target.value })}
+                        disabled={emailSent}
+                        className="pr-10"
+                    />
+                    <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                        disabled={emailSent}
+                    >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                </div>
+            </div>
+            <div className="space-y-2">
+                <label className="text-sm">Confirm Password</label>
+                <div className="relative">
+                    <Input
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="Confirm your password"
+                        value={form.confirmPassword}
+                        onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+                        disabled={emailSent}
+                        className="pr-10"
+                    />
+                    <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                        disabled={emailSent}
+                    >
+                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                </div>
             </div>
             {emailSent ? (
                 <Button 
