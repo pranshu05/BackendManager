@@ -4,10 +4,19 @@ import { hashPassword } from "@/lib/auth";
 
 export async function POST(request) {
     try {
-        const { email, newpwd } = await request.json();
+        const { email, newpwd, confirmPassword } = await request.json();
 
         if (!email || !newpwd) {
             return NextResponse.json({ error: "Email and new password are required" }, { status: 400 });
+        }
+
+        // Validate password confirmation
+        if (!confirmPassword) {
+            return NextResponse.json({ error: "Please confirm your password" }, { status: 400 });
+        }
+
+        if (newpwd !== confirmPassword) {
+            return NextResponse.json({ error: "Passwords do not match" }, { status: 400 });
         }
 
         const existingUser = await pool.query(
@@ -23,7 +32,7 @@ export async function POST(request) {
         }
 
         const hashedPassword = await hashPassword(newpwd);
-        
+
         await pool.query(
             'UPDATE users SET password_hash = $1 WHERE email = $2',
             [hashedPassword, email]
