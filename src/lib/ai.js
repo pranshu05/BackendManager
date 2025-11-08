@@ -25,10 +25,11 @@ function cleanMarkdownCodeBlocks(text) {
 
 
 export async function generatequerysuggestions(schema){
-    const prompt = `You are a helpful assistant that generates SQL query suggestions based on the provided database schema.
+const prompt = `You are a helpful assistant that generates SQL query suggestions based on the provided database schema.
 Database Schema:
 ${JSON.stringify(schema, null, 2)}  
 Generate 4 diverse and relevant query suggestions in natural language that a user might want to run against this database.
+The query should target either one or more of the tables in the schema.
 Return ONLY a JSON array of strings (no markdown, no extra text):
 [
   "SQL query suggestion 1",
@@ -51,7 +52,7 @@ Return ONLY a JSON array of strings (no markdown, no extra text):
         if (!Array.isArray(suggestions)) {
             throw new Error('Invalid suggestions format returned from AI');
         }
-        console.log("Raw suggestions from AI:", suggestions);
+       
         return suggestions;
     } catch (error) {
         console.error('Error generating query suggestions:', error);
