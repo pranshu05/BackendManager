@@ -45,27 +45,27 @@ export async function otpcheck({email,otp})
     return res.json();
 }
 
-export async function resetPassword({ email, newpwd }) {
+export async function resetPassword({ email, newpwd, confirmPassword }) {
     const res = await fetch("/api/auth/updatepwd", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, newpwd }),
+        body: JSON.stringify({ email, newpwd, confirmPassword }),
     });
 
     if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.message || "Password reset failed.");
+        throw new Error(errorData.error || errorData.message || "Password reset failed.");
     }
 
     return res.json();
 }
 
-export async function registerUser({ name, email, password }) {
+export async function registerUser({ name, email, password, confirmPassword }) {
     const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, password, confirmPassword }),
     });
 
     if (!res.ok) {
