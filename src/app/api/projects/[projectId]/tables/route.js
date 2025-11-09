@@ -1,96 +1,155 @@
 import { NextResponse } from 'next/server';
-import { executeQuery, getDatabaseSchema } from '@/lib/db';
-import { withProjectAuth, logQueryHistory, detectQueryType } from '@/lib/api-helpers';
+import { pool, executeQuery, getDatabaseSchema } from '@/lib/db';
+import { requireAuth } from '@/lib/auth';
 
 // Create table
-export const POST = withProjectAuth(async (request, _context, user, project) => {
-    const { tableName, columns } = await request.json();
+export async function POST(request, { params }) {
+    try {
+        const authResult = await requireAuth();
+        const { projectId } = params;
 
-    if (!tableName || !columns || !Array.isArray(columns)) {
+        if (authResult.error) {
+            return NextResponse.json(
+                { error: authResult.error },
+                { status: authResult.status }
+            );
+        }
+
+        const { tableName, columns } = await request.json();
+
+        if (!tableName || !columns || !Array.isArray(columns)) {
+            return NextResponse.json(
+                { error: 'Table name and columns array are required' },
+                { status: 400 }
+            );
+        }
+
+        // Get project connection string
+        const projectResult = await pool.query(`
+            SELECT connection_string
+            FROM user_projects 
+            WHERE id = $1 AND user_id = $2 AND is_active = true
+        `, [projectId, authResult.user.id]);
+
+        if (projectResult.rows.length === 0) {
+            return NextResponse.json(
+                { error: 'Project not found' },
+                { status: 404 }
+            );
+        }
+
+        const connectionString = projectResult.rows[0].connection_string;
+
+        // Build CREATE TABLE query
+        const columnDefinitions = columns.map(col => {
+            let definition = `${col.name} ${col.type.toUpperCase()}`;
+
+            if (col.primaryKey) {
+                definition += ' PRIMARY KEY';
+            }
+            if (col.notNull && !col.primaryKey) {
+                definition += ' NOT NULL';
+            }
+            if (col.unique) {
+                definition += ' UNIQUE';
+            }
+            if (col.defaultValue) {
+                definition += ` DEFAULT ${col.defaultValue}`;
+            }
+
+            return definition;
+        }).join(', ');
+
+        const createTableQuery = `CREATE TABLE ${tableName} (${columnDefinitions})`;
+
+        try {
+            // Execute CREATE TABLE
+            await executeQuery(connectionString, createTableQuery);
+
+            // Log the operation
+            await pool.query(`
+                INSERT INTO query_history (project_id, user_id, query_text, query_type, success)
+                VALUES ($1, $2, $3, $4, $5)
+            `, [projectId, authResult.user.id, createTableQuery, 'CREATE', true]);
+
+            return NextResponse.json({
+                message: `Table '${tableName}' created successfully`,
+                tableName,
+                query: createTableQuery
+            });
+
+        } catch (queryError) {
+            return NextResponse.json({
+                error: `Failed to create table: ${queryError.message}`,
+                query: createTableQuery
+            }, { status: 400 });
+        }
+
+    } catch (error) {
+        console.error('Create table error:', error);
         return NextResponse.json(
-            { error: 'Table name and columns array are required' },
-            { status: 400 }
+            { error: 'Internal server error' },
+            { status: 500 }
         );
     }
+}
 
-    const columnDefinitions = columns.map(col => {
-        let definition = `${col.name} ${col.type.toUpperCase()}`;
 
-        if (col.primaryKey) {
-            definition += ' PRIMARY KEY';
-        }
-        if (col.notNull && !col.primaryKey) {
-            definition += ' NOT NULL';
-        }
-        if (col.unique) {
-            definition += ' UNIQUE';
-        }
-        if (col.defaultValue) {
-            definition += ` DEFAULT ${col.defaultValue}`;
-        }
-
-        return definition;
-    }).join(', ');
-
-    const createTableQuery = `CREATE TABLE ${tableName} (${columnDefinitions})`;
-
+export async function GET(request, { params }) {
     try {
-        // Execute CREATE TABLE
-        await executeQuery(project.connection_string, createTableQuery);
+        const authResult = await requireAuth();
+        const { projectId } = await params;
 
-        // Log the operation
-        await logQueryHistory({
-            projectId: project.id,
-            userId: user.id,
-            queryText: createTableQuery,
-            queryType: detectQueryType(createTableQuery),
-            success: true
-        });
+        if (authResult.error) {
+            return NextResponse.json({ error: authResult.error }, { status: authResult.status });
+        }
+        const projectResult = await pool.query(
+            `
+            SELECT connection_string
+            FROM user_projects 
+            WHERE id = $1::uuid AND user_id = $2 AND is_active = true
+            `,
+            [projectId, authResult.user.id]
+        );
+
+        if (projectResult.rows.length === 0) {
+            return NextResponse.json({ error: "Project not found" }, { status: 404 });
+        }
+
+        const connectionString = projectResult.rows[0].connection_string;
+
+        const schemaInfo = await getDatabaseSchema(connectionString);
+        const url = new URL(request.url);
+        const tableName = url.searchParams.get("table");
+        const limitParam = url.searchParams.get("limit");
+
+
+        if (!tableName) {
+            return NextResponse.json({ tables: schemaInfo });
+        }
+        let query;
+        let queryParams = [];
+
+
+
+        const parsedLimit = Number.parseInt(limitParam, 10);
+        if (!Number.isNaN(parsedLimit) && parsedLimit > 0) {
+            query = `SELECT * FROM "${tableName}" LIMIT $1;`;
+            queryParams = [parsedLimit];
+        } else {
+            query = `SELECT * FROM "${tableName}";`;
+            queryParams = [];
+        }
+
+        const result = await executeQuery(connectionString, query, queryParams);
 
         return NextResponse.json({
-            message: `Table '${tableName}' created successfully`,
-            tableName,
-            query: createTableQuery
+            table: tableName,
+            columns: schemaInfo.find((t) => t.name === tableName)?.columns || [],
+            rows: result.rows,
         });
-
-    } catch (queryError) {
-        return NextResponse.json({
-            error: `Failed to create table: ${queryError.message}`,
-            query: createTableQuery
-        }, { status: 400 });
+    } catch (error) {
+        console.error("Error in getting table info", error);
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
-});
-
-// Get tables or table data
-export const GET = withProjectAuth(async (request, _context, _user, project) => {
-    const schemaInfo = await getDatabaseSchema(project.connection_string);
-    const url = new URL(request.url);
-    const tableName = url.searchParams.get("table");
-    const limitParam = url.searchParams.get("limit");
-
-    // If no table specified, return all tables
-    if (!tableName) {
-        return NextResponse.json({ tables: schemaInfo });
-    }
-
-    // Build query with optional limit
-    let query;
-    let queryParams = [];
-
-    const parsedLimit = Number.parseInt(limitParam, 10);
-    if (!Number.isNaN(parsedLimit) && parsedLimit > 0) {
-        query = `SELECT * FROM "${tableName}" LIMIT $1;`;
-        queryParams = [parsedLimit];
-    } else {
-        query = `SELECT * FROM "${tableName}";`;
-        queryParams = [];
-    }
-
-    const result = await executeQuery(project.connection_string, query, queryParams);
-
-    return NextResponse.json({
-        table: tableName,
-        columns: schemaInfo.find((t) => t.name === tableName)?.columns || [],
-        rows: result.rows,
-    });
-});
+}

@@ -9,17 +9,6 @@ const pool = new Pool({
     connectionTimeoutMillis: 2000,
 });
 
-// Cache user database connection pools to avoid recreating them
-const userPoolCache = new Map();
-const POOL_TTL = 30 * 60 * 1000; // 30 minutes
-
-// Cache database schemas to reduce repeated queries
-const schemaCache = new Map();
-const SCHEMA_TTL = 5 * 60 * 1000; // 5 minutes
-
-// Simple in-memory connection manager to keep pools per imported project
-const pools = new Map();
-
 // Function to create a new user database in Neon
 export async function createUserDatabase(userId, projectName) {
     const dbName = `${userId.replace(/-/g, '_')}_${projectName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
@@ -71,9 +60,6 @@ export async function createUserDatabase(userId, projectName) {
 // Function to delete a user database in Neon
 export async function deleteUserDatabase(dbName) {
     try {
-        // Clear cached pool and schema for this database
-        clearDatabaseCache(dbName);
-
         const response = await fetch(
             `https://console.neon.tech/api/v2/projects/${process.env.NEON_PROJECT_ID}/branches/${process.env.NEON_BRANCH_ID}/databases/${dbName}`,
             {
@@ -101,15 +87,8 @@ export async function deleteUserDatabase(dbName) {
     }
 }
 
-// Function to get connection to a specific user database (with SSL fallback)
+// Function to get connection to a specific user database
 export async function getUserDatabaseConnection(connectionString) {
-    // Check if we have a cached pool
-    const cached = userPoolCache.get(connectionString);
-    
-    if (cached && Date.now() - cached.timestamp < POOL_TTL) {
-        return cached.pool;
-    }
-
     // First try connecting with SSL
     try {
         const sslPool = new Pool({
@@ -124,16 +103,6 @@ export async function getUserDatabaseConnection(connectionString) {
         
         // Test the SSL connection
         await sslPool.query('SELECT 1');
-        
-        // Cache it
-        userPoolCache.set(connectionString, {
-            pool: sslPool,
-            timestamp: Date.now()
-        });
-
-        // Clean up old pools periodically
-        cleanupOldPools();
-
         return sslPool;
     } catch (error) {
         // If SSL connection fails, try without SSL
@@ -149,16 +118,6 @@ export async function getUserDatabaseConnection(connectionString) {
                 
                 // Test the non-SSL connection
                 await nonSslPool.query('SELECT 1');
-                
-                // Cache it
-                userPoolCache.set(connectionString, {
-                    pool: nonSslPool,
-                    timestamp: Date.now()
-                });
-
-                // Clean up old pools periodically
-                cleanupOldPools();
-
                 return nonSslPool;
             } catch (nonSslError) {
                 throw new Error(`Failed to connect to database: ${nonSslError.message}`);
@@ -168,7 +127,9 @@ export async function getUserDatabaseConnection(connectionString) {
     }
 }
 
-// Pool management functions for imported projects
+// Simple in-memory connection manager to keep pools per imported project
+const pools = new Map();
+
 export function createPool(key, connectionString) {
     if (pools.has(key)) {
         return pools.get(key);
@@ -198,35 +159,6 @@ export async function removePool(key) {
         return true;
     }
     return false;
-}
-
-// Clear cache for a specific database
-function clearDatabaseCache(dbName) {
-    // Remove from pool cache
-    for (const [connString, data] of userPoolCache.entries()) {
-        if (connString.includes(dbName)) {
-            data.pool.end().catch(console.error);
-            userPoolCache.delete(connString);
-        }
-    }
-
-    // Remove from schema cache
-    for (const [key] of schemaCache.entries()) {
-        if (key.includes(dbName)) {
-            schemaCache.delete(key);
-        }
-    }
-}
-
-// Cleanup old pools from cache
-function cleanupOldPools() {
-    const now = Date.now();
-    for (const [connString, data] of userPoolCache.entries()) {
-        if (now - data.timestamp > POOL_TTL) {
-            data.pool.end().catch(console.error);
-            userPoolCache.delete(connString);
-        }
-    }
 }
 
 // Function to wait for database to be ready
@@ -279,7 +211,6 @@ export async function executeQuery(connectionString, query, params = []) {
         throw new Error('Invalid query: SELECT query appears to be incomplete');
     }
 
-    // Use cached pool (don't end it after query)
     const userPool = await getUserDatabaseConnection(connectionString);
 
     try {
@@ -294,49 +225,40 @@ export async function executeQuery(connectionString, query, params = []) {
         }
         
         throw error;
+    } finally {
+        await userPool.end();
     }
-    // NOTE: No longer ending pool here - it's cached and reused
 }
-// Get database schema with caching
-export async function getDatabaseSchema(connectionString, forceRefresh = false) {
-    const cacheKey = connectionString;
-    
-    // Check cache first
-    if (!forceRefresh) {
-        const cached = schemaCache.get(cacheKey);
-        if (cached && Date.now() - cached.timestamp < SCHEMA_TTL) {
-            return cached.data;
-        }
-    }
 
+// Function to get database schema information
+export async function getDatabaseSchema(connectionString) {
     const query = `
-       SELECT 
-    t.table_name,
-    c.column_name,
-    c.data_type,
-    c.is_nullable,
-    c.column_default,
-    tc.constraint_type,
-    kcu.constraint_name,
-    ccu.table_name AS foreign_table_name,
-    ccu.column_name AS foreign_column_name
-FROM information_schema.tables t
-LEFT JOIN information_schema.columns c 
-    ON c.table_name = t.table_name AND c.table_schema = t.table_schema
-LEFT JOIN information_schema.key_column_usage kcu 
-    ON kcu.table_name = t.table_name 
-    AND kcu.column_name = c.column_name 
-    AND kcu.table_schema = t.table_schema
-LEFT JOIN information_schema.table_constraints tc 
-    ON tc.constraint_name = kcu.constraint_name 
-    AND tc.table_schema = t.table_schema
-LEFT JOIN information_schema.constraint_column_usage ccu 
-    ON ccu.constraint_name = tc.constraint_name 
-    AND ccu.constraint_schema = tc.table_schema
-WHERE t.table_schema = 'public'
-AND t.table_type = 'BASE TABLE'
-ORDER BY t.table_name, c.ordinal_position;
-
+        SELECT 
+            t.table_name,
+            c.column_name,
+            c.data_type,
+            c.is_nullable,
+            c.column_default,
+            tc.constraint_type,
+            kcu.constraint_name,
+            ccu.table_name AS foreign_table_name,
+            ccu.column_name AS foreign_column_name
+        FROM information_schema.tables t
+        LEFT JOIN information_schema.columns c 
+            ON c.table_name = t.table_name AND c.table_schema = t.table_schema
+        LEFT JOIN information_schema.key_column_usage kcu 
+            ON kcu.table_name = t.table_name 
+            AND kcu.column_name = c.column_name 
+            AND kcu.table_schema = t.table_schema
+        LEFT JOIN information_schema.table_constraints tc 
+            ON tc.constraint_name = kcu.constraint_name 
+            AND tc.table_schema = t.table_schema
+        LEFT JOIN information_schema.constraint_column_usage ccu 
+            ON ccu.constraint_name = tc.constraint_name 
+            AND ccu.constraint_schema = tc.table_schema
+        WHERE t.table_schema = 'public'
+        AND t.table_type = 'BASE TABLE'
+        ORDER BY t.table_name, c.ordinal_position;
     `;
 
     try {
@@ -363,33 +285,11 @@ ORDER BY t.table_name, c.ordinal_position;
             }
         });
 
-        const schemaData = Object.values(tables);
-
-        // Cache the result
-        schemaCache.set(cacheKey, {
-            data: schemaData,
-            timestamp: Date.now()
-        });
-
-        return schemaData;
+        return Object.values(tables);
     } catch (error) {
         console.error('Error fetching schema:', error);
         throw error;
     }
-}
-
-// Invalidate schema cache for a connection
-export function invalidateSchemaCache(connectionString) {
-    schemaCache.delete(connectionString);
-}
-
-// Get cache statistics for monitoring
-export function getCacheStats() {
-    return {
-        poolCacheSize: userPoolCache.size,
-        schemaCacheSize: schemaCache.size,
-        importedPoolsSize: pools.size
-    };
 }
 
 export { pool };
