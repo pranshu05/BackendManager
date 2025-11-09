@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { withProjectAuth, logQueryHistory, detectQueryType } from '@/lib/api-helpers';
 import { pool, executeQuery, getDatabaseSchema } from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
 
@@ -64,13 +65,16 @@ export async function POST(request, { params }) {
 
         try {
             // Execute CREATE TABLE
-            await executeQuery(connectionString, createTableQuery);
+        await executeQuery(connectionString, createTableQuery);
 
             // Log the operation
-            await pool.query(`
-                INSERT INTO query_history (project_id, user_id, query_text, query_type, success)
-                VALUES ($1, $2, $3, $4, $5)
-            `, [projectId, authResult.user.id, createTableQuery, 'CREATE', true]);
+        await logQueryHistory({
+            projectId: project.id,
+            userId: user.id,
+            queryText: createTableQuery,
+            queryType: detectQueryType(createTableQuery),
+            success: true
+        });
 
             return NextResponse.json({
                 message: `Table '${tableName}' created successfully`,
@@ -123,14 +127,14 @@ export async function GET(request, { params }) {
         const tableName = url.searchParams.get("table");
         const limitParam = url.searchParams.get("limit");
 
-
+    // If no table specified, return all tables
         if (!tableName) {
             return NextResponse.json({ tables: schemaInfo });
         }
+
+    // Build query with optional limit
         let query;
         let queryParams = [];
-
-
 
         const parsedLimit = Number.parseInt(limitParam, 10);
         if (!Number.isNaN(parsedLimit) && parsedLimit > 0) {

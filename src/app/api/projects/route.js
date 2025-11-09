@@ -14,7 +14,6 @@ export const GET = withAuth(async (_request, _context, user) => {
                 created_at, 
                 updated_at,
                 0 as table_count
-              
             FROM user_projects
             WHERE user_id = $1 AND is_active = true
             ORDER BY created_at DESC
