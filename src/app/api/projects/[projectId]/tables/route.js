@@ -61,6 +61,7 @@ export const POST = withProjectAuth(async (request, _context, user, project) => 
     }
 });
 
+
 // Get tables or table data
 export const GET = withProjectAuth(async (request, _context, _user, project) => {
     const schemaInfo = await getDatabaseSchema(project.connection_string);
@@ -76,7 +77,6 @@ export const GET = withProjectAuth(async (request, _context, _user, project) => 
     // Build query with optional limit
     let query;
     let queryParams = [];
-
     const parsedLimit = Number.parseInt(limitParam, 10);
     if (!Number.isNaN(parsedLimit) && parsedLimit > 0) {
         query = `SELECT * FROM "${tableName}" LIMIT $1;`;

@@ -288,14 +288,27 @@ ${schemaContext}
 
 User's Update Request: "${naturalLanguageInput}"
 
-Analyze the request and determine what database operations are needed. The request might involve:
-- Creating new tables
-- Adding columns to existing tables
-- Modifying column types or constraints
-- Creating indexes for performance
-- Adding foreign key relationships
-- Dropping tables or columns (be cautious)
-- Any other DDL operations
+Analyze the request and determine what database operations needed. 
+
+IMPORTANT: 
+1. For SELECT queries or data retrieval requests:
+   - DO NOT create any indexes or modify the schema
+   - Use column aliases (AS) for calculated fields and JOIN results
+   - Never modify actual table structures for query results
+   - Ensure all result columns have clear, meaningful names
+   - For mathematical operations or concatenations, always provide an alias
+   Example: 
+   - SELECT (salary * 12) AS annual_salary
+   - SELECT CONCAT(first_name, ' ', last_name) AS full_name
+
+2. Only suggest schema modifications when explicitly requested:
+   - Creating new tables
+   - Adding columns to existing tables
+   - Modifying column types or constraints
+   - Adding foreign key relationships
+   - Dropping tables or columns (be cautious)
+   - Performance optimization through indexes (only when specifically requested)
+   - Other explicit DDL operations
 
 For each operation needed, generate the appropriate SQL statement with PostgreSQL syntax.
 
@@ -307,7 +320,8 @@ Return ONLY valid JSON in this exact format (no markdown, no extra text):
       "target": "table_name or target entity",
       "sql": "SQL statement",
       "explaination": "Why this operation is needed",
-      "risk_level": "low" | "medium" | "high"
+      "risk_level": "low" | "medium" | "high",
+      "is_idempotent": boolean // indicates if the operation is safe to run multiple times
     }
   ],
   "summary": "Overall summary of all changes being proposed",
@@ -321,8 +335,12 @@ Important guidelines:
 3. Use proper PostgreSQL data types
 4. Include foreign key constraints where relationships exist
 5. Mark DROP operations as "high" risk
-6. Consider adding indexes for commonly queried columns
-7. If modifying existing tables, ensure backward compatibility when possible`;
+6. For index creation:
+   - Use CREATE INDEX IF NOT EXISTS syntax
+   - Set is_idempotent to true for these operations
+   - Check if similar indexes already exist on the columns
+7. If modifying existing tables, ensure backward compatibility when possible
+8. Use conditional logic for potentially duplicate operations`;
 
     try {
         const { text } = await generateText({
