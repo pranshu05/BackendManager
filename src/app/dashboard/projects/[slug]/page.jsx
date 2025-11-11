@@ -65,11 +65,47 @@ export default function DashboardPage() {
     const projectid = params.slug;
     const [projects, setProjects] = useState([]);
     const [projectdetail, setprojectdetail] = useState({});
-    const [page, setpage] = useState("table");
+
+    // Initialize page state from localStorage (lazy initializer) to avoid a flash of the default value
+    const [page, setpage] = useState(() => {
+      try {
+        if (typeof window !== 'undefined' && projectid) {
+          const saved = localStorage.getItem(`dashboard:page:${projectid}`);
+          return saved || 'table';
+        }
+      } catch (e) {
+        // ignore
+      }
+      return '';
+    });
+
+    // If projectid changes (navigating between projects), restore saved page for that project
+    useEffect(() => {
+      try {
+        if (typeof window !== 'undefined' && projectid) {
+          const saved = localStorage.getItem(`dashboard:page:${projectid}`);
+          if (saved && saved !== page) setpage(saved);
+        }
+      } catch (e) {
+        // ignore
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [projectid]);
+
+    // Wrapper to set page and persist to localStorage
+    const handleSetPage = (newPage) => {
+      setpage(newPage);
+      try {
+        if (typeof window !== 'undefined' && projectid) localStorage.setItem(`dashboard:page:${projectid}`, newPage);
+      } catch (e) {
+        // ignore storage errors
+      }
+    };
     const [selectedTable, setSelectedTable] = useState(null);
     const [tableData, setTableData] = useState(null);
     const [tablelist, settablelist] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [loadtable, setloadtable] = useState(false);
     const [limit,] = useState(5);
     const [isExpanded, setIsExpanded] = useState(false);
     const [editingCell, setEditingCell] = useState(null);
@@ -77,13 +113,18 @@ export default function DashboardPage() {
     const [deletebtn, setdeletebtn] = useState(false);
     const [deleteRows, setdeleteRows] = useState([])
     const [isExporting, setIsExporting] = useState(false);
-    const [exportOptions, setExportOptions] = useState(["PDF", "CSV", "JSON"]);   
+  const [exportOptions, setExportOptions] = useState(["XLSX", "CSV", "JSON"]);   
     
     const handleExport = async (format) => {
         console.log("Export Request for project:", projectid, "in format:", format);
-        setIsExporting(true);
-        try {
-            const res = await fetch(`/api/projects/${projectid}/export?format=${format.toLowerCase()}`);
+    if (!selectedTable) {
+      alert('Please select a table to export');
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const res = await fetch(`/api/projects/${projectid}/export?format=${format.toLowerCase()}&table=${encodeURIComponent(selectedTable)}`);
             
             if (!res.ok) {
                 const errorData = await res.json();
@@ -99,16 +140,18 @@ export default function DashboardPage() {
             a.href = url;
             
             // Use the filename from the server, or fallback to project name
-            if (disposition && disposition.includes('filename=')) {
-                const filenameMatch = disposition.match(/filename="(.+)"/);
-                if (filenameMatch) {
-                    a.download = filenameMatch[1];
-                } else {
-                    a.download = `${projectdetail.project_name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_database_export_${new Date().toISOString().split('T')[0]}.${format.toLowerCase()}`;
-                }
-            } else {
-                a.download = `${projectdetail.project_name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_database_export_${new Date().toISOString().split('T')[0]}.${format.toLowerCase()}`;
-            }
+      if (disposition && disposition.includes('filename=')) {
+        const filenameMatch = disposition.match(/filename="(.+)"/);
+        if (filenameMatch) {
+          a.download = filenameMatch[1];
+        } else {
+          // fallback: use table name as filename
+          a.download = `${selectedTable.replace(/[^a-z0-9]/gi, '_')}.${format.toLowerCase()}`;
+        }
+      } else {
+        // fallback: use table name as filename
+        a.download = `${selectedTable.replace(/[^a-z0-9]/gi, '_')}.${format.toLowerCase()}`;
+      }
             
             document.body.appendChild(a);
             a.click();
@@ -491,6 +534,7 @@ export default function DashboardPage() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Failed to fetch table data");
             setTableData(data);
+            setloadtable(false);
         } catch (err) {
             console.error("Error fetching table data:", err);
         } finally {
@@ -521,7 +565,7 @@ export default function DashboardPage() {
                 </div>
             </div>
             <div className="content flex flex-row w-full flex-1 min-h-0">
-                <Sidebar active={page} onSelectPage={(newPage) => setpage(newPage)} />
+                <Sidebar active={page} onSelectPage={(newPage) => handleSetPage(newPage)} />
 
                 <div className="rightcontent flex flex-col w-full border-1 overflow-x-hidden overflow-y-scroll min-h-0 h-screen">
                 {page=="table"?<>
@@ -534,14 +578,12 @@ export default function DashboardPage() {
                                 setSelectedTable(t)
                                 fetchtabledata(t);
                                 setIsExpanded(false)
+                                setloadtable(true)
                             }
                             }
                         />
                     </div>
-                    <div className="filter h-23 items-center flex sm:p-4 gap-4">
-                        <Funnel />
-                        Filters:
-                    </div>
+          {/* filter bar removed per UX request */}
                     <div className="mockbutton  h-28 gap-2 bg-white items-center flex-col  max-[510]:h-65   min-[820]:flex-row min-[820]:h-19 flex p-4 justify-between">
                         <div className="frontbtn flex flex-row gap-2 max-[510]:flex-col max-[510]:w-full max-[510]:gap-3">
                             <Button className=" max-[510]:w-full hover:cursor-pointer">+ Insert Row</Button>
@@ -563,9 +605,45 @@ export default function DashboardPage() {
                         </div>
                     </div>
                     {/* Table here */}
-                    <div className="flex-1 min-h-0 flex flex-col">
-                        {loading ? <div>Loading table</div> :
-                            tableData ? <div className="w-full overflow-x-auto max-w-full overflow-y-auto h-fit">
+          <div className="flex-1 min-h-0 flex flex-col">
+            {loadtable ? (
+              <div role="status" aria-live="polite" className="p-6">
+                <div className="flex items-center gap-4">
+                  <svg className="animate-spin h-8 w-8" style={{ color: 'var(--primary)' }} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden>
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                  </svg>
+                  <div>
+                    <div className="h-4 w-56 bg-gray-200 rounded-md mb-2 animate-pulse" />
+                    <div className="text-sm text-gray-500">Loading table data...</div>
+                  </div>
+                </div>
+
+                <div className="mt-6 bg-white/90 backdrop-blur-sm rounded-lg shadow-md p-4 border border-gray-100">
+                  {/* header placeholders - approximate column widths */}
+                  <div className="flex items-center gap-4 mb-3">
+                    <div className="h-4 bg-gray-200 rounded" style={{ width: '38%' }} />
+                    <div className="h-4 bg-gray-200 rounded" style={{ width: '16%' }} />
+                    <div className="h-4 bg-gray-200 rounded" style={{ width: '16%' }} />
+                    <div className="h-4 bg-gray-200 rounded" style={{ width: '16%' }} />
+                    <div className="h-4 bg-gray-200 rounded" style={{ width: '12%' }} />
+                  </div>
+
+                  <div className="space-y-3">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <div key={i} className="flex gap-4 items-center">
+                        <div className="h-4 bg-gray-200 rounded flex-1 animate-pulse" />
+                        <div className="h-4 bg-gray-200 rounded" style={{ width: '16%' }} />
+                        <div className="h-4 bg-gray-200 rounded" style={{ width: '16%' }} />
+                        <div className="h-4 bg-gray-200 rounded" style={{ width: '16%' }} />
+                        <div className="h-4 bg-gray-200 rounded" style={{ width: '12%' }} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) :
+                            tableData ? <div className="w-full overflow-x-auto max-w-full overflow-y-auto h-fit p-5">
                                 <table className="min-w-max w-full table-auto">
                                     <thead className="tb_head">
                                         <tr>
