@@ -120,6 +120,7 @@ export async function GET(request, { params }) {
             return NextResponse.json({ error: "Project not found" }, { status: 404 });
         }
 
+
         const connectionString = projectResult.rows[0].connection_string;
 
         const schemaInfo = await getDatabaseSchema(connectionString);
@@ -127,12 +128,14 @@ export async function GET(request, { params }) {
         const tableName = url.searchParams.get("table");
         const limitParam = url.searchParams.get("limit");
 
+
     // If no table specified, return all tables
         if (!tableName) {
             return NextResponse.json({ tables: schemaInfo });
         }
 
     // Build query with optional limit
+
         let query;
         let queryParams = [];
 
@@ -144,6 +147,7 @@ export async function GET(request, { params }) {
             query = `SELECT * FROM "${tableName}";`;
             queryParams = [];
         }
+
 
         const result = await executeQuery(connectionString, query, queryParams);
 

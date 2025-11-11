@@ -5,6 +5,7 @@ import Header from "@/components/ui/header";
 import Sidebar from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import Dropdown from "@/components/ui/dropdown";
+import ExportDropdown from "@/components/ui/ExportDropdown";
 import SchemaPage from "@/components/(projects)/schema";
 import Optimization from "@/components/(projects)/optimization";
 import Query from "@/components/(projects)/query";
@@ -74,11 +75,57 @@ export default function DashboardPage() {
     const [editingCell, setEditingCell] = useState(null);
     const [editedvalue, seteditedvalue] = useState("");
     const [deletebtn, setdeletebtn] = useState(false);
-    const [deleteRows, setdeleteRows] = useState([]);
-    const [query, setQuery] = useState("");
-    //DElete rows is an array of objects, where each object contains primary key cols and
-    //their values for rows to be deleted
+    const [deleteRows, setdeleteRows] = useState([])
+    const [isExporting, setIsExporting] = useState(false);
+    const [exportOptions, setExportOptions] = useState(["PDF", "CSV", "JSON"]);   
+    
+    const handleExport = async (format) => {
+        console.log("Export Request for project:", projectid, "in format:", format);
+        setIsExporting(true);
+        try {
+            const res = await fetch(`/api/projects/${projectid}/export?format=${format.toLowerCase()}`);
+            
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.error || "Failed to export data");
+            }
 
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+
+            // Get filename from Content-Disposition header or use project name
+            const disposition = res.headers.get('Content-Disposition');
+            const a = document.createElement('a');
+            a.href = url;
+            
+            // Use the filename from the server, or fallback to project name
+            if (disposition && disposition.includes('filename=')) {
+                const filenameMatch = disposition.match(/filename="(.+)"/);
+                if (filenameMatch) {
+                    a.download = filenameMatch[1];
+                } else {
+                    a.download = `${projectdetail.project_name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_database_export_${new Date().toISOString().split('T')[0]}.${format.toLowerCase()}`;
+                }
+            } else {
+                a.download = `${projectdetail.project_name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_database_export_${new Date().toISOString().split('T')[0]}.${format.toLowerCase()}`;
+            }
+            
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+
+            // Clean up the blob URL after a short delay
+            setTimeout(() => {
+                window.URL.revokeObjectURL(url);
+            }, 1000);
+
+        } catch (error) {
+            console.error('Export error:', error);
+            alert(error.message || 'Failed to export data');
+        } finally {
+            setIsExporting(false);
+        }
+    };
 
   const [queryHistory, setQueryHistory] = useState([]);   // Stores the list of history items
   const [historyLoading, setHistoryLoading] = useState(false); // Is the history list loading?
@@ -402,9 +449,7 @@ export default function DashboardPage() {
         }
     };
 
-    useEffect(() => {
-        if (!projectid) return;
-        const fetchTables = async () => {
+     const fetchTables = async () => {
             try {
             const res = await fetch(`/api/projects/${projectid}/tables`, {
                   credentials: "include",
@@ -415,7 +460,7 @@ export default function DashboardPage() {
                     console.error("Failed to fetch tables:", data.error);
                     return;
                 }
-
+                console.log("Fetched tables: ", data);
                 const names = data.tables.map((t) => t.name);
                 settablelist(names);
 
@@ -429,6 +474,8 @@ export default function DashboardPage() {
             }
         };
 
+    useEffect(() => {
+        if (!projectid) return;
         if (projectid) fetchTables();
     }, [projectid]);
 
@@ -507,13 +554,18 @@ export default function DashboardPage() {
                         </div>
                         <div className="endbtn flex gap-4 max-[510]:gap-2 max-[510]:flex-col max-[510]:w-full">
                             <Button className="text-black bg-sidebar border-1 hover:bg-gray-300 hover:cursor-pointer"><Sparkles />Generate Mock Data</Button>
-                            <Button className="text-black bg-sidebar border-1 hover:bg-gray-300 hover:cursor-pointer"><Download /> Export</Button>
+                            <ExportDropdown 
+                              options={exportOptions}
+                              onSelect={handleExport}
+                              disabled={!selectedTable || !tableData || tableData.rows.length === 0}
+                              isLoading={isExporting}
+                            />
                         </div>
                     </div>
                     {/* Table here */}
                     <div className="flex-1 min-h-0 flex flex-col">
                         {loading ? <div>Loading table</div> :
-                            tableData ? <div className="w-full overflow-x-auto max-w-full overflow-y-auto h-full">
+                            tableData ? <div className="w-full overflow-x-auto max-w-full overflow-y-auto h-fit">
                                 <table className="min-w-max w-full table-auto">
                                     <thead className="tb_head">
                                         <tr>
@@ -611,8 +663,15 @@ export default function DashboardPage() {
 
                                     </tbody>
                                 </table>
-                                {!isExpanded && tableData && tableData.rows.length === limit && (
-                                    <div className="flex justify-center mt-3">
+                          
+
+                            </div>
+
+                                :
+                                <div className="text-gray-500 italic">No table selected</div>
+                        }
+                         {!isExpanded && tableData && tableData.rows.length === limit && (
+                                    <div className="flex justify-center mt-3 w-full">
                                         <Button
                                             onClick={() => {
                                                 setIsExpanded(true);
@@ -625,12 +684,6 @@ export default function DashboardPage() {
                                         </Button>
                                     </div>
                                 )}
-
-                            </div>
-
-                                :
-                                <div className="text-gray-500 italic">No table selected</div>
-                        }
 
                     </div>
                     </>

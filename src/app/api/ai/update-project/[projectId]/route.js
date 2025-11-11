@@ -70,20 +70,6 @@ export const POST = withRateLimit(
         // Prepare response
         return NextResponse.json({
             success: true,
-            // project: {
-            //     id: projectData.id,
-            //     name: projectData.project_name,
-            //     database: projectData.database_name
-            // },
-            // currentSchema: schema.map(t => ({
-            //     name: t.name,
-            //     columns: t.columns.map(c => ({
-            //         name: c.name,
-            //         type: c.type,
-            //         nullable: c.nullable,
-            //         constraint: c.constraint
-            //     }))
-            // })),
             updateAnalysis: {
                 operations: analysisResult.operations,
                 summary: analysisResult.summary,
