@@ -30,11 +30,11 @@ export const GET = withRateLimit(
             for (const table of schema) {
                 try {
                     const result = await executeQuery(
-                        project.connection_string, 
+                        project.connection_string,
                         `SELECT COUNT(*) as count FROM "${table.name}"`
                     );
                     statistics[table.name] = parseInt(result.rows[0].count, 10);
-                }catch(error){
+                } catch {
                     statistics[table.name] = 0;
                 }
             }
@@ -60,7 +60,7 @@ export const GET = withRateLimit(
             const summary = await generateDatabaseSummary(schema, statistics, project.project_name);
             return NextResponse.json({ summary });
 
-        } catch(error){
+        } catch (error) {
             console.error('Summary error:', error);
             return NextResponse.json(
                 { error: 'Failed to generate summary', details: error.message },
