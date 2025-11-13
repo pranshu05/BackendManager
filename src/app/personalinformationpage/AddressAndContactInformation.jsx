@@ -16,7 +16,7 @@ const AddressAndContactInformation = () => {
     useEffect(() => {
         const fetchProfile = async()=>{
             try {
-                const res = await fetch('/api/user_profiles/get');
+                const res = await fetch('/api/profile');
                 if(res.ok){
                     const data = await res.json();
                     if(data.profile){

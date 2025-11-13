@@ -61,6 +61,7 @@ export const POST = withProjectAuth(async (request, _context, user, project) => 
         }, { status: 400 });
     }
 });
+
 export const GET = withProjectAuth(async (request, _context, user, project) => {
     const schemaInfo = await getDatabaseSchema(project.connection_string);
     const url = new URL(request.url);

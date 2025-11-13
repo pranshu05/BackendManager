@@ -11,7 +11,7 @@ const ChooseRole = () => {
     useEffect(()=>{
     const fetchRole =async()=>{
       try {
-        const res = await fetch('/api/user_profiles/get');
+        const res = await fetch('/api/profile');
         if(res.ok){
           const data = await res.json();
           if(data.profile && data.profile.role) {
@@ -47,7 +47,7 @@ const handleChangeRoleClick =async()=>{
   const finalRole = selectedRole ==='Other'?otherRole:selectedRole;
   
   try{
-    const res = await fetch('/api/user_profiles/update', {
+    const res = await fetch('/api/profile', {
       method: 'PUT',
       headers:{
         'Content-Type': 'application/json',

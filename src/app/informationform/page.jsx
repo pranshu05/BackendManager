@@ -17,7 +17,7 @@ const PersonalInformationForm =()=>{
   useEffect(()=>{
     const fetchProfile = async()=>{
       try {
-        const res = await fetch('/api/user_profiles/get');
+        const res = await fetch('/api/profile');
         if (res.ok) {
           const data = await res.json();
           if (data.profile) {
@@ -42,7 +42,7 @@ const PersonalInformationForm =()=>{
     setLoading(true);
     
     try{
-      const res = await fetch('/api/user_profiles/update', {
+      const res = await fetch('/api/profile', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

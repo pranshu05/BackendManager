@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { withProjectAuth } from "@/lib/api-helpers";
 import { executeQuery, getDatabaseSchema } from "@/lib/db";
 
-
 function convertToCSV(allData, projectName, singleTableName) {
     // If singleTableName is provided, export only that table's data without project/table headers
     if (singleTableName) {
