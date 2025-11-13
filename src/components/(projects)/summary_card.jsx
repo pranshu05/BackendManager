@@ -9,7 +9,6 @@ export default function SummaryCard({ projectId, onClose }) {
     const [summary, setSummary] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [generatedAt, setGeneratedAt] = useState(null);
 
 
     // Mock data for testing (remove this when API is ready)
@@ -24,32 +23,26 @@ export default function SummaryCard({ projectId, onClose }) {
         techSpecs: "PostgreSQL with UUID primary keys and foreign key constraints. Indexed on common query paths. ACID compliant with timestamp auditing."
     };
 
-    const formatTimeAgo = (dateString) => {
-        if (!dateString) return '';
-        const date = new Date(dateString);
-        const now = new Date();
-        const seconds = Math.round((now - date) / 1000);
-        const minutes = Math.round(seconds / 60);
-        const hours = Math.round(minutes / 60);
-
-        if (seconds < 60) return `${seconds}s ago`;
-        if (minutes < 60) return `${minutes}m ago`;
-        if (hours < 24) return `${hours}h ago`;
-        return date.toLocaleDateString();
-    };
-
     const fetchSummary = async () => {
         setLoading(true);
         setError(null);
-        setIsSummary(true);
-
-        // Simulate API call with mock data
-        setTimeout(() => {
-            setSummary(MOCK_SUMMARY);
-            setGeneratedAt(new Date().toISOString());
+        
+        try {
+            const response = await fetch(`/api/projects/${projectId}/summary`);
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to generate summary');
+            }
+            
+            const data = await response.json();
+            setSummary(data.summary);
+        } catch (err) {
+            console.error('Error fetching summary:', err);
+            setError(err.message);
+        } finally {
             setLoading(false);
-        }, 2000); // 2 second delay to simulate API call
-
+        }
     };
 
     return (
@@ -76,6 +69,10 @@ export default function SummaryCard({ projectId, onClose }) {
                         Here is an AI-powered summary of your
                         database structure and contents
                     </p>
+                    <Button onClick={fetchSummary} className="generate-btn cursor-pointer">
+                        <Sparkles className="w-4 h-4" />
+                        Generate Summary
+                    </Button>
                 </div>
             )}
 
@@ -152,7 +149,7 @@ export default function SummaryCard({ projectId, onClose }) {
 
                     {/* What's Inside */}
                     <div className="inside-box">
-                        <h4 className="inside-title">💼 What's Inside</h4>
+                        <h4 className="inside-title">What's Inside</h4>
                         <div className="inside-content">
                             <p>{summary.description}</p>
                         </div>
@@ -167,28 +164,6 @@ export default function SummaryCard({ projectId, onClose }) {
                         <div className="tech-content">
                             <p>{summary.techSpecs}</p>
                         </div>
-                    </div>
-
-                    {/* Footer */}
-                    <div className="summary-footer">
-                        <div className="footer-left">
-                            <svg className="footer-icon" viewBox="0 0 24 24" fill="none">
-                                <path
-                                    strokeWidth={2}
-                                    stroke="currentColor"
-                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                                />
-                            </svg>
-                            <span>Generated {formatTimeAgo(generatedAt)}</span>
-                        </div>
-
-                        <Button
-                            onClick={fetchSummary}
-                            className="refresh-btn"
-                            disabled={loading}
-                        >
-                            Refresh
-                        </Button>
                     </div>
                 </div>
             )}

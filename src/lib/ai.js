@@ -367,3 +367,44 @@ Important guidelines:
         throw new Error(`Failed to analyze update request: ${error.message}`);
     }
 }
+
+// DB summary
+export async function generateDatabaseSummary(schema, statistics, projectName) {
+    const schemaContext = schema.map(t => {
+        const rowCount = statistics[t.name] || 0;
+        const columns = t.columns.map(c => `${c.name} (${c.type})`).join(', ');
+        return `Table "${t.name}" (${rowCount} rows): ${columns}`;
+    }).join('\n');
+
+    const totalTables = schema.length;
+    const totalColumns = schema.reduce((sum, t) => sum + t.columns.length, 0);
+    const totalRows = Object.values(statistics).reduce((sum, count) => sum + count, 0);
+    const relationships = schema.flatMap(t => t.columns.filter(c => c.foreign_table)).length;
+
+    const prompt = `Analyze this database and return a JSON summary.
+
+Project: ${projectName}
+Schema: ${schemaContext}
+Stats: ${totalTables} tables, ${totalColumns} columns, ${totalRows} records
+
+Return ONLY this JSON (no markdown):
+{
+  "quickStats": {
+    "totalTables": ${totalTables},
+    "totalColumns": ${totalColumns},
+    "totalRelationships": ${relationships},
+    "estimatedRows": "${totalRows} records"
+  },
+  "description": "3 casual paragraphs: what it is, what can be tracked, how things connect. No 'your' or 'you'.",
+  "techSpecs": "Technical details: PostgreSQL version features used (like UUID keys, foreign keys, constraints, data types, indexes if apparent). Mention specific schema patterns observed (normalization, denormalization, temporal columns). Keep it concise - 2-3 short technical sentences max."
+}`;
+
+    const { text } = await generateText({
+        model: groq(DEFAULT_MODEL),
+        prompt,
+        temperature: 0.5,
+        maxTokens: 1000,
+    });
+
+    return parseAIResponse(text);
+}

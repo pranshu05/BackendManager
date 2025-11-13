@@ -5,5 +5,4 @@ const PersonalInformationPage = () => {
         <PersonalInformation />
     );
 }
- 
 export default PersonalInformationPage;
