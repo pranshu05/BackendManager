@@ -10,16 +10,15 @@ import SchemaPage from "@/components/(projects)/schema";
 import Optimization from "@/components/(projects)/optimization";
 import Query from "@/components/(projects)/query";
 import MockDataGenerator from "@/components/(dashboard)/MockDataGenerator";
+import SummaryCard from "@/components/(projects)/summary_card";
 import {
   ArrowLeft,
   Database,
   Funnel,
   PencilLine,
   Trash,
-  Download,
   Sparkles,
   Play,
-  Send,
   CheckCircle,
   XCircle,
 } from "lucide-react";
@@ -78,7 +77,8 @@ export default function DashboardPage() {
     const [deletebtn, setdeletebtn] = useState(false);
     const [deleteRows, setdeleteRows] = useState([])
     const [isExporting, setIsExporting] = useState(false);
-    const [exportOptions, setExportOptions] = useState(["PDF", "CSV", "JSON"]);   
+    const [exportOptions, setExportOptions] = useState(["PDF", "CSV", "JSON"]);
+    const [showSummary, setShowSummary] = useState(false);   
     
     const handleExport = async (format) => {
         console.log("Export Request for project:", projectid, "in format:", format);
@@ -167,7 +167,6 @@ export default function DashboardPage() {
           const errData = await res.json();
           throw new Error(errData.error || "Failed to rerun query");
         }
-       
         await fetchHistory(); 
       } catch (err) {
         console.error("Error rerunning query:", err);
@@ -194,7 +193,6 @@ export default function DashboardPage() {
         
         
         await fetchHistory();       
-       
         setIsEditModalOpen(false);  
   
       } catch (err) {
@@ -519,6 +517,13 @@ export default function DashboardPage() {
                         <span className="text-gray-600  text-xs  md:text-sm">{projectdetail.description}</span>
                         <span className="text-xs text-gray-600"> 📊 {projectdetail.table_count} Tables</span>
                     </div>
+                    <div className="ml-auto flex items-center">
+                        <Button 
+                            onClick={() => setShowSummary(true)}
+                            className="generate-btn cursor-pointer">
+                            <Sparkles className="w-4 h-4 mr-1" />Summary
+                        </Button>
+                    </div>
                 </div>
             </div>
             <div className="content flex flex-row w-full flex-1 min-h-0">
@@ -836,6 +841,12 @@ export default function DashboardPage() {
                 </div>
               
             </div>
+
+            {showSummary && (
+                <div className="fixed inset-0 flex items-center justify-center bg-black/30 z-50">
+                    <SummaryCard projectId={projectid} onClose={() => setShowSummary(false)} />
+                </div>
+            )}
         </div> 
     );
 }
