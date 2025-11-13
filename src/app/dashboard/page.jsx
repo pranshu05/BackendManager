@@ -5,9 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ProjectCard } from "@/components/(dashboard)/ProjectCard";
 import ImportDatabase from '@/components/(dashboard)/ImportDatabase';
-import { Database, LogOut, CheckCircle, Table, User , Sparkles} from "lucide-react";
-import './index.css'
-
+import { Database, LogOut, CheckCircle, Table, User, Sparkles } from "lucide-react";
+import './index.css';
 
 export default function DashboardPage() {
     const [projects, setProjects] = useState([]);
@@ -49,7 +48,7 @@ export default function DashboardPage() {
         }
     };
 
-    const handleCreateProjectandDatabase = () => {
+     const handleCreateProjectandDatabase = () => {
         // POST the natural language input to the AI create-project API
         (async () => {
             if (!nlInput || !nlInput.trim()) {
@@ -149,7 +148,6 @@ export default function DashboardPage() {
                     </p>
                 </div>
 
-                
                 <div className="cp-card">
                     <div className="cp-header">
                         <span className="cp-icon" aria-hidden>
@@ -192,17 +190,8 @@ export default function DashboardPage() {
                                 {projects.length} project{projects.length !== 1 ? "s" : ""}
                             </div>
                             <ImportDatabase onImported={(proj) => {
-                                // Refresh project list by re-fetching
-                                (async () => {
-                                    try {
-                                        const res = await fetch('/api/projects', { cache: 'no-store' });
-                                        const data = await res.json();
-                                        setProjects(data.projects || []);
-                                    } catch (err) {
-                                        console.error('Failed to refresh projects after import', err);
-                                    }
-                                })();
-                            }} />
+    window.location.reload();
+}} />
                         </div>
                     </div>
 

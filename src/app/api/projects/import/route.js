@@ -5,7 +5,7 @@ import { requireAuth } from '@/lib/auth';
 // POST: Import an existing Postgres/Neon database
 export async function POST(request) {
     try {
-        const authResult = await requireAuth(request);
+        const authResult = await requireAuth();
 
         if (authResult.error) {
             return NextResponse.json({ error: authResult.error }, { status: authResult.status });
@@ -70,5 +70,34 @@ export async function POST(request) {
     } catch (error) {
         console.error('Import DB error:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
+}
+export async function GET(request) {
+    try {
+        const authResult = await requireAuth();
+        
+        if (authResult.error) {
+            return NextResponse.json({ error: authResult.error }, { status: authResult.status });
+        }
+
+        const result = await pool.query(`
+            SELECT 
+                id, 
+                project_name, 
+                database_name, 
+                description, 
+                is_active, 
+                created_at, 
+                updated_at,
+                0 as table_count
+            FROM user_projects
+            WHERE user_id = $1 AND is_active = true
+            ORDER BY created_at DESC
+        `, [authResult.user.id]);
+
+        return NextResponse.json({ projects: result.rows });
+    } catch (error) {
+        console.error('GET projects error:', error);
+        return NextResponse.json({ error: 'Failed to fetch projects' }, { status: 500 });
     }
 }

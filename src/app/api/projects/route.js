@@ -5,10 +5,18 @@ import { withAuth } from '@/lib/api-helpers';
 // Get all projects for authenticated user
 export const GET = withAuth(async (_request, _context, user) => {
     const result = await pool.query(`
-        SELECT id, project_name, database_name, description, is_active, created_at, updated_at, connection_string
-        FROM user_projects 
-        WHERE user_id = $1 AND is_active = true
-        ORDER BY created_at DESC
+       SELECT 
+                id, 
+                project_name, 
+                database_name, 
+                description, 
+                is_active, 
+                created_at, 
+                updated_at,
+                0 as table_count
+            FROM user_projects
+            WHERE user_id = $1 AND is_active = true
+            ORDER BY created_at DESC
     `, [user.id]);
 
     // Fetch table counts for each project
