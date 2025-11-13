@@ -10,7 +10,7 @@ export async function POST(request) {
 
         // Get the base URL from the request (works in all environments)
         const url = new URL(request.url);
-        const baseUrl = ${url.protocol}//${url.host};
+        const baseUrl = `${url.protocol}//${url.host}`;
 
         // Validate input
         if (!email || !password || !name) {
@@ -81,7 +81,7 @@ export async function POST(request) {
 
             // If more than 2 minutes have passed, allow resending with a new token
             verification_token = crypto.randomBytes(32).toString('hex');
-            verification_link = ${baseUrl}/api/auth/verify?token=${verification_token};
+            verification_link = `${baseUrl}/api/auth/verify?token=${verification_token}`;
 
             const newExpiryDate = new Date();
             newExpiryDate.setMinutes(newExpiryDate.getMinutes() + tokenExpiryMinutes);
@@ -124,7 +124,7 @@ export async function POST(request) {
                 );
             }
 
-            verification_link = ${baseUrl}/api/auth/verify?token=${verification_token};
+            verification_link = `${baseUrl}/api/auth/verify?token=${verification_token}`;
         }
 
         //Send email for verification purpose

@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import { withProjectAuth, logQueryHistory, detectQueryType, createTimer } from '@/lib/api-helpers';
 import { withRateLimit } from '@/lib/rate-limitter';
-import { query } from 'winston';
 
 // POST /api/ai/execute-batch Execute multiple SQL statements from AI analysis in a transaction
 
