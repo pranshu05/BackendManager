@@ -5,17 +5,34 @@ import { Sparkles,Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
-export default function Query() {
+// MODIFICATION: Accept props
+export default function Query({ initialQuery, onQueryMounted }) {
     const params = useParams();
     const projectid = params.slug;
-    const [query, setQuery] = useState("");
+    
+    // MODIFICATION: Set initial state from prop
+    const [query, setQuery] = useState(initialQuery || "");
+    
     const [querysuggestions, setSuggestions] = useState(null);
-  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
-  const [suggestionsError, setSuggestionsError] = useState(null);
+    const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+    const [suggestionsError, setSuggestionsError] = useState(null);
     const [queryResult, setQueryResult] = useState(null);
     const [loading,setloading]=useState(false);
     const [headers,setheaders]=useState([]);
     const [displayquery,setdisplayquery]=useState(null);
+
+    // MODIFICATION: Add useEffect to handle prop changes
+    useEffect(() => {
+        // When the component mounts or prop changes with an initialQuery
+        if (initialQuery) {
+            setQuery(initialQuery);
+            // Notify the parent component that the query has been "consumed"
+            if (onQueryMounted) {
+                onQueryMounted();
+            }
+        }
+    }, [initialQuery, onQueryMounted]); // Rerun when prop changes
+
     const getSuggestions = async () => {
     setSuggestionsLoading(true);
     setSuggestionsError(null);
@@ -37,7 +54,7 @@ export default function Query() {
     }
   useEffect(()=>{
     getSuggestions();
-  },[])
+  },[projectid]) // Added projectid dependency
     const runquery=async()=>{
       if(query.trim()===""){
         alert("enter a valid query");
@@ -110,7 +127,7 @@ export default function Query() {
                         <div className="query_head flex flex-col gap-3">
                         <p>Ask Your Database</p>
                             <textarea 
-                            value={query}
+                            value={query} // This will now show the TITLE from history
                             onChange={e => setQuery(e.target.value)}
                             placeholder="Ask your database in plain English... e.g., 'Show all employees in HR department'"
                             className=" min-h-[48px] max-h-[200px] overflow-auto resize-none text-gray-800"
@@ -191,7 +208,7 @@ export default function Query() {
                                                         {
                                                             headers.length!==0 && headers.map((col) => (
                                                                 <td
-                                                                    key={col.name}
+                                                                    key={col} // Fixed key
                                                                     className={`px-4 py-2 text-center whitespace-nowrap hover:bg-sidebar hover:border-1 cursor-pointer 
                                                                     `}
                                                           
@@ -204,7 +221,7 @@ export default function Query() {
                                             ) : (
                                                 <tr>
                                                     <td
-                                                        colSpan={headers.length}
+                                                        colSpan={headers.length || 1} // Fallback
                                                         className="text-center py-4 text-gray-500"
                                                     >
                                                         No records found
