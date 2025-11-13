@@ -72,7 +72,7 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 }
-export async function GET(request) {
+export async function GET() {
     try {
         const authResult = await requireAuth();
         
