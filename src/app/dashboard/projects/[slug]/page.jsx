@@ -10,6 +10,8 @@ import Optimization from "@/components/(projects)/optimization";
 import Query from "@/components/(projects)/query";
 import TableExplorer from "@/components/(projects)/table"; // <-- 1. Import new component
 import History from "@/components/(projects)/history"; // <-- 2. Import new component
+import SummaryCard from "@/components/(projects)/summary_card";
+
 
 import {
   ArrowLeft,
@@ -17,6 +19,7 @@ import {
   CheckCircle,
   AlertOctagon, // Renamed from AlertCircle for consistency
   XIcon,
+  Sparkles
 } from "lucide-react";
 
 import {
@@ -84,9 +87,8 @@ function NotificationBar({ message, type, onDismiss }) {
 
   return (
     <div
-      className={`fixed top-20 right-6 z-50 p-4 rounded-md shadow-lg max-w-sm ${
-        isError ? "bg-red-50 border border-red-300" : "bg-green-50 border border-green-300"
-      }`}
+      className={`fixed top-20 right-6 z-50 p-4 rounded-md shadow-lg max-w-sm ${isError ? "bg-red-50 border border-red-300" : "bg-green-50 border border-green-300"
+        }`}
     >
       <div className="flex items-start gap-3">
         <div className={isError ? "text-red-500" : "text-green-500"}>
@@ -110,6 +112,7 @@ export default function DashboardPage() {
   const projectid = params.slug;
   const [projects, setProjects] = useState([]);
   const [projectdetail, setprojectdetail] = useState({});
+  const [showSummary, setShowSummary] = useState(false);
 
   // Page state
   const [page, setpage] = useState(() => {
@@ -130,7 +133,7 @@ export default function DashboardPage() {
     isOpen: false,
     title: "",
     message: "",
-    onConfirm: () => {},
+    onConfirm: () => { },
     isDestructive: false,
   });
 
@@ -145,7 +148,7 @@ export default function DashboardPage() {
       title,
       message,
       onConfirm: () => {
-        setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} });
+        setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => { } });
         onConfirm();
       },
       isDestructive,
@@ -153,9 +156,9 @@ export default function DashboardPage() {
   };
 
   const closeConfirm = () => {
-    setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} });
+    setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => { } });
   };
-  
+
   // State for passing query title from History to Query
   const [queryToPass, setQueryToPass] = useState(null);
 
@@ -180,7 +183,7 @@ export default function DashboardPage() {
       // ignore storage errors
     }
   };
-  
+
   // Fetch project list
   useEffect(() => {
     const fetchProjectsData = async () => {
@@ -208,11 +211,14 @@ export default function DashboardPage() {
     }
   }, [projects, projectid]);
 
+  const fetchSummary = async () => {
+    setShowSummary(true);
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-background via-accent/20 to-secondary/30">
       <Header />
-      
+
       {/* --- 7. Added Notification and Confirm Dialogs to JSX --- */}
       <NotificationBar
         message={notification.message}
@@ -255,10 +261,29 @@ export default function DashboardPage() {
               {" "}
               📊 {projectdetail.table_count || 0} Tables
             </span>
-          </div>
+          </div>   
         </div>
+        {/* Add a summry button here */}
+        <div className="flex justify-end w-full">
+          <Button
+            onClick={fetchSummary}
+            className="flex items-center gap-2 cursor-pointer"
+          >
+            <Sparkles className="w-4 h-4" />
+            Summary
+          </Button>
+        </div>
+
+
+        {showSummary && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black/30 z-50">
+            <SummaryCard onClose={() => setShowSummary(false)} />
+          </div>
+        )}
       </div>
+
       
+
       <div className="content flex flex-row w-full flex-1 min-h-0">
         <Sidebar
           active={page}
@@ -266,27 +291,27 @@ export default function DashboardPage() {
         />
 
         <div className="rightcontent flex flex-col w-full border-1 overflow-x-hidden overflow-y-scroll min-h-0 h-screen">
-          
+
           {/* --- 8. Replaced inline logic with components --- */}
-          
+
           {page === "table" ? (
-            <TableExplorer 
-                safeJsonFetch={safeJsonFetch} 
-                showNotification={showNotification} 
-                showConfirm={showConfirm} 
+            <TableExplorer
+              safeJsonFetch={safeJsonFetch}
+              showNotification={showNotification}
+              showConfirm={showConfirm}
             />
           ) : page === "query" ? (
-            <Query 
-                initialQuery={queryToPass} 
-                onQueryMounted={() => setQueryToPass(null)} 
+            <Query
+              initialQuery={queryToPass}
+              onQueryMounted={() => setQueryToPass(null)}
             />
           ) : page === "history" ? (
             <History
-                safeJsonFetch={safeJsonFetch}
-                showNotification={showNotification}
-                showConfirm={showConfirm}
-                handleSetPage={handleSetPage}
-                setQueryToPass={setQueryToPass}
+              safeJsonFetch={safeJsonFetch}
+              showNotification={showNotification}
+              showConfirm={showConfirm}
+              handleSetPage={handleSetPage}
+              setQueryToPass={setQueryToPass}
             />
           ) : page === "optimization" ? (
             <Optimization />
