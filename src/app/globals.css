@@ -128,3 +128,33 @@
         @apply bg-background text-foreground;
     }
 }
+
+/* Loading border animation for query input area */
+.chat-input-area.loading {
+    border: 2px solid transparent;
+    background: 
+        linear-gradient(#ffffff, #ffffff) padding-box,
+        linear-gradient(90deg, 
+            transparent 0%, 
+            transparent 40%, 
+            #05ff6d 50%, 
+            transparent 60%, 
+            transparent 100%) border-box;
+    background-size: 200% 100%;
+    animation: movingDash 2s linear infinite;
+}
+
+@keyframes movingDash {
+    0% {
+        background-position: 0% 0%;
+    }
+    25% {
+        background-position: 50% 0%;
+    }
+    50% {
+        background-position: 100% 0%;
+    }
+    100% {
+        background-position: 200% 0%;
+    }
+}
