@@ -23,14 +23,9 @@ import {
   XCircle,
 } from "lucide-react";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+
 import { Textarea } from "@/components/ui/textarea"; 
+import Modal from '@/components/ui/modal';
 
 function formatTimeAgo(dateString) {
   const date = new Date(dateString);
@@ -113,8 +108,56 @@ export default function DashboardPage() {
     const [deletebtn, setdeletebtn] = useState(false);
     const [deleteRows, setdeleteRows] = useState([])
     const [isExporting, setIsExporting] = useState(false);
-  const [exportOptions, setExportOptions] = useState(["XLSX", "CSV", "JSON"]);   
-    
+    const [exportOptions, setExportOptions] = useState(["XLSX", "CSV", "JSON"]);   
+    const [queryHistory, setQueryHistory] = useState([]);   // Stores the list of history items
+    const [historyLoading, setHistoryLoading] = useState(false); // Is the history list loading?
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [queryToEdit, setQueryToEdit] = useState(null);
+    const [editedSql, setEditedSql] = useState("");
+    const [isModalRunning, setIsModalRunning] = useState(false);
+    const [modalError, setModalError] = useState("");
+    const [isInsertModalOpen, setIsInsertModalOpen] = useState(false);
+    const [insertLoading, setInsertLoading] = useState(false);
+    const [insertTableMeta, setInsertTableMeta] = useState(null);
+  
+
+
+      const handleinsertrow = async () => {
+        try {
+            setInsertLoading(true);
+          if (!selectedTable) {
+            alert('Please select a table before inserting a row');
+            return;
+          }
+
+          const res = await fetch(`/api/projects/${projectid}/schema`, {
+            credentials: 'include',
+          });
+
+          const payload = await res.json();
+          console.log('Schema payload for insert row:', payload);
+          if (!res.ok) {
+            console.error('Failed to fetch schema for insert row:', payload.error || payload);
+            alert(payload.error || 'Failed to fetch schema');
+            return;
+          }
+
+          const schema = payload?.schema || [];
+          const tableMeta = schema.find((t) => t.name === selectedTable);
+          if (!tableMeta) {
+            alert(`Table metadata for '${selectedTable}' not found`);
+            return;
+          }
+
+          console.log('Metadata for insert row (from schema):', tableMeta);
+          setInsertTableMeta(tableMeta);
+          setIsInsertModalOpen(true);
+          setInsertLoading(false);
+        } catch (err) {
+          console.error('Error in handleinsertrow:', err);
+          alert('Error fetching table metadata: ' + (err?.message || err));
+        }
+      };
     const handleExport = async (format) => {
         console.log("Export Request for project:", projectid, "in format:", format);
     if (!selectedTable) {
@@ -170,16 +213,7 @@ export default function DashboardPage() {
         }
     };
 
-  const [queryHistory, setQueryHistory] = useState([]);   // Stores the list of history items
-  const [historyLoading, setHistoryLoading] = useState(false); // Is the history list loading?
 
-  // --- States for Edit Modal ---
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [queryToEdit, setQueryToEdit] = useState(null);
-  const [editedSql, setEditedSql] = useState("");
-  const [isModalRunning, setIsModalRunning] = useState(false);
-  const [modalError, setModalError] = useState("");
-  
   
   const [historyLimit, setHistoryLimit] = useState(6); // Start by showing only 6 queries
   const [totalQueries, setTotalQueries] = useState(0); // Total queries in the database
@@ -330,7 +364,7 @@ export default function DashboardPage() {
         }
     }, [projects])
 
-    // Clear selected rows when table changes
+
     useEffect(() => {
         setdeleteRows([]);
     }, [selectedTable]);
@@ -339,6 +373,34 @@ export default function DashboardPage() {
         setEditingCell({ rowIndex, colName, value });
         seteditedvalue(String(value ?? ""));
     };
+
+   
+    useEffect(() => {
+      const onPointerDown = (e) => {
+        if (!editingCell) return;
+        try {
+          // If the click is inside any table, let the normal table click handlers run (they will set editingCell appropriately)
+          const insideTable = e.target && e.target.closest && e.target.closest('table');
+          if (insideTable) return;
+
+          // Otherwise, clear editing state and remove any residual focus/ring
+          setEditingCell(null);
+          try { document.activeElement && document.activeElement.blur && document.activeElement.blur(); } catch (err) {}
+          requestAnimationFrame(() => {
+            try {
+              document.querySelectorAll('td').forEach(td => td.classList.remove('ring-2','ring-blue-500','ring-opacity-50'));
+            } catch (err) {
+              
+            }
+          });
+        } catch (err) {
+          // ignore
+        }
+      };
+
+      document.addEventListener('pointerdown', onPointerDown);
+      return () => document.removeEventListener('pointerdown', onPointerDown);
+    }, [editingCell]);
 
     const handledelete = async (e) => {
         if (deleteRows.length == 0) {
@@ -435,7 +497,7 @@ export default function DashboardPage() {
                 return;
             }
 
-            // Prevent sending empty or whitespace-only values
+            
             if (String(editedvalue).trim() === "") {
                 alert('Value cannot be empty');
                 return;
@@ -492,35 +554,37 @@ export default function DashboardPage() {
         }
     };
 
-     const fetchTables = async () => {
-            try {
-            const res = await fetch(`/api/projects/${projectid}/tables`, {
-                  credentials: "include",
-                });
-
-                const data = await res.json();
-                if (!res.ok) {
-                    console.error("Failed to fetch tables:", data.error);
-                    return;
-                }
-                console.log("Fetched tables: ", data);
-                const names = data.tables.map((t) => t.name);
-                settablelist(names);
-
-                if (names.length > 0) {
-                    setSelectedTable(names[0]);
-                    fetchtabledata(names[0]);
-
-                }
-            } catch (err) {
-                console.error("Error fetching tables:", err);
-            }
-        };
+    
 
     useEffect(() => {
         if (!projectid) return;
         if (projectid) fetchTables();
     }, [projectid]);
+              const fetchTables = async () => {
+                try {
+                  // Fetch the list of tables from the standard listing endpoint
+                  const res = await fetch(`/api/projects/${projectid}/tables`, {
+                    credentials: "include",
+                  });
+
+                  const data = await res.json();
+                  if (!res.ok) {
+                    console.error("Failed to fetch tables:", data.error);
+                    return;
+                  }
+
+                  console.log("Fetched tables: ", data);
+                  const names = (data.tables || []).map((t) => t.name);
+                  settablelist(names);
+
+                  if (names.length > 0) {
+                    setSelectedTable(names[0]);
+                    fetchtabledata(names[0]);
+                  }
+                } catch (err) {
+                  console.error("Error fetching tables:", err);
+                }
+              };
 
 
     const fetchtabledata = async (tablename, recordLimit = limit) => {
@@ -545,6 +609,45 @@ export default function DashboardPage() {
     return (
         <div className="min-h-screen flex flex-col bg-gradient-to-br from-background via-accent/20 to-secondary/30">
             <Header />
+   
+            <Modal
+              open={isInsertModalOpen}
+              onClose={() => {
+                setIsInsertModalOpen(false);
+                setInsertTableMeta(null);
+                setInsertLoading(false);
+              }}
+              title={selectedTable ? `Insert into ${selectedTable}` : "Insert Row"}
+              loading={insertLoading}
+            >
+              {insertTableMeta ? (
+                <div className="space-y-3">
+
+                  <form onSubmit={async (e) => {
+                    e.preventDefault();
+                    alert('Insert submit - implement POST to /api/projects/:id/insert');
+                  }}>
+                    {insertTableMeta.columns?.map((col) => (
+                      <div key={col.name} className="flex flex-col mb-2">
+                        <label className="text-sm">{col.name}{col.constraint === 'PRIMARY KEY' ? ' (PK)' : ''}</label>
+                        <input name={col.name} className="border rounded p-2" />
+                      </div>
+                    ))}
+                    <div className="flex gap-2 mt-4">
+                      <button type="button" className="px-4 py-2 border rounded" onClick={() => setIsInsertModalOpen(false)}>Cancel</button>
+                      <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded">Insert</button>
+                    </div>
+                  </form>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-sm text-gray-600">No metadata available. Try re-opening the dialog.</p>
+                  <div className="mt-3">
+                    <button onClick={handleinsertrow} className="px-3 py-1 border rounded">Retry</button>
+                  </div>
+                </div>
+              )}
+            </Modal>
             <div className="db bg-white w-full flex items-center h-26 gap-4 px-6">
                 <div className="db_left h-26 flex justify-center items-center">
                     <ArrowLeft className="hover:cursor-pointer" onClick={() => {
@@ -586,10 +689,15 @@ export default function DashboardPage() {
           {/* filter bar removed per UX request */}
                     <div className="mockbutton  h-28 gap-2 bg-white items-center flex-col  max-[510]:h-65   min-[820]:flex-row min-[820]:h-19 flex p-4 justify-between">
                         <div className="frontbtn flex flex-row gap-2 max-[510]:flex-col max-[510]:w-full max-[510]:gap-3">
-                            <Button className=" max-[510]:w-full hover:cursor-pointer">+ Insert Row</Button>
+                            <Button className=" max-[510]:w-full hover:cursor-pointer" onClick={()=>{
+                              handleinsertrow();
+                            }}>+ Insert Row</Button>
               <Button className="text-black bg-sidebar border-1 hover:bg-gray-300 hover:cursor-pointer" onClick={async () => {
-                if (deletebtn) {
+                if (deletebtn && deleteRows.length > 0) {
                   await handledelete();
+                }
+                else{
+                  setdeleteRows([]);
                 }
                 setdeletebtn(!deletebtn);
               }}><Trash />{!deletebtn ? "Delete" : `Selected: ${deleteRows.length}`}</Button>
