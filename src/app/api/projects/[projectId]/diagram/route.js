@@ -27,4 +27,3 @@ export const GET=withProjectAuth(async (request, _context, user, project) => {
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 });
-        // Create diagram

@@ -5,32 +5,62 @@ import { Sparkles,Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
-export default function Query() {
+// MODIFICATION: Accept props
+export default function Query({ initialQuery, onQueryMounted }) {
     const params = useParams();
     const projectid = params.slug;
-    const [query, setQuery] = useState("");
+    
+    // MODIFICATION: Set initial state from prop
+    const [query, setQuery] = useState(initialQuery || "");
+    
     const [querysuggestions, setSuggestions] = useState(null);
+    const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+    const [suggestionsError, setSuggestionsError] = useState(null);
     const [queryResult, setQueryResult] = useState(null);
     const [loading,setloading]=useState(false);
     const [headers,setheaders]=useState([]);
     const [displayquery,setdisplayquery]=useState(null);
-    const getSuggestions = async () => {
-        try {
-            const response = await fetch(`/api/ai/query-suggestions/${projectid}`);
-            const suggestions = await response.json();
-            setSuggestions(suggestions.suggestions);
-        } catch (error) {
-            console.error("Error fetching suggestions:", error);
+
+    // MODIFICATION: Add useEffect to handle prop changes
+    useEffect(() => {
+        // When the component mounts or prop changes with an initialQuery
+        if (initialQuery) {
+            setQuery(initialQuery);
+            // Notify the parent component that the query has been "consumed"
+            if (onQueryMounted) {
+                onQueryMounted();
+            }
         }
+    }, [initialQuery, onQueryMounted]); // Rerun when prop changes
+
+    const getSuggestions = async () => {
+    setSuggestionsLoading(true);
+    setSuggestionsError(null);
+    try {
+      const response = await fetch(`/api/ai/query-suggestions/${projectid}`);
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`HTTP ${response.status} - ${text}`);
+      }
+      const suggestions = await response.json();
+      setSuggestions(suggestions.suggestions);
+    } catch (error) {
+      console.error("Error fetching suggestions:", error);
+      setSuggestionsError(error.message || String(error));
+      setSuggestions([]);
+    } finally {
+      setSuggestionsLoading(false);
     }
-    useEffect(()=>{
-        getSuggestions();
-    },[])
+    }
+  useEffect(()=>{
+    getSuggestions();
+  },[projectid]) // Added projectid dependency
     const runquery=async()=>{
       if(query.trim()===""){
         alert("enter a valid query");
         return;
       }
+      setloading(true);
       try{
         const analysisResponse = await fetch(`/api/ai/update-project/${projectid}`, {
             method: 'POST',
@@ -55,12 +85,13 @@ export default function Query() {
         const resultData = await result.json();
         
         setQueryResult(resultData.results[0].queryResult);
+        setdisplayquery(query);
+        setQuery("");
       }catch(error){
         console.error("Error executing query:", error);
+      }finally{
+        setloading(false);
       }
-      setloading(false);
-      setdisplayquery(query);
-      setQuery("");
     }
 
     useEffect(()=>{
@@ -69,12 +100,34 @@ export default function Query() {
       setheaders(headers);
     },[queryResult])
     return (<>
-     { querysuggestions? <div className="flex flex-col h-full my-20">
-                      <div className="bg-white rounded-xl shadow-lg px-8 py-10 mx-10 flex flex-col gap-30">
+  { suggestionsLoading ? (
+    <div className="mx-10 mt-[25px]" aria-busy="true" aria-live="polite">
+      <div className="chat-input-area bg-white rounded-xl shadow-lg px-8 py-8 flex flex-col gap-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="text-lg font-medium">Generating suggestions</div>
+          <div className="flex items-center gap-2">
+            <DotLottieReact
+              src="https://lottie.host/bc9b7976-f4d5-43d6-bf35-d97023948cbd/0LrKX98liy.lottie"
+              loop
+              autoplay
+              style={{ width: 36, height: 36 }}
+            />
+            <span className="text-sm text-gray-500">Hang tight — getting ideas for you</span>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          {[1,2,3,4].map(n => (
+            <div key={n} className="animate-pulse bg-gray-100 rounded-md h-10 w-1/3 max-w-[240px]" />
+          ))}
+        </div>
+      </div>
+    </div>
+  ) : querysuggestions? <div className="flex flex-col h-full mt-[25px]">
+                      <div className={`chat-input-area bg-white rounded-xl shadow-lg px-8 py-10 mx-10 flex flex-col gap-30 ${loading ? 'loading' : ''}`}>
                         <div className="query_head flex flex-col gap-3">
                         <p>Ask Your Database</p>
                             <textarea 
-                            value={query}
+                            value={query} // This will now show the TITLE from history
                             onChange={e => setQuery(e.target.value)}
                             placeholder="Ask your database in plain English... e.g., 'Show all employees in HR department'"
                             className=" min-h-[48px] max-h-[200px] overflow-auto resize-none text-gray-800"
@@ -100,15 +153,14 @@ export default function Query() {
                         </div>
                         <div className="runbtn flex flex-col justify-end">
                          <Button className=" max-[510]:w-full hover:cursor-pointer" onClick={()=>{
-                          setloading(true)
                           runquery();
-                         }} >
+                         }} disabled={loading}>
                            { loading? <DotLottieReact
       src="https://lottie.host/bc9b7976-f4d5-43d6-bf35-d97023948cbd/0LrKX98liy.lottie"
       loop
       autoplay
     />:<Send className="w-5 h-5 text-white"  />}
-                            Run Query
+                            {loading ? 'Running...' : 'Run Query'}
                          </Button>
                         </div>
                         
@@ -156,7 +208,7 @@ export default function Query() {
                                                         {
                                                             headers.length!==0 && headers.map((col) => (
                                                                 <td
-                                                                    key={col.name}
+                                                                    key={col} // Fixed key
                                                                     className={`px-4 py-2 text-center whitespace-nowrap hover:bg-sidebar hover:border-1 cursor-pointer 
                                                                     `}
                                                           
@@ -169,7 +221,7 @@ export default function Query() {
                                             ) : (
                                                 <tr>
                                                     <td
-                                                        colSpan={headers.length}
+                                                        colSpan={headers.length || 1} // Fallback
                                                         className="text-center py-4 text-gray-500"
                                                     >
                                                         No records found
@@ -186,8 +238,16 @@ export default function Query() {
                       </>
 
                       }
-                    </div>: 
-                    <div>Loading suggestions...</div>}
+                    </div> : suggestionsError ? (
+                      <div className="mx-10 mt-[16px] text-center">
+                        <div className="text-red-500 mb-2">Failed to load suggestions: {suggestionsError}</div>
+                        <div className="flex justify-center">
+                          <Button onClick={() => getSuggestions()}>Retry</Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mx-10 mt-[16px] text-center text-gray-500">Loading suggestions...</div>
+                    )}
     </>
    
 );

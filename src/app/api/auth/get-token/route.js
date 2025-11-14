@@ -1,47 +1,24 @@
-import { requireAuth, createJWTToken } from '@/lib/auth';
+import { createJWTToken } from '@/lib/auth';
 import { NextResponse } from 'next/server';
+import { withAuth } from '@/lib/api-helpers';
 
 // generate API token so that third-party can access..
-export async function POST(request) {
-    try{
-        // authenticating user via session
-        const authResult = await requireAuth(request);
+export const POST = withAuth(async (_request, _context, user) => {
+    // generating JWT for api access
+    const apiToken = createJWTToken({
+        userId: user.id,
+        email: user.email,
+        type: 'api_token'
+    });
 
-        if(authResult.error) {
-            return NextResponse.json(
-                { error: authResult.error },
-                { status: authResult.status }
-            );
+    return NextResponse.json({
+        success: true,
+        message: 'API token generated successfully',
+        token: apiToken,
+        expiresIn: '7 days',
+        usage: {
+            description: 'Use this token in the Authorization header',
+            example: 'Authorization: Bearer ' + apiToken
         }
-
-        const user = authResult.user;
-
-        // generating JWT for api access
-        const apiToken = createJWTToken({
-            userId: user.id,
-            email: user.email,
-            type: 'api_token'
-        });
-
-        return NextResponse.json({
-            success: true,
-            message: 'API token generated successfully',
-            token: apiToken,
-            expiresIn: '7 days',
-            usage:{
-                description: 'Use this token in the Authorization header',
-                example: 'Authorization: Bearer '+apiToken
-            }
-        });
-
-    }catch(error) {
-        console.error('Token generation error:',error);
-        return NextResponse.json(
-            { 
-                success: false,
-                error: 'Failed to generate token' 
-            },
-            { status: 500 }
-        );
-    }
-}
+    });
+});

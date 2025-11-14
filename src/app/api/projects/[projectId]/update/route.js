@@ -105,7 +105,6 @@ export const POST = withProjectAuth(async (request, _context, user, project) => 
             return NextResponse.json({ error: 'Column not found in table metadata' }, { status: 400 });
         }
 
-        // Coerce new value according to column type
         let coercedNew;
         let coercedPk;
         try {

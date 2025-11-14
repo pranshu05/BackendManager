@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { executeQuery, getDatabaseSchema } from '@/lib/db';
 import { withProjectAuth, logQueryHistory, detectQueryType } from '@/lib/api-helpers';
+import { executeQuery, getDatabaseSchema } from '@/lib/db';
 
 // Create table
 export const POST = withProjectAuth(async (request, _context, user, project) => {
@@ -13,6 +13,7 @@ export const POST = withProjectAuth(async (request, _context, user, project) => 
         );
     }
 
+    // Build CREATE TABLE query
     const columnDefinitions = columns.map(col => {
         let definition = `${col.name} ${col.type.toUpperCase()}`;
 
@@ -61,9 +62,7 @@ export const POST = withProjectAuth(async (request, _context, user, project) => 
     }
 });
 
-
-// Get tables or table data
-export const GET = withProjectAuth(async (request, _context, _user, project) => {
+export const GET = withProjectAuth(async (request, _context, user, project) => {
     const schemaInfo = await getDatabaseSchema(project.connection_string);
     const url = new URL(request.url);
     const tableName = url.searchParams.get("table");
@@ -77,6 +76,7 @@ export const GET = withProjectAuth(async (request, _context, _user, project) => 
     // Build query with optional limit
     let query;
     let queryParams = [];
+
     const parsedLimit = Number.parseInt(limitParam, 10);
     if (!Number.isNaN(parsedLimit) && parsedLimit > 0) {
         query = `SELECT * FROM "${tableName}" LIMIT $1;`;

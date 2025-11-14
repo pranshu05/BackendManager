@@ -6,6 +6,15 @@ import './index.css';
 import { FaHome , FaUser , FaUniversity , FaGlobe , FaCalendarAlt } from 'react-icons/fa';
 import { Database } from "lucide-react";
 
+const formatDateForInput = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  // Get the date in local timezone
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 const PersonalInformationForm =()=>{
   const [userName, setUserName] = useState('');
   const [DOB, setDOB] = useState('');
@@ -17,14 +26,14 @@ const PersonalInformationForm =()=>{
   useEffect(()=>{
     const fetchProfile = async()=>{
       try {
-        const res = await fetch('/api/user_profiles/get');
+        const res = await fetch('/api/profile');
         if (res.ok) {
           const data = await res.json();
           if (data.profile) {
             setUserName(data.profile.username || '');
-            setDOB(data.profile.birth_date || '');
+            setDOB(data.profile.birth_date ? formatDateForInput(data.profile.birth_date) : '');
+            setJoinDate(data.profile.joining_date ? formatDateForInput(data.profile.joining_date) : '');
             setInstitueName(data.profile.organization_name || '');
-            setJoinDate(data.profile.joining_date || '');
             setNationality(data.profile.nationality || '');
           }
         }
@@ -42,7 +51,7 @@ const PersonalInformationForm =()=>{
     setLoading(true);
     
     try{
-      const res = await fetch('/api/user_profiles/update', {
+      const res = await fetch('/api/profile', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
