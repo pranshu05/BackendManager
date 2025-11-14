@@ -12,14 +12,17 @@ import Query from "@/components/(projects)/query";
 import MockDataGenerator from "@/components/(dashboard)/MockDataGenerator";
 import SummaryCard from "@/components/(projects)/summary_card";
 import History from "@/components/(projects)/history";
-
+import Modal from "@/components/ui/modal";
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import {
   ArrowLeft,
   Database,
-  Funnel,
   Trash,
   Sparkles,
+  Loader2,
 } from "lucide-react";
+
+
 
 export default function DashboardPage() {
   const params = useParams();
@@ -33,8 +36,9 @@ export default function DashboardPage() {
   const [tableData, setTableData] = useState(null);
   const [tablelist, settablelist] = useState([]);
   const [loading, setLoading] = useState(false);
-
-  const [limit] = useState(5);
+  const [loadtable, setloadtable] = useState(false);
+  const [loadmore, setloadmore] = useState(false);
+  const [limit,setlimit] = useState(5);
   const [isExpanded, setIsExpanded] = useState(false);
 
   const [editingCell, setEditingCell] = useState(null);
@@ -44,58 +48,160 @@ export default function DashboardPage() {
   const [deleteRows, setdeleteRows] = useState([]);
 
   const [isExporting, setIsExporting] = useState(false);
-  const [exportOptions] = useState(["PDF", "CSV", "JSON"]);
+  const [exportOptions, setExportOptions] = useState(["XLSX", "CSV", "JSON"]);
 
   const [showSummary, setShowSummary] = useState(false);
 
   // Used to pass a selected query from history to query editor
   const [queryToPass, setQueryToPass] = useState(null);
 
+    const [isInsertModalOpen, setIsInsertModalOpen] = useState(false);
+  const [insertLoading, setInsertLoading] = useState(false);
+  const [insertTableMeta, setInsertTableMeta] = useState(null);
+
   const handleSetPage = (newPage) => {
     setpage(newPage);
   };
 
-  /* Exports the selected table into PDF, CSV, or JSON */
-  const handleExport = async (format) => {
-    setIsExporting(true);
+ const handleinsertrow = async () => {
+        try {
+            setInsertLoading(true);
+          if (!selectedTable) {
+            alert('Please select a table before inserting a row');
+            return;
+          }
 
+          const res = await fetch(`/api/projects/${projectid}/schema`, {
+            credentials: 'include',
+          });
+
+          const payload = await res.json();
+
+          if (!res.ok) {
+            console.error('Failed to fetch schema for insert row:', payload.error || payload);
+            alert(payload.error || 'Failed to fetch schema');
+            return;
+          }
+
+          const schema = payload?.schema || [];
+          const tableMeta = schema.find((t) => t.name === selectedTable);
+          if (!tableMeta) {
+            alert(`Table metadata for '${selectedTable}' not found`);
+            return;
+          }
+
+          console.log('Metadata for insert row (from schema):', tableMeta);
+          setInsertTableMeta(tableMeta);
+          setIsInsertModalOpen(true);
+          setInsertLoading(false);
+        } catch (err) {
+          console.error('Error in handleinsertrow:', err);
+          alert('Error fetching table metadata: ' + (err?.message || err));
+        }
+      };
+
+
+  const handleinsertSubmit=async(e)=>{
+    e.preventDefault();
+    try {
+      setInsertLoading(true);
+      const form = e.target;
+      const fd = new FormData(form);
+      const body = {};
+      for (const [key, value] of fd.entries()) {
+      if(value!=='')
+        body[key] = value;
+      }
+
+   
+      const res = await fetch(`/api/projects/${projectid}/insert`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ table: selectedTable, insertData: body }),
+        credentials: "include",
+      });
+
+      const payload = await res.json();
+      if (!res.ok) {
+        const errMsg = payload?.error || "Failed to prepare insert";
+        alert(errMsg);
+
+      } else {
+        try {
+          // small toast-like feedback
+          alert("Insert prepared successfully (preview updated).");
+        } catch (e) {}
+      }
+    } catch (err) {
+      console.error('Error preparing insert payload:', err);
+      alert('Error preparing insert payload: ' + (err?.message || err));
+    }
+      setInsertLoading(false);
+      setIsInsertModalOpen(false);
+      setInsertTableMeta(null);
+      fetchtabledata(selectedTable);
+    
+  }
+
+  const handleExport = async (format) => {
+
+    if (!selectedTable) {
+      alert("Please select a table to export");
+      return;
+    }
+
+    setIsExporting(true);
     try {
       const res = await fetch(
-        `/api/projects/${projectid}/export?format=${format.toLowerCase()}`
+        `/api/projects/${projectid}/export?format=${format.toLowerCase()}&table=${encodeURIComponent(selectedTable)}`
       );
 
       if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.error);
+        throw new Error(errorData.error || "Failed to export data");
       }
 
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
-
       const disposition = res.headers.get("Content-Disposition");
       const a = document.createElement("a");
       a.href = url;
 
-      if (disposition?.includes("filename=")) {
-        const match = disposition.match(/filename="(.+)"/);
-        a.download = match ? match[1] : "export";
+      // Use the filename from the server if provided
+      if (disposition && disposition.includes("filename=")) {
+        const filenameMatch = disposition.match(/filename="(.+)"/);
+        if (filenameMatch) {
+          a.download = filenameMatch[1];
+        } else {
+          // fallback: use table name as filename
+          a.download = `${selectedTable.replace(
+            /[^a-z0-9]/gi,
+            "_"
+          )}.${format.toLowerCase()}`;
+        }
       } else {
-        a.download = `${projectdetail.project_name}_${format}`;
+        a.download = `${selectedTable.replace(
+          /[^a-z0-9]/gi,
+          "_"
+        )}.${format.toLowerCase()}`;
       }
 
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-
-      setTimeout(() => window.URL.revokeObjectURL(url), 1000);
-    } catch (err) {
-      alert(err.message);
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 1000);
+    } catch (error) {
+      console.error("Export error:", error);
+      alert(error.message || "Failed to export data");
     } finally {
       setIsExporting(false);
     }
   };
 
-  /* Loads all projects from database */
+
+
   useEffect(() => {
     const fetchProjectsData = async () => {
       try {
@@ -114,7 +220,7 @@ export default function DashboardPage() {
     fetchProjectsData();
   }, []);
 
-  /* Select current project from project list */
+
   useEffect(() => {
     if (projects.length > 0) {
       const proj = projects.find((p) => String(p.id) === String(projectid));
@@ -122,41 +228,57 @@ export default function DashboardPage() {
     }
   }, [projects]);
 
-  /* Reset selected rows when table changes */
+ // Clear selected rows when table changes
   useEffect(() => {
     setdeleteRows([]);
   }, [selectedTable]);
 
-  /* Opens the input box when user clicks on a cell */
+
   const handleCellClick = (rowIndex, colName, value) => {
     setEditingCell({ rowIndex, colName, value });
     seteditedvalue(String(value ?? ""));
   };
 
-  /* Deletes selected rows based on primary key */
-  const handledelete = async () => {
-    if (deleteRows.length === 0) return alert("No rows selected");
 
+  const handledelete = async (e) => {
+    if (deleteRows.length == 0) {
+      alert("No rows selected for deletion");
+      return;
+    }
+
+    // Confirm deletion
     const proceed = window.confirm(
-      `Delete ${deleteRows.length} rows permanently?`
+      `Are you sure you want to delete ${deleteRows.length} rows? This action cannot be undone.`
     );
-    if (!proceed) return;
+
+    if (!proceed) {
+      setdeleteRows([]);
+      return;
+    }
 
     try {
-      const pkcols = tableData.columns
-        .filter((c) => c.constraint === "PRIMARY KEY")
-        .map((c) => c.name);
+      const pkcolarray = [];
+      //Get primary key columns from table metadata
+      tableData.columns.forEach((col) => {
+        if (col.constraint === "PRIMARY KEY") {
+          pkcolarray.push(col.name);
+        }
+      });
 
+      //pkvaluesarray will be array of objects, wwhere each obj has pk cols and value for record
+      //to be deleted
       const pkValuesArray = deleteRows.map((rowObj) => {
-        const obj = {};
-        pkcols.forEach((col) => (obj[col] = rowObj[col]));
-        return obj;
+        const pkVals = {};
+        pkcolarray.forEach((colName) => {
+          pkVals[colName] = rowObj[colName];
+        });
+        return pkVals;
       });
 
       const payload = {
         projectId: projectid,
-        table: selectedTable,
-        pkcols,
+        table: selectedTable || tableData.table,
+        pkcols: pkcolarray,
         pkvalues: pkValuesArray,
       };
 
@@ -167,89 +289,120 @@ export default function DashboardPage() {
       });
 
       const result = await res.json();
-      if (!res.ok) return alert(result.error);
 
-      alert(`Deleted ${deleteRows.length} rows`);
+      if (!res.ok) {
+        alert(result?.error || "Failed to delete rows");
+        return;
+      }
 
+      // On successful deletion, refetch table data
+      alert(`Successfully deleted ${deleteRows.length} rows.`);
       setdeleteRows([]);
-
       setTableData((prev) => {
-        const updated = prev.rows.filter((row) => {
-          return !deleteRows.some((dr) =>
-            pkcols.every((col) => dr[col] === row[col])
-          );
+        if (!prev) return prev;
+        const filteredRows = prev.rows.filter((row, i) => {
+          //Check if this row was deleted
+          return !deleteRows.some((dr) => {
+            return pkcolarray.every((colName) => {
+              return row[colName] === dr[colName];
+            });
+          });
         });
-        return { ...prev, rows: updated };
+        return { ...prev, rows: filteredRows };
       });
     } catch (err) {
-      alert(err.message);
+      alert("Error deleting rows: " + (err?.message || err));
+    } finally {
+      return;
     }
   };
 
-  /* Saves edited cell when pressing Enter */
   const handleCellKeyDown = (e) => {
-    if (e.key === "Escape") return setEditingCell(null);
-    if (e.key !== "Enter") return;
+    if (e.key === "Enter") {
+      e.preventDefault();
 
-    e.preventDefault();
-
-    if (!editingCell || editedvalue === editingCell.value)
-      return setEditingCell(null);
-
-    const ok = window.confirm(
-      `Update value?\nFrom: ${editingCell.value}\nTo: ${editedvalue}`
-    );
-    if (!ok) return setEditingCell(null);
-
-    if (editedvalue.trim() === "") return alert("Value cannot be empty");
-
-    (async () => {
-      try {
-        const pkCol =
-          tableData.columns.find((c) => c.constraint === "PRIMARY KEY")?.name ||
-          tableData.columns[0].name;
-
-        const currentRow = tableData.rows[editingCell.rowIndex];
-
-        const payload = {
-          table: selectedTable,
-          pkColumn: pkCol,
-          pkValue: currentRow[pkCol],
-          column: editingCell.colName,
-          newValue: editedvalue.trim(),
-          oldValue: editingCell.value,
-        };
-
-        const res = await fetch(`/api/projects/${projectid}/update`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        const result = await res.json();
-        if (!res.ok) return alert(result.error);
-
-        setTableData((prev) => {
-          const updatedRows = prev.rows.map((row, idx) =>
-            idx === editingCell.rowIndex ? result.row : row
-          );
-          return { ...prev, rows: updatedRows };
-        });
-      } catch {
-        alert("Update failed");
-      } finally {
+      if (!editingCell || editedvalue === editingCell.value) {
         setEditingCell(null);
+        return;
       }
-    })();
+
+      const proceed = window.confirm(
+        `Are you sure you want to update this value?\nFrom: ${editingCell.value}\nTo: ${editedvalue}`
+      );
+
+      if (!proceed) {
+        setEditingCell(null);
+        return;
+      }
+
+      // Prevent sending empty or whitespace-only values
+      if (String(editedvalue).trim() === "") {
+        alert("Value cannot be empty");
+        return;
+      }
+      //Here, we call API for updating in the database neon
+      (async () => {
+        try {
+          // determine primary key column from metadata
+          const pkCol =
+            tableData?.columns?.find((c) => c.constraint === "PRIMARY KEY")
+              ?.name || tableData?.columns?.[0]?.name;
+          const row = tableData.rows[editingCell.rowIndex];
+          const payload = {
+            table: selectedTable || tableData.table,
+            pkColumn: pkCol,
+            pkValue: row[pkCol],
+            column: editingCell.colName,
+            newValue: String(editedvalue).trim(),
+            oldValue: editingCell.value,
+          };
+
+          const res = await fetch(`/api/projects/${projectid}/update`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          const result = await res.json();
+          if (!res.ok) {
+            // show error to user
+            alert(result?.error || "Failed to update value");
+          } else {
+            //Updating local table data
+            const updatedRow = result.row;
+            setTableData((prev) => {
+              if (!prev) return prev;
+              const rows = prev.rows.map((r, idx) => {
+                if (idx !== editingCell.rowIndex) return r;
+
+                return updatedRow;
+              });
+              return { ...prev, rows };
+            });
+          }
+        } catch (err) {
+          alert("Error updating value", err);
+        } finally {
+          setEditingCell(null);
+        }
+      })();
+    } else if (e.key === "Escape") {
+      setEditingCell(null);
+    }
   };
-
-  /* Loads all table names of the project */
-  const fetchTables = async () => {
+ 
+const fetchTables = async () => {
     try {
-      const res = await fetch(`/api/projects/${projectid}/tables`);
-      const data = await res.json();
-      if (!res.ok) return;
+      const res = await fetch(`/api/projects/${projectid}/tables`, {
+        credentials: "include",
+      });
 
+      const data = await res.json();
+      if (!res.ok) {
+        console.error("Failed to fetch tables:", data.error);
+        return;
+      }
+    
       const names = data.tables.map((t) => t.name);
       settablelist(names);
 
@@ -257,26 +410,36 @@ export default function DashboardPage() {
         setSelectedTable(names[0]);
         fetchtabledata(names[0]);
       }
-    } catch {}
+    } catch (err) {
+      console.error("Error fetching tables:", err);
+    }
   };
 
   useEffect(() => {
+    if (!projectid) return;
     if (projectid) fetchTables();
   }, [projectid]);
 
-  /* Loads rows + columns of a selected table */
-  const fetchtabledata = async (tablename, recordLimit = limit) => {
-    setLoading(true);
-    try {
-      const params = `table=${tablename}${recordLimit ? `&limit=${recordLimit}` : ""}`;
 
-      const res = await fetch(`/api/projects/${projectid}/tables?${params}`);
+const fetchtabledata = async (tablename, recordLimit = limit) => {
+    setLoading(true);   
+    try {
+      // Build query params; if recordLimit is falsy (null/undefined), omit the limit param
+      const params = `table=${encodeURIComponent(tablename)}${
+        recordLimit ? `&limit=${recordLimit}` : ""
+      }`;
+      const res = await fetch(`/api/projects/${projectid}/tables?${params}`, {
+        credentials: "include",
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-
+      if(recordLimit===null){
+        setloadmore(false);
+      }
       setTableData(data);
+      setloadtable(false);
     } catch (err) {
-      console.error(err);
+      console.error("Error fetching table data:", err);
     } finally {
       setLoading(false);
     }
@@ -286,7 +449,53 @@ export default function DashboardPage() {
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-background via-accent/20 to-secondary/30">
       <Header />
 
-      {/* Page Header */}
+      <Modal
+              open={isInsertModalOpen}
+              onClose={() => {
+                setIsInsertModalOpen(false);
+                setInsertTableMeta(null);
+                setInsertLoading(false);
+              }}
+              title={selectedTable ? `Insert into ${selectedTable}` : "Insert Row"}
+              loading={insertLoading}
+              loadingTitle={insertLoading ? 'Inserting...' : undefined}
+              loadingSubtitle={insertLoading ? 'Please wait while we insert the row.' : undefined}
+              loadingOverlay={true}
+            >
+              {insertTableMeta ? (
+                <div className="space-y-3">
+
+                  <form onSubmit={async (e) => {
+                    e.preventDefault();
+                    await handleinsertSubmit(e);
+                  }}>
+                    {insertTableMeta.columns?.map((col) => (
+                      <div key={col.name} className="flex flex-col mb-2">
+                       {
+                        col.constraint === 'PRIMARY KEY' ? <></>:<>
+                        <label className="text-sm">{col.name}</label>
+                      <input name={col.name} required={!col.nullable && col.default === null} placeholder={!col.nullable && col.default ? `${col.default} will be set if no value provided` : ''}   className="border rounded p-2" /></>
+                       }
+                       
+                      </div>
+                    ))}
+                    <div className="flex gap-2 mt-4">
+                      <button type="button" className="px-4 py-2 border rounded" onClick={() => setIsInsertModalOpen(false)}>Cancel</button>
+                      <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded">Insert</button>
+                    </div>
+                  </form>
+                 
+                </div>
+              ) : (
+                <div>
+                  <p className="text-sm text-gray-600">No metadata available. Try re-opening the dialog.</p>
+                  <div className="mt-3">
+                    <button onClick={handleinsertrow} className="px-3 py-1 border rounded">Retry</button>
+                  </div>
+                </div>
+              )}
+            </Modal>
+
       <div className="db bg-white w-full flex items-center h-26 gap-4 px-6">
         <div className="db_left flex items-center">
           <ArrowLeft
@@ -325,10 +534,10 @@ export default function DashboardPage() {
       <div className="content flex flex-row w-full flex-1 min-h-0">
         <Sidebar active={page} onSelectPage={(p) => setpage(p)} />
 
-        <div className="rightcontent flex flex-col w-full overflow-y-scroll h-screen">
 
-          {/* ---------------- TABLE PAGE ---------------- */}
-          {page === "table" && (
+        <div className="rightcontent flex flex-col w-full border-1 overflow-x-hidden overflow-y-scroll min-h-0 h-screen">
+      
+          {page === "table" ? (
             <>
               <div className="table_select h-14 flex items-center bg-white p-4 gap-2">
                 Table Explorer
@@ -336,25 +545,35 @@ export default function DashboardPage() {
                   items={tablelist}
                   selected={selectedTable}
                   onSelect={(t) => {
+                    if(t===selectedTable) return;
                     setSelectedTable(t);
                     fetchtabledata(t);
                     setIsExpanded(false);
+                    setloadtable(true);
                   }}
                 />
               </div>
 
-              <div className="filter h-23 flex items-center p-4 gap-4">
-                <Funnel />
-                Filters:
-              </div>
-
-              {/* Buttons */}
-              <div className="mockbutton bg-white p-4 flex flex-col gap-3 min-[820]:flex-row justify-between">
-                <div className="frontbtn flex gap-2">
-                  <Button>+ Insert Row</Button>
+              <div className="mockbutton  h-28 gap-2 bg-white items-center flex-col  max-[510]:h-65   min-[820]:flex-row min-[820]:h-19 flex p-4 justify-between">
+               <div className="frontbtn flex flex-row gap-2 max-[510]:flex-col max-[510]:w-full max-[510]:gap-3">
+                    <Button className="max-[510]:w-full" disabled={insertLoading} onClick={async ()=>{
+                   
+                    await handleinsertrow();
+                  
+                    setIsInsertModalOpen(true);
+                  }}>
+                    {insertLoading ? (
+                      <>
+                        <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                        Loading...
+                      </>
+                    ) : (
+                      "+ Insert Row"
+                    )}
+                  </Button>
 
                   <Button
-                    className="text-black bg-sidebar"
+                   className="text-black bg-sidebar border-1 hover:bg-gray-300 hover:cursor-pointer"
                     onClick={async () => {
                       if (deletebtn) await handledelete();
                       setdeletebtn(!deletebtn);
@@ -365,8 +584,9 @@ export default function DashboardPage() {
                   </Button>
                 </div>
 
-                <div className="endbtn flex gap-4">
+            <div className="endbtn flex gap-4 max-[510]:gap-2 max-[510]:flex-col max-[510]:w-full">
                   <MockDataGenerator
+                 
                     projectId={projectid}
                     onSuccess={() => selectedTable && fetchtabledata(selectedTable)}
                   />
@@ -374,87 +594,194 @@ export default function DashboardPage() {
                   <ExportDropdown
                     options={exportOptions}
                     onSelect={handleExport}
-                    disabled={!selectedTable || !tableData || tableData.rows.length === 0}
+                    disabled={
+                      !selectedTable ||
+                      !tableData ||
+                      tableData.rows.length === 0
+                    }
                     isLoading={isExporting}
                   />
                 </div>
               </div>
 
-              {/* Table */}
+          
               <div className="flex-1 min-h-0 flex flex-col">
-                {loading ? (
-                  <div>Loading table...</div>
+                {loadtable? (
+                  <div  className="p-6">
+                    <div className="flex items-center gap-4">
+                      <svg
+                        className="animate-spin h-8 w-8"
+                        style={{ color: "var(--primary)" }}
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                      >
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                        ></path>
+                      </svg>
+                      <div>
+                        <div className="h-4 w-56 bg-gray-200 rounded-md mb-2 animate-pulse" />
+                        <div className="text-sm text-gray-500">
+                          Loading table data...
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 bg-white/90 backdrop-blur-sm rounded-lg shadow-md p-4 border border-gray-100">
+
+                      <div className="flex items-center gap-4 mb-3">
+                        <div
+                          className="h-4 bg-gray-200 rounded"
+                          style={{ width: "35%" }}
+                        />
+                        <div
+                          className="h-4 bg-gray-200 rounded animate-pulse"
+                          style={{ width: "16%" }}
+                        />
+                        <div
+                          className="h-4 bg-gray-200 rounded animate-pulse"
+                          style={{ width: "16%" }}
+                        />
+                        <div
+                          className="h-4 bg-gray-200 rounded animate-pulse"
+                          style={{ width: "16%" }}
+                        />
+                        <div
+                          className="h-4 bg-gray-200 rounded animate-pulse"
+                          style={{ width: "12%" }}
+                        />
+                      </div>
+
+                      <div className="space-y-3">
+                        {Array.from({ length: 6 }).map((_, i) => (
+                          <div key={i} className="flex gap-4 items-center">
+                            <div className="h-4 bg-gray-200 rounded flex-1 animate-pulse" />
+                            <div
+                              className="h-4 bg-gray-200 rounded animate-pulse"
+                              style={{ width: "16%" }}
+                            />
+                            <div
+                              className="h-4 bg-gray-200 rounded animate-pulse"
+                              style={{ width: "16%" }}
+                            />
+                            <div
+                              className="h-4 bg-gray-200 rounded"
+                              style={{ width: "16%" }}
+                            />
+                            <div
+                              className="h-4 bg-gray-200 rounded animate-pulse"
+                              style={{ width: "12%" }}
+                            />
+                          </div>
+                        )
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 ) : tableData ? (
-                  <div className="w-full overflow-x-auto">
+                  <>
+                  <div className="w-full overflow-x-auto max-w-full overflow-y-auto h-fit p-5">
                     <table className="min-w-max w-full table-auto">
                       <thead className="tb_head">
                         <tr>
-                          {deletebtn && <th className="px-4 py-2 border-b"></th>}
+                          {deletebtn ? (
+                            <th className="px-4 py-2 border-b text-center whitespace-nowrap">
+                              {" "}
+                            </th>
+                          ) : null}
                           {tableData.columns.map((col) => (
-                            <th key={col.name} className="px-4 py-2 border-b">
+                            <th
+                              key={col.name}
+                              className="px-4 py-2 border-b whitespace-nowrap"
+                            >
                               {col.name}
                             </th>
                           ))}
                         </tr>
                       </thead>
-
                       <tbody>
                         {tableData.rows.length > 0 ? (
                           tableData.rows.map((row, i) => (
                             <tr key={i} className="border-b">
-                              {deletebtn && (
-                                <td className="px-4 py-2 text-center">
-                                  <input
-                                    type="checkbox"
-                                    checked={deleteRows.some((dr) =>
-                                      tableData.columns
-                                        .filter((c) => c.constraint === "PRIMARY KEY")
-                                        .every((pk) => dr[pk.name] === row[pk.name])
-                                    )}
-                                    onChange={(e) => {
-                                      const pkCols = tableData.columns.filter(
-                                        (c) => c.constraint === "PRIMARY KEY"
-                                      );
-
-                                      const pkValues = {};
-                                      pkCols.forEach((c) => (pkValues[c.name] = row[c.name]));
-
-                                      if (e.target.checked) {
-                                        setdeleteRows((prev) => [...prev, pkValues]);
-                                      } else {
-                                        setdeleteRows((prev) =>
-                                          prev.filter((val) =>
-                                            !pkCols.every(
-                                              (c) => val[c.name] === row[c.name]
-                                            )
+                             {deletebtn ? (
+                                deletebtn ? (
+                                  <td className="px-4 py-2 text-center whitespace-nowrap hover:bg-sidebar hover:border-1 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      //here, in check we actually keep those rows checked
+                                      //whose PK(s) are there in deleteRows
+                                      checked={deleteRows.some((dr) =>
+                                        // Get all PK columns
+                                        tableData.columns
+                                          .filter(
+                                            (c) =>
+                                              c.constraint === "PRIMARY KEY"
                                           )
+                                          .every(
+                                            (pkCol) =>
+                                              row[pkCol.name] === dr[pkCol.name]
+                                          )
+                                      )}
+                                      onChange={(e) => {
+                                        // Get all PK columns
+                                        const pkCols = tableData.columns.filter(
+                                          (c) => c.constraint === "PRIMARY KEY"
                                         );
-                                      }
-                                    }}
-                                  />
-                                </td>
-                              )}
+                                        const columnsToUse = pkCols;
 
-                              {tableData.columns.map((col) => (
-                                <td
+                                        // pkValues object stores PKs for rows to be deleted
+                                        const pkValues = {};
+                                        columnsToUse.forEach((col) => {
+                                          pkValues[col.name] = row[col.name];
+                                        });
+
+                                        if (e.target.checked) {
+                                          setdeleteRows((prev) => [
+                                            ...prev,
+                                            pkValues,
+                                          ]);
+                                        } else {
+                                          setdeleteRows((prev) =>
+                                            prev.filter(
+                                              (val) =>
+                                                !columnsToUse.every(
+                                                  (col) =>
+                                                    val[col.name] ===
+                                                    row[col.name]
+                                                )
+                                            )
+                                          );
+                                        }
+                                      }}
+                                    />
+                                  </td>
+                                ) : null
+                              ) : null}
+
+             {tableData.columns.map((col) => (
+                                  <td
                                   key={col.name}
-                                  className={`px-4 py-2 text-center cursor-pointer ${
+                                  className={`px-4 py-2 text-center whitespace-nowrap hover:bg-sidebar hover:border-1 cursor-pointer ${
                                     editingCell?.rowIndex === i &&
                                     editingCell?.colName === col.name
-                                      ? "ring-2 ring-blue-500"
+                                      ? "hover:bg-sidebar ring-2 ring-blue-500 ring-opacity-50"
                                       : ""
                                   }`}
-                                  onClick={() =>
-                                    handleCellClick(i, col.name, row[col.name])
-                                  }
+                                  onClick={() => {
+                                    handleCellClick(i, col.name, row[col.name]);
+                                  }}
                                 >
                                   {editingCell?.rowIndex === i &&
                                   editingCell?.colName === col.name ? (
                                     <input
                                       type="text"
+                                      className="w-full px-2 py-1 text-center focus:outline-none"
                                       value={editedvalue}
-                                      className="w-full text-center"
-                                      onChange={(e) => seteditedvalue(e.target.value)}
+                                      onChange={(e) =>
+                                        seteditedvalue(e.target.value)
+                                      }
                                       onKeyDown={handleCellKeyDown}
                                       autoFocus
                                     />
@@ -467,52 +794,164 @@ export default function DashboardPage() {
                           ))
                         ) : (
                           <tr>
-                            <td colSpan={tableData.columns.length} className="text-center py-4">
+                            <td
+                              colSpan={tableData.columns.length}
+                              className="text-center py-4 text-gray-500"
+                            >
                               No records found
                             </td>
                           </tr>
                         )}
                       </tbody>
                     </table>
+                  
                   </div>
+                  {
+                    tableData ? (
+                      <div className="flex justify-center mt-3 w-full">
+                        <Button
+                          onClick={async () => {
+                            setloadmore(true);
+                            if (isExpanded) {
+                              await fetchtabledata(selectedTable, limit);
+                              setIsExpanded(false);
+                            } else {
+                              // Expand to full data
+                              await fetchtabledata(selectedTable, null); // null means fetch all
+                              setIsExpanded(true);
+                            }
+                            setloadmore(false);
+                          }}
+                          className="text-black bg-sidebar border-1 hover:bg-gray-300 hover:cursor-pointer"
+                          disabled={loadmore}
+                        >
+                          {loadmore ? (
+                              <>
+                               <DotLottieReact
+                              src="https://lottie.host/bc9b7976-f4d5-43d6-bf35-d97023948cbd/0LrKX98liy.lottie"
+                              loop
+                              autoplay
+                              style={{ width: 28, height: 28 }}
+                            />
+                            Loading...
+                            </>
+                           
+                            
+                          ) : isExpanded ? (
+                            "Load Less"
+                          ) : (
+                            "Load More"
+                          )
+                          }
+                        </Button>
+                      </div>
+                    ) : (
+                      <></>
+                    )
+                  }
+                  </>
+                  
                 ) : (
-                  <div>No table selected</div>
-                )}
-
-                {!isExpanded &&
-                  tableData &&
-                  tableData.rows.length === limit && (
-                    <div className="flex justify-center mt-3">
-                      <Button
-                        onClick={() => {
-                          setIsExpanded(true);
-                          fetchtabledata(selectedTable, null);
-                        }}
+                  <>
+                   <div  className="p-6">
+                    <div className="flex items-center gap-4">
+                      <svg
+                        className="animate-spin h-8 w-8"
+                        style={{ color: "var(--primary)" }}
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
                       >
-                        Load More
-                      </Button>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                        ></path>
+                      </svg>
+                      <div>
+                        <div className="h-4 w-56 bg-gray-200 rounded-md mb-2 animate-pulse" />
+                        <div className="text-sm text-gray-500">
+                          Loading table data...
+                        </div>
+                      </div>
                     </div>
-                  )}
+
+                    <div className="mt-6 bg-white/90 backdrop-blur-sm rounded-lg shadow-md p-4 border border-gray-100">
+
+                      <div className="flex items-center gap-4 mb-3">
+                        <div
+                          className="h-4 bg-gray-200 rounded"
+                          style={{ width: "35%" }}
+                        />
+                        <div
+                          className="h-4 bg-gray-200 rounded animate-pulse"
+                          style={{ width: "16%" }}
+                        />
+                        <div
+                          className="h-4 bg-gray-200 rounded animate-pulse"
+                          style={{ width: "16%" }}
+                        />
+                        <div
+                          className="h-4 bg-gray-200 rounded animate-pulse"
+                          style={{ width: "16%" }}
+                        />
+                        <div
+                          className="h-4 bg-gray-200 rounded animate-pulse"
+                          style={{ width: "12%" }}
+                        />
+                      </div>
+
+                      <div className="space-y-3">
+                        {Array.from({ length: 6 }).map((_, i) => (
+                          <div key={i} className="flex gap-4 items-center">
+                            <div className="h-4 bg-gray-200 rounded flex-1 animate-pulse" />
+                            <div
+                              className="h-4 bg-gray-200 rounded animate-pulse"
+                              style={{ width: "16%" }}
+                            />
+                            <div
+                              className="h-4 bg-gray-200 rounded animate-pulse"
+                              style={{ width: "16%" }}
+                            />
+                            <div
+                              className="h-4 bg-gray-200 rounded"
+                              style={{ width: "16%" }}
+                            />
+                            <div
+                              className="h-4 bg-gray-200 rounded animate-pulse"
+                              style={{ width: "12%" }}
+                            />
+                          </div>
+                        )
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  </>
+                )}
+              
               </div>
+              
             </>
-          )}
+          ) : page == "query" ? (
+            <>
+              <Query initialQuery={queryToPass} onQueryMounted={() => setQueryToPass(null)} />
+            </>
+          ) :page==="history" ? (
+            <>
+              <History handleSetPage={handleSetPage} setQueryToPass={setQueryToPass} />
+            </>
+          ): page==="optimization" ? (
+            <>
+              <Optimization />
+            </>
+          ): page==="schema" ? (
+            <>
+              <SchemaPage />
+            </>
+          ): (<></>
 
-          {/* ---------------- QUERY PAGE ---------------- */}
-          {page === "query" && (
-            <Query initialQuery={queryToPass} onQueryMounted={() => setQueryToPass(null)} />
-          )}
-
-          {/* ---------------- HISTORY PAGE ---------------- */}
-          {page === "history" && (
-            <History handleSetPage={handleSetPage} setQueryToPass={setQueryToPass} />
-          )}
-
-          {/* ---------------- OPTIMIZATION PAGE ---------------- */}
-          {page === "optimization" && <Optimization />}
-
-          {/* ---------------- SCHEMA PAGE ---------------- */}
-          {page === "schema" && <SchemaPage />}
-        </div>
+          )
+        }
       </div>
 
       {showSummary && (
@@ -521,5 +960,6 @@ export default function DashboardPage() {
         </div>
       )}
     </div>
-  );
-}
+    </div>
+
+  )}

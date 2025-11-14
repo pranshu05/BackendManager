@@ -73,7 +73,6 @@ export const GET = withProjectAuth(async (request, _context, user, project) => {
         // Get schema information
         const schemaInfo = await getDatabaseSchema(project.connection_string);
         const tables = schemaInfo.map(t => t.name);
-        console.log("Tables available for export:", tables);
         
         // If a specific table is requested, export only that one
         const allData = {};
@@ -91,7 +90,6 @@ export const GET = withProjectAuth(async (request, _context, user, project) => {
         } else {
             // Fetch data from all tables
             for (const table_name of tables) {
-                console.log("Fetching data for table:", table_name);
                 try {
                     const { rows } = await executeQuery(project.connection_string, `SELECT * FROM "${table_name}"`);
                     allData[table_name] = rows;
