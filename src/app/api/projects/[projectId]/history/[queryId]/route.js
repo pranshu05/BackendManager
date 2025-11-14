@@ -2,55 +2,76 @@ import { NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
 import { withProjectAuth } from '@/lib/api-helpers';
 
-// This file handles PUT requests to update a single history item
-// The URL is: /api/projects/[projectId]/history/[queryId]
-
+// This API updates one history record (title or favorite status)
 export const PUT = withProjectAuth(async (request, context, user, project) => {
-	try {
-		const { queryId } = context.params; // Gets the [queryId] from the URL
-		const { naturalLanguageInput } = await request.json(); // Gets the new title from the frontend
+  try {
+    const { queryId } = context.params; // Query ID from the URL
 
-		if (typeof naturalLanguageInput !== 'string') {
-			return NextResponse.json(
-				{ error: 'New title (naturalLanguageInput) must be a string' },
-				{ status: 400 }
-			);
-		}
+    // Read updated title or favorite flag from frontend
+    const { naturalLanguageInput, is_favorite } = await request.json();
 
-		// Run the SQL UPDATE query on your Neon database
-		const result = await pool.query(`
-			UPDATE query_history
-			SET natural_language_input = $1
-			WHERE id = $2::uuid  -- <-- THIS IS THE FIX
-			  AND project_id = $3
-			  AND user_id = $4
-			RETURNING id, natural_language_input
-		`, [
-			naturalLanguageInput.trim(),
-			queryId,
-			project.id,
-			user.id
-		]);
+    // At least one field must be provided
+    if (typeof naturalLanguageInput !== 'string' && typeof is_favorite !== 'boolean') {
+      return NextResponse.json(
+        { error: 'A new title or favorite status is required' },
+        { status: 400 }
+      );
+    }
 
-		if (result.rows.length === 0) {
-			// This means the query item was not found or didn't belong to the user
-			return NextResponse.json(
-				{ error: 'Query history item not found or you do not have permission to edit it' },
-				{ status: 404 }
-			);
-		}
+    // Build SQL update fields only for provided values
+    let updateFields = [];
+    let queryParams = [];
+    let paramIndex = 1;
 
-		return NextResponse.json({
-			success: true,
-			message: 'Query title updated successfully',
-			updatedItem: result.rows[0]
-		});
+    // Update the title if provided
+    if (typeof naturalLanguageInput === 'string') {
+      updateFields.push(`natural_language_input = $${paramIndex++}`);
+      queryParams.push(naturalLanguageInput.trim());
+    }
 
-	} catch (error) {
-		console.error('Update query title error:', error);
-		return NextResponse.json(
-			{ error: 'Internal server error' },
-			{ status: 500 }
-		);
-	}
+    // Update favorite flag if provided
+    if (typeof is_favorite === 'boolean') {
+      updateFields.push(`is_favorite = $${paramIndex++}`);
+      queryParams.push(is_favorite);
+    }
+
+    // Add identifiers (queryId + projectId + userId)
+    queryParams.push(queryId, project.id, user.id);
+    const whereIndex = paramIndex;
+
+    // Update the record in the database
+    const result = await pool.query(
+      `
+      UPDATE query_history
+      SET ${updateFields.join(', ')}
+      WHERE id = $${whereIndex}::uuid
+        AND project_id = $${whereIndex + 1}
+        AND user_id = $${whereIndex + 2}
+      RETURNING id, natural_language_input, is_favorite, query_text, success, created_at, execution_time_ms, error_message, query_type
+      `,
+      queryParams
+    );
+
+    // No record found or user does not own it
+    if (result.rows.length === 0) {
+      return NextResponse.json(
+        { error: 'Item not found or not allowed to edit' },
+        { status: 404 }
+      );
+    }
+
+    // Success response
+    return NextResponse.json({
+      success: true,
+      message: 'Query item updated successfully',
+      updatedItem: result.rows[0]
+    });
+
+  } catch (error) {
+    console.error('Update query item error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
 });
