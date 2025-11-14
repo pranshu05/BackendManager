@@ -25,8 +25,9 @@ export default function Modal({ open, onClose, title, children, loading }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        className="absolute inset-0 backdrop-blur-sm"
         onClick={() => onClose && onClose()}
+        style={{ background: "rgba(0, 0, 0, 0.45)" }}
       />
 
       {/* Modal content */}
@@ -34,15 +35,25 @@ export default function Modal({ open, onClose, title, children, loading }) {
         ref={contentRef}
         role="dialog"
         aria-modal="true"
-        className="relative z-10 w-full max-w-lg mx-4 bg-white rounded-lg shadow-lg border"
+        className="relative z-10 w-full max-w-lg mx-4 rounded-lg shadow-lg border"
         onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "var(--panel-bg)",
+          borderColor: "var(--border)",
+          boxShadow: "var(--shadow)"
+        }}
       >
-        <div className="flex items-center justify-between px-4 py-3 border-b">
-          <h3 className="text-lg font-medium">{title}</h3>
+        <div 
+          className="flex items-center justify-between px-4 py-3 border-b"
+          style={{ borderColor: "var(--border)" }}
+        >
+          <h3 className="text-lg font-medium" style={{ color: "var(--text)" }}>{title}</h3>
           <button
             aria-label="Close modal"
             onClick={() => onClose && onClose()}
-            className="text-gray-500 hover:text-gray-800"
+            style={{ color: "var(--muted-text)" }}
+            onMouseEnter={(e) => e.currentTarget.style.color = "var(--text)"}
+            onMouseLeave={(e) => e.currentTarget.style.color = "var(--muted-text)"}
           >
             ×
           </button>
@@ -56,8 +67,8 @@ export default function Modal({ open, onClose, title, children, loading }) {
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
               </svg>
               <div>
-                <div className="font-medium">Preparing...</div>
-                <div className="text-sm text-gray-600">Please wait while we prepare the form.</div>
+                <div className="font-medium" style={{ color: "var(--text)" }}>Preparing...</div>
+                <div className="text-sm" style={{ color: "var(--muted-text)" }}>Please wait while we prepare the form.</div>
               </div>
             </div>
           ) : (

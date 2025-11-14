@@ -102,9 +102,16 @@ export default function Query({ initialQuery, onQueryMounted }) {
     return (<>
   { suggestionsLoading ? (
     <div className="mx-10 mt-[25px]" aria-busy="true" aria-live="polite">
-      <div className="chat-input-area bg-white rounded-xl shadow-lg px-8 py-8 flex flex-col gap-4">
+      <div 
+        className="chat-input-area rounded-xl px-8 py-8 flex flex-col gap-4"
+        style={{
+          background: "var(--panel-bg)",
+          boxShadow: "var(--shadow)",
+          border: "1px solid var(--border)"
+        }}
+      >
         <div className="flex items-center justify-between mb-4">
-          <div className="text-lg font-medium">Generating suggestions</div>
+          <div className="text-lg font-medium" style={{ color: "var(--text)" }}>Generating suggestions</div>
           <div className="flex items-center gap-2">
             <DotLottieReact
               src="https://lottie.host/bc9b7976-f4d5-43d6-bf35-d97023948cbd/0LrKX98liy.lottie"
@@ -112,27 +119,43 @@ export default function Query({ initialQuery, onQueryMounted }) {
               autoplay
               style={{ width: 36, height: 36 }}
             />
-            <span className="text-sm text-gray-500">Hang tight — getting ideas for you</span>
+            <span className="text-sm" style={{ color: "var(--muted-text)" }}>Hang tight — getting ideas for you</span>
           </div>
         </div>
         <div className="flex flex-wrap gap-3">
           {[1,2,3,4].map(n => (
-            <div key={n} className="animate-pulse bg-gray-100 rounded-md h-10 w-1/3 max-w-[240px]" />
+            <div 
+              key={n} 
+              className="animate-pulse rounded-md h-10 w-1/3 max-w-[240px]"
+              style={{ background: "var(--accent)" }}
+            />
           ))}
         </div>
       </div>
     </div>
   ) : querysuggestions? <div className="flex flex-col h-full mt-[25px]">
-                      <div className={`chat-input-area bg-white rounded-xl shadow-lg px-8 py-10 mx-10 flex flex-col gap-30 ${loading ? 'loading' : ''}`}>
+                      <div 
+                        className={`chat-input-area rounded-xl px-8 py-10 mx-10 flex flex-col gap-30 ${loading ? 'loading' : ''}`}
+                        style={{
+                          background: "var(--panel-bg)",
+                          boxShadow: "var(--shadow)",
+                          border: "1px solid var(--border)"
+                        }}
+                      >
                         <div className="query_head flex flex-col gap-3">
-                        <p>Ask Your Database</p>
+                        <p style={{ color: "var(--text)" }}>Ask Your Database</p>
                             <textarea 
-                            value={query} // This will now show the TITLE from history
+                            value={query}
                             onChange={e => setQuery(e.target.value)}
                             placeholder="Ask your database in plain English... e.g., 'Show all employees in HR department'"
-                            className=" min-h-[48px] max-h-[200px] overflow-auto resize-none text-gray-800"
+                            className="min-h-[48px] max-h-[200px] overflow-auto resize-none"
                             rows={2}
-                            style={{ transition: "height 0.2s" }}
+                            style={{ 
+                              transition: "height 0.2s",
+                              color: "var(--text)",
+                              background: "var(--panel-bg)",
+                              borderColor: "var(--border)"
+                            }}
                           />
                         
                         </div>
@@ -143,10 +166,23 @@ export default function Query({ initialQuery, onQueryMounted }) {
                             <button
                               key={ex}
                               type="button"
-                              className="flex items-center gap-2 bg-sidebar border-1 hover:bg-gray-300 hover:cursor-pointer text-gray-800 text-sm font-medium px-4 py-2 rounded-md border-gray-200 shadow-sm"
+                              className="flex items-center gap-2 border-1 hover:cursor-pointer text-sm font-medium px-4 py-2 rounded-md shadow-sm"
                               onClick={() => setQuery(ex)}
+                              style={{
+                                background: "var(--accent)",
+                                borderColor: "var(--border)",
+                                color: "var(--text)"
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = "var(--primary)";
+                                e.currentTarget.style.color = "var(--primary-contrast)";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = "var(--accent)";
+                                e.currentTarget.style.color = "var(--text)";
+                              }}
                             >
-                                <Sparkles  className="w-4 h-4 text-gray-500"/>
+                                <Sparkles className="w-4 h-4" style={{ color: "var(--muted-text)" }} />
                               {ex}
                             </button>
                           )): null }
@@ -167,12 +203,12 @@ export default function Query({ initialQuery, onQueryMounted }) {
                         </div>
                       </div>
                       {
-                        !queryResult ? <div className="text-center mt-16 text-gray-500">
+                        !queryResult ? <div className="text-center mt-16" style={{ color: "var(--muted-text)" }}>
                        
                         <div className="text-lg font-medium flex justify-center items-center flex-col">
-                             <Sparkles  className="w-10 h-10 text-gray-500"/>
+                             <Sparkles className="w-10 h-10" style={{ color: "var(--muted-text)" }} />
                           Ask anything about your data<br />
-                          <span className="text-base text-gray-400">
+                          <span className="text-base" style={{ color: "var(--muted-text)" }}>
                             Use natural language to query your database. No SQL knowledge required.
                           </span>
                         </div>
@@ -180,20 +216,27 @@ export default function Query({ initialQuery, onQueryMounted }) {
                       <>
                         <div className="mx-10 mt-6">
                           <div className="flex items-center gap-2 mb-2">
-                            <Sparkles className="w-5 h-5 text-blue-500"/>
-                            <h3 className="font-medium text-gray-700">Your Query:</h3>
+                            <Sparkles className="w-5 h-5" style={{ color: "var(--primary)" }} />
+                            <h3 className="font-medium" style={{ color: "var(--text)" }}>Your Query:</h3>
                           </div>
-                          <p className="text-gray-600 pl-7">{displayquery}</p>
+                          <p className="pl-7" style={{ color: "var(--muted-text)" }}>{displayquery}</p>
                         </div>
-                        <hr />
-                       <div className="w-full overflow-x-auto max-w-full overflow-y-auto h-full">
+                        <hr style={{ borderColor: "var(--border)" }} />
+                       <div className="w-full overflow-x-auto max-w-full overflow-y-auto h-full" style={{ background: "var(--panel-bg)", borderRadius: "8px" }}>
 
                                 <table className="min-w-max w-full table-auto">
-                                    <thead className="tb_head">
-                                        <tr>
+                                    <thead>
+                                        <tr style={{ background: "var(--accent)", borderColor: "var(--border)" }}>
                                   
                                             {headers.length!==0 && headers.map((colname) => (
-                                                <th key={colname} className="px-4 py-2 border-b whitespace-nowrap">
+                                                <th 
+                                                  key={colname} 
+                                                  className="px-4 py-2 border-b whitespace-nowrap"
+                                                  style={{ 
+                                                    color: "var(--text)",
+                                                    borderColor: "var(--border)"
+                                                  }}
+                                                >
                                                     {colname}
                                                 </th>
                                             ))}
@@ -203,15 +246,23 @@ export default function Query({ initialQuery, onQueryMounted }) {
                                         {queryResult.length > 0 ?
                                             (
                                                 queryResult.map((row, i) => (
-                                                    <tr key={i} className="border-b">
+                                                    <tr key={i} style={{ borderColor: "var(--border)" }}>
                                                   
                                                         {
                                                             headers.length!==0 && headers.map((col) => (
                                                                 <td
-                                                                    key={col} // Fixed key
-                                                                    className={`px-4 py-2 text-center whitespace-nowrap hover:bg-sidebar hover:border-1 cursor-pointer 
-                                                                    `}
-                                                          
+                                                                    key={col}
+                                                                    className="px-4 py-2 text-center whitespace-nowrap cursor-pointer"
+                                                                    style={{
+                                                                      color: "var(--text)",
+                                                                      borderColor: "var(--border)"
+                                                                    }}
+                                                                    onMouseEnter={(e) => {
+                                                                      e.currentTarget.style.background = "var(--accent)";
+                                                                    }}
+                                                                    onMouseLeave={(e) => {
+                                                                      e.currentTarget.style.background = "transparent";
+                                                                    }}
                                                                 >
                                                                 {row[col]}
                                                                 </td>
@@ -221,8 +272,9 @@ export default function Query({ initialQuery, onQueryMounted }) {
                                             ) : (
                                                 <tr>
                                                     <td
-                                                        colSpan={headers.length || 1} // Fallback
-                                                        className="text-center py-4 text-gray-500"
+                                                        colSpan={headers.length || 1}
+                                                        className="text-center py-4"
+                                                        style={{ color: "var(--muted-text)" }}
                                                     >
                                                         No records found
                                                     </td>
@@ -246,7 +298,7 @@ export default function Query({ initialQuery, onQueryMounted }) {
                         </div>
                       </div>
                     ) : (
-                      <div className="mx-10 mt-[16px] text-center text-gray-500">Loading suggestions...</div>
+                      <div className="mx-10 mt-[16px] text-center" style={{ color: "var(--muted-text)" }}>Loading suggestions...</div>
                     )}
     </>
    

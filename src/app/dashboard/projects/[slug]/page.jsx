@@ -283,31 +283,38 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-background via-accent/20 to-secondary/30">
+    <div className="min-h-screen flex flex-col" style={{ background: "var(--background)" }}>
       <Header />
 
       {/* Page Header */}
-      <div className="db bg-white w-full flex items-center h-26 gap-4 px-6">
+      <div 
+        className="db w-full flex items-center h-26 gap-4 px-6"
+        style={{ background: "var(--panel-bg)", borderBottom: "1px solid var(--border)" }}
+      >
         <div className="db_left flex items-center">
           <ArrowLeft
             className="cursor-pointer"
             onClick={() => (globalThis.location.href = "/dashboard")}
+            style={{ color: "var(--text)" }}
           />
         </div>
 
         <div className="db_right w-full flex gap-2">
           <div className="db_icon flex items-center">
-            <div className="p-2 bg-slate-300 rounded-xl w-12 h-12 flex items-center justify-center">
-              <Database />
+            <div 
+              className="p-2 rounded-xl w-12 h-12 flex items-center justify-center"
+              style={{ background: "var(--accent)" }}
+            >
+              <Database style={{ color: "var(--primary)" }} />
             </div>
           </div>
 
           <div className="details flex flex-col justify-center">
-            <span className="text-xs md:text-xl">{projectdetail.project_name}</span>
-            <span className="text-gray-600 text-xs md:text-sm">
+            <span className="text-xs md:text-xl" style={{ color: "var(--text)" }}>{projectdetail.project_name}</span>
+            <span className="text-xs md:text-sm" style={{ color: "var(--muted-text)" }}>
               {projectdetail.description}
             </span>
-            <span className="text-xs text-gray-600">
+            <span className="text-xs" style={{ color: "var(--muted-text)" }}>
               📊 {projectdetail.table_count} Tables
             </span>
           </div>
@@ -330,8 +337,14 @@ export default function DashboardPage() {
           {/* ---------------- TABLE PAGE ---------------- */}
           {page === "table" && (
             <>
-              <div className="table_select h-14 flex items-center bg-white p-4 gap-2">
-                Table Explorer
+              <div 
+                className="table_select h-14 flex items-center p-4 gap-2"
+                style={{ 
+                  background: "var(--panel-bg)",
+                  borderBottom: "1px solid var(--border)"
+                }}
+              >
+                <span style={{ color: "var(--muted-text)" }}>Table Explorer</span>
                 <Dropdown
                   items={tablelist}
                   selected={selectedTable}
@@ -343,21 +356,38 @@ export default function DashboardPage() {
                 />
               </div>
 
-              <div className="filter h-23 flex items-center p-4 gap-4">
-                <Funnel />
-                Filters:
+              <div 
+                className="filter h-23 flex items-center p-4 gap-4"
+                style={{ 
+                  background: "var(--panel-bg)",
+                  borderBottom: "1px solid var(--border)"
+                }}
+              >
+                <Funnel style={{ color: "var(--text)" }} />
+                <span style={{ color: "var(--text)" }}>Filters:</span>
               </div>
 
               {/* Buttons */}
-              <div className="mockbutton bg-white p-4 flex flex-col gap-3 min-[820]:flex-row justify-between">
+              <div 
+                className="mockbutton p-4 flex flex-col gap-3 min-[820]:flex-row justify-between"
+                style={{ 
+                  background: "var(--panel-bg)",
+                  borderBottom: "1px solid var(--border)"
+                }}
+              >
                 <div className="frontbtn flex gap-2">
                   <Button>+ Insert Row</Button>
 
                   <Button
-                    className="text-black bg-sidebar"
+                    variant="outline"
                     onClick={async () => {
                       if (deletebtn) await handledelete();
                       setdeletebtn(!deletebtn);
+                    }}
+                    style={{
+                      background: "var(--accent)",
+                      borderColor: "var(--border)",
+                      color: "var(--text)"
                     }}
                   >
                     <Trash />
@@ -383,15 +413,30 @@ export default function DashboardPage() {
               {/* Table */}
               <div className="flex-1 min-h-0 flex flex-col">
                 {loading ? (
-                  <div>Loading table...</div>
+                  <div style={{ color: "var(--muted-text)", padding: "2rem", textAlign: "center" }}>Loading table...</div>
                 ) : tableData ? (
                   <div className="w-full overflow-x-auto">
                     <table className="min-w-max w-full table-auto">
-                      <thead className="tb_head">
-                        <tr>
-                          {deletebtn && <th className="px-4 py-2 border-b"></th>}
+                      <thead>
+                        <tr style={{ background: "var(--accent)", borderColor: "var(--border)" }}>
+                          {deletebtn && (
+                            <th 
+                              className="px-4 py-2 border-b"
+                              style={{ 
+                                color: "var(--text)",
+                                borderColor: "var(--border)"
+                              }}
+                            ></th>
+                          )}
                           {tableData.columns.map((col) => (
-                            <th key={col.name} className="px-4 py-2 border-b">
+                            <th 
+                              key={col.name} 
+                              className="px-4 py-2 border-b"
+                              style={{ 
+                                color: "var(--text)",
+                                borderColor: "var(--border)"
+                              }}
+                            >
                               {col.name}
                             </th>
                           ))}
@@ -401,9 +446,12 @@ export default function DashboardPage() {
                       <tbody>
                         {tableData.rows.length > 0 ? (
                           tableData.rows.map((row, i) => (
-                            <tr key={i} className="border-b">
+                            <tr key={i} style={{ borderColor: "var(--border)" }}>
                               {deletebtn && (
-                                <td className="px-4 py-2 text-center">
+                                <td 
+                                  className="px-4 py-2 text-center"
+                                  style={{ borderColor: "var(--border)" }}
+                                >
                                   <input
                                     type="checkbox"
                                     checked={deleteRows.some((dr) =>
@@ -431,6 +479,9 @@ export default function DashboardPage() {
                                         );
                                       }
                                     }}
+                                    style={{
+                                      accentColor: "var(--primary)"
+                                    }}
                                   />
                                 </td>
                               )}
@@ -441,9 +492,27 @@ export default function DashboardPage() {
                                   className={`px-4 py-2 text-center cursor-pointer ${
                                     editingCell?.rowIndex === i &&
                                     editingCell?.colName === col.name
-                                      ? "ring-2 ring-blue-500"
+                                      ? "ring-2"
                                       : ""
                                   }`}
+                                  style={{
+                                    color: "var(--text)",
+                                    borderColor: "var(--border)",
+                                    ...(editingCell?.rowIndex === i &&
+                                    editingCell?.colName === col.name
+                                      ? { ringColor: "var(--primary)", ringOpacity: 0.5 }
+                                      : {})
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    if (!(editingCell?.rowIndex === i && editingCell?.colName === col.name)) {
+                                      e.currentTarget.style.background = "var(--accent)";
+                                    }
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    if (!(editingCell?.rowIndex === i && editingCell?.colName === col.name)) {
+                                      e.currentTarget.style.background = "transparent";
+                                    }
+                                  }}
                                   onClick={() =>
                                     handleCellClick(i, col.name, row[col.name])
                                   }
@@ -454,6 +523,11 @@ export default function DashboardPage() {
                                       type="text"
                                       value={editedvalue}
                                       className="w-full text-center"
+                                      style={{
+                                        background: "var(--panel-bg)",
+                                        color: "var(--text)",
+                                        borderColor: "var(--border)"
+                                      }}
                                       onChange={(e) => seteditedvalue(e.target.value)}
                                       onKeyDown={handleCellKeyDown}
                                       autoFocus
@@ -467,7 +541,11 @@ export default function DashboardPage() {
                           ))
                         ) : (
                           <tr>
-                            <td colSpan={tableData.columns.length} className="text-center py-4">
+                            <td 
+                              colSpan={tableData.columns.length} 
+                              className="text-center py-4"
+                              style={{ color: "var(--muted-text)" }}
+                            >
                               No records found
                             </td>
                           </tr>
@@ -476,7 +554,7 @@ export default function DashboardPage() {
                     </table>
                   </div>
                 ) : (
-                  <div>No table selected</div>
+                  <div style={{ color: "var(--muted-text)", textAlign: "center", padding: "2rem" }}>No table selected</div>
                 )}
 
                 {!isExpanded &&

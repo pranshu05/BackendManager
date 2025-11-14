@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react";
 import { Menu, Table, MessageSquare, Zap, History,LayoutDashboard } from "lucide-react";
 
@@ -9,11 +11,18 @@ export default function Sidebar(props) {
 
   return (
     <div
-      className={`h-screen bg-white border-1 flex flex-col transition-all duration-300 ${isCollapsed ? "w-16" : "w-40 md:w-56"}
-      }`}
+      className={`h-screen border-r flex flex-col transition-all duration-300 ${isCollapsed ? "w-16" : "w-40 md:w-56"}`}
+      style={{
+        background: "var(--panel-bg)",
+        borderColor: "var(--border)"
+      }}
     >
       <div className="flex items-center justify-between p-4">
-        <button onClick={toggleSidebar} className="hover:cursor-pointer">
+        <button 
+          onClick={toggleSidebar} 
+          className="hover:cursor-pointer"
+          style={{ color: "var(--text)" }}
+        >
           <Menu />
         </button>
       
@@ -35,13 +44,26 @@ export default function Sidebar(props) {
 
 function SidebarItem({ icon, label, collapsed, isactive, onClick}) {
   return (
-    <div  onClick={onClick}
-    className={` ${isactive?"bg-gray-100":""} flex items-center gap-3 cursor-pointer px-4 py-2 hover:bg-gray-100 text-gray-700  ${collapsed ? "justify-center" : ""}`}
+    <div  
+      onClick={onClick}
+      className={`flex items-center gap-3 cursor-pointer px-4 py-2 ${collapsed ? "justify-center" : ""}`}
+      style={{
+        background: isactive ? "var(--accent)" : "transparent",
+        color: "var(--text)"
+      }}
+      onMouseEnter={(e) => {
+        if (!isactive) {
+          e.currentTarget.style.background = "var(--accent)";
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!isactive) {
+          e.currentTarget.style.background = "transparent";
+        }
+      }}
     >
       {icon}
       {!collapsed && <span>{label}</span>}
-
-
     </div>
   );
 }

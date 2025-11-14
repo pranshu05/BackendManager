@@ -373,24 +373,49 @@ export default function History({ handleSetPage, setQueryToPass }) {
           <Button
             variant="outline"
             onClick={handleBackToHistory}
-            className="mb-4 bg-white shadow-md"
+            className="mb-4 shadow-md"
+            style={{
+              background: "var(--panel-bg)",
+              borderColor: "var(--border)",
+              color: "var(--text)"
+            }}
           >
             <ArrowLeft size={16} className="mr-2" />
             Back to History
           </Button>
-          <h2 className="text-2xl font-semibold mb-4 text-blue-900">
+          <h2 className="text-2xl font-semibold mb-4" style={{ color: "var(--text)" }}>
             Query Result
           </h2>
-          <code className="block bg-gray-100 text-gray-800 p-2 rounded-md text-sm mb-4">
+          <code 
+            className="block p-2 rounded-md text-sm mb-4"
+            style={{
+              background: "var(--accent)",
+              color: "var(--text)"
+            }}
+          >
             {runQuerySql}
           </code>
 
-          <div className="w-full overflow-x-auto p-1 bg-white shadow-md rounded-xl border">
+          <div 
+            className="w-full overflow-x-auto p-1 shadow-md rounded-xl border"
+            style={{
+              background: "var(--panel-bg)",
+              borderColor: "var(--border)",
+              boxShadow: "var(--shadow)"
+            }}
+          >
             <table className="min-w-max w-full table-auto">
               <thead>
-                <tr>
+                <tr style={{ background: "var(--accent)", borderColor: "var(--border)" }}>
                   {runResultHeaders.map((header) => (
-                    <th key={header} className="px-4 py-2 border-b">
+                    <th 
+                      key={header} 
+                      className="px-4 py-2 border-b"
+                      style={{ 
+                        color: "var(--text)",
+                        borderColor: "var(--border)"
+                      }}
+                    >
                       {header}
                     </th>
                   ))}
@@ -399,9 +424,13 @@ export default function History({ handleSetPage, setQueryToPass }) {
               <tbody>
                 {runResult.length > 0 ? (
                   runResult.map((row, i) => (
-                    <tr key={i} className="border-b">
+                    <tr key={i} style={{ borderColor: "var(--border)" }}>
                       {runResultHeaders.map((header) => (
-                        <td key={header} className="px-4 py-2 text-center">
+                        <td 
+                          key={header} 
+                          className="px-4 py-2 text-center"
+                          style={{ color: "var(--text)" }}
+                        >
                           {String(row[header] ?? "")}
                         </td>
                       ))}
@@ -411,7 +440,8 @@ export default function History({ handleSetPage, setQueryToPass }) {
                   <tr>
                     <td
                       colSpan={runResultHeaders.length || 1}
-                      className="text-center py-4 text-gray-500"
+                      className="text-center py-4"
+                      style={{ color: "var(--muted-text)" }}
                     >
                       No records found
                     </td>
@@ -423,7 +453,7 @@ export default function History({ handleSetPage, setQueryToPass }) {
         </div>
       ) : (
         <div className="p-6">
-          <h2 className="text-2xl font-semibold mb-6 text-blue-900">
+          <h2 className="text-2xl font-semibold mb-6" style={{ color: "var(--text)" }}>
             Query History
           </h2>
 
@@ -434,15 +464,28 @@ export default function History({ handleSetPage, setQueryToPass }) {
                 placeholder="Search history (title or SQL)..."
                 value={historySearchTerm}
                 onChange={(e) => setHistorySearchTerm(e.target.value)}
-                className="pl-10 bg-white shadow-sm"
+                className="pl-10 shadow-sm"
+                style={{
+                  background: "var(--panel-bg)",
+                  borderColor: "var(--border)",
+                  color: "var(--text)"
+                }}
               />
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Search 
+                className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5"
+                style={{ color: "var(--muted-text)" }}
+              />
             </div>
 
             <Button
               variant="outline"
               onClick={handleOpenFilterModal}
-              className="bg-white shadow-sm relative"
+              className="shadow-sm relative"
+              style={{
+                background: "var(--panel-bg)",
+                borderColor: "var(--border)",
+                color: "var(--text)"
+              }}
             >
               <Funnel className="w-4 h-4 mr-2" />
               Filters
@@ -455,9 +498,15 @@ export default function History({ handleSetPage, setQueryToPass }) {
           </div>
 
           <Dialog open={isFilterModalOpen} onOpenChange={setIsFilterModalOpen}>
-            <DialogContent className="bg-white">
+            <DialogContent 
+              style={{
+                background: "var(--panel-bg)",
+                borderColor: "var(--border)",
+                color: "var(--text)"
+              }}
+            >
               <DialogHeader>
-                <DialogTitle>Filter History</DialogTitle>
+                <DialogTitle style={{ color: "var(--text)" }}>Filter History</DialogTitle>
               </DialogHeader>
 
               <div className="grid gap-6 py-4">
@@ -561,9 +610,15 @@ export default function History({ handleSetPage, setQueryToPass }) {
           </Dialog>
 
           <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-            <DialogContent className="bg-white">
+            <DialogContent 
+              style={{
+                background: "var(--panel-bg)",
+                borderColor: "var(--border)",
+                color: "var(--text)"
+              }}
+            >
               <DialogHeader>
-                <DialogTitle>Edit Query</DialogTitle>
+                <DialogTitle style={{ color: "var(--text)" }}>Edit Query</DialogTitle>
               </DialogHeader>
 
               <div className="flex flex-col gap-4 py-4">
@@ -604,11 +659,11 @@ export default function History({ handleSetPage, setQueryToPass }) {
           ) : queryHistory.length === 0 &&
             historySearchTerm === "" &&
             activeFilterCount === 0 ? (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12" style={{ color: "var(--muted-text)" }}>
               No query history found.
             </div>
           ) : filteredHistory.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12" style={{ color: "var(--muted-text)" }}>
               <p className="font-medium">No results found.</p>
             </div>
           ) : (
@@ -621,7 +676,12 @@ export default function History({ handleSetPage, setQueryToPass }) {
                 return (
                   <div
                     key={query.id}
-                    className="bg-white shadow-md rounded-xl p-4 border"
+                    className="shadow-md rounded-xl p-4 border"
+                    style={{
+                      background: "var(--panel-bg)",
+                      borderColor: "var(--border)",
+                      boxShadow: "var(--shadow)"
+                    }}
                   >
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -639,7 +699,7 @@ export default function History({ handleSetPage, setQueryToPass }) {
                           )}
                         </span>
 
-                        <TypeIcon className="w-4 h-4 text-gray-500" />
+                        <TypeIcon className="w-4 h-4" style={{ color: "var(--muted-text)" }} />
 
                         {editingTitle.id === query.id ? (
                           <input
@@ -657,13 +717,18 @@ export default function History({ handleSetPage, setQueryToPass }) {
                               if (e.key === "Escape")
                                 setEditingTitle({ id: null, text: "" });
                             }}
-                            className="font-medium text-gray-800 p-1 border border-blue-500 rounded w-full"
+                            className="font-medium p-1 border rounded w-full"
+                            style={{
+                              color: "var(--text)",
+                              borderColor: "var(--primary)",
+                              background: "var(--panel-bg)"
+                            }}
                             autoFocus
                           />
                         ) : (
                           <>
                             <p
-                              className="font-medium text-gray-800 truncate cursor-pointer hover:underline"
+                              className="font-medium truncate cursor-pointer hover:underline"
                               title={query.title}
                               role="button"
                               tabIndex={0}
@@ -677,6 +742,7 @@ export default function History({ handleSetPage, setQueryToPass }) {
                                   handleSetPage("query");
                                 }
                               }}
+                              style={{ color: "var(--text)" }}
                             >
                               {query.title}
                             </p>
@@ -686,7 +752,9 @@ export default function History({ handleSetPage, setQueryToPass }) {
                                 setQueryToPass(query.title);
                                 handleSetPage("query");
                               }}
-                              className="text-gray-400 hover:text-gray-600"
+                              style={{ color: "var(--muted-text)" }}
+                              onMouseEnter={(e) => e.currentTarget.style.color = "var(--text)"}
+                              onMouseLeave={(e) => e.currentTarget.style.color = "var(--muted-text)"}
                               title="Open in Query"
                             >
                               <SquarePen size={14} />
@@ -695,12 +763,19 @@ export default function History({ handleSetPage, setQueryToPass }) {
                         )}
                       </div>
 
-                      <div className="flex gap-3 text-gray-500 pl-4">
+                      <div className="flex gap-3 pl-4" style={{ color: "var(--muted-text)" }}>
                         <button
                           onClick={() =>
                             handleToggleFavorite(query.id, query.is_favorite)
                           }
-                          className="hover:text-yellow-500 disabled:opacity-50"
+                          className="disabled:opacity-50"
+                          style={{ color: query.is_favorite ? "#fbbf24" : "var(--muted-text)" }}
+                          onMouseEnter={(e) => {
+                            if (!query.is_favorite) e.currentTarget.style.color = "#fbbf24";
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!query.is_favorite) e.currentTarget.style.color = "var(--muted-text)";
+                          }}
                           title={
                             query.is_favorite
                               ? "Remove from favorites"
@@ -710,17 +785,17 @@ export default function History({ handleSetPage, setQueryToPass }) {
                         >
                           <Star
                             size={16}
-                            className={
-                              query.is_favorite
-                                ? "fill-yellow-400 text-yellow-500"
-                                : "text-gray-400 hover:text-gray-800"
-                            }
+                            className={query.is_favorite ? "fill-yellow-400" : ""}
+                            style={{ color: query.is_favorite ? "#fbbf24" : "inherit" }}
                           />
                         </button>
 
                         <button
                           onClick={() => handleRerun(query)}
-                          className="hover:text-gray-800 disabled:opacity-50"
+                          style={{ color: "var(--muted-text)" }}
+                          onMouseEnter={(e) => e.currentTarget.style.color = "var(--text)"}
+                          onMouseLeave={(e) => e.currentTarget.style.color = "var(--muted-text)"}
+                          className="disabled:opacity-50"
                           title="Rerun query"
                           disabled={runningQueryId !== null}
                         >
@@ -733,7 +808,10 @@ export default function History({ handleSetPage, setQueryToPass }) {
 
                         <button
                           onClick={() => handleEdit(query)}
-                          className="hover:text-gray-800 disabled:opacity-50"
+                          style={{ color: "var(--muted-text)" }}
+                          onMouseEnter={(e) => e.currentTarget.style.color = "var(--text)"}
+                          onMouseLeave={(e) => e.currentTarget.style.color = "var(--muted-text)"}
+                          className="disabled:opacity-50"
                           title="Edit query in new window"
                           disabled={runningQueryId !== null}
                         >
@@ -742,17 +820,23 @@ export default function History({ handleSetPage, setQueryToPass }) {
                       </div>
                     </div>
 
-                    <code className="block bg-gray-100 p-2 rounded-md text-sm mb-2">
+                    <code 
+                      className="block p-2 rounded-md text-sm mb-2"
+                      style={{
+                        background: "var(--accent)",
+                        color: "var(--text)"
+                      }}
+                    >
                       {query.sql}
                     </code>
 
                     {query.status === "error" && (
-                      <p className="text-sm text-red-500 mb-2">
+                      <p className="text-sm mb-2" style={{ color: "#d4183d" }}>
                         {query.result}
                       </p>
                     )}
 
-                    <div className="flex justify-between text-sm text-gray-500">
+                    <div className="flex justify-between text-sm" style={{ color: "var(--muted-text)" }}>
                       <span>{query.time}</span>
                       {query.status === "success" && (
                         <span>{query.result}</span>
@@ -771,7 +855,12 @@ export default function History({ handleSetPage, setQueryToPass }) {
                 <Button
                   onClick={() => setHistoryLimit(99999)}
                   variant="outline"
-                  className="bg-white shadow-md"
+                  className="shadow-md"
+                  style={{
+                    background: "var(--panel-bg)",
+                    borderColor: "var(--border)",
+                    color: "var(--text)"
+                  }}
                 >
                   Load All Previous ({totalQueries - queryHistory.length} more)
                 </Button>

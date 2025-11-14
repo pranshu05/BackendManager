@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ProjectCard } from "@/components/(dashboard)/ProjectCard";
 import ImportDatabase from '@/components/(dashboard)/ImportDatabase';
 import { Database, LogOut, CheckCircle, Table, User, Sparkles } from "lucide-react";
+import ThemeSwitcher from "@/components/ui/ThemeSwitcher";
 import './index.css';
 
 export default function DashboardPage() {
@@ -101,17 +102,24 @@ export default function DashboardPage() {
     console.log("Projects data:", projects);
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-background via-accent/20 to-secondary/30">
+        <div className="min-h-screen" style={{ background: "var(--background)" }}>
             {/* Header */}
-            <header className="bg-card/80 backdrop-blur-sm border-b border-border px-6 py-4">
+            <header 
+                className="backdrop-blur-sm border-b px-6 py-4"
+                style={{
+                    background: "var(--panel-bg)",
+                    borderColor: "var(--border)",
+                    boxShadow: "var(--shadow)"
+                }}
+            >
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
-                        <div className="p-2 bg-primary rounded-xl">
-                            <Database className="w-6 h-6 text-primary-foreground" />
+                        <div className="p-2 rounded-xl" style={{ background: "var(--primary)" }}>
+                            <Database className="w-6 h-6" style={{ color: "var(--primary-contrast)" }} />
                         </div>
                         <div>
-                            <h1 className="text-2xl font-bold text-foreground">DBuddy</h1>
-                            <p className="text-sm text-primary">Your Database Companion</p>
+                            <h1 className="text-2xl font-bold" style={{ color: "var(--text)" }}>DBuddy</h1>
+                            <p className="text-sm" style={{ color: "var(--primary)" }}>Your Database Companion</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -120,14 +128,27 @@ export default function DashboardPage() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => (window.location.href = "/profile")}
-                                className="cursor-pointer">
+                                className="cursor-pointer"
+                                style={{
+                                    background: "transparent",
+                                    borderColor: "var(--border)",
+                                    color: "var(--text)"
+                                }}
+                            >
                                 <User className="w-4 h-4" />
                             </Button>
+                            <ThemeSwitcher />
                             <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={handleLogout}
-                                className="cursor-pointer">
+                                className="cursor-pointer"
+                                style={{
+                                    background: "transparent",
+                                    borderColor: "var(--border)",
+                                    color: "var(--text)"
+                                }}
+                            >
                                 <LogOut className="w-4 h-4" />
                             </Button>
                         </div>
@@ -139,10 +160,10 @@ export default function DashboardPage() {
             <main className="p-6 max-w-7xl mx-auto space-y-8">
                 {/* Welcome Section */}
                 <div className="text-center space-y-4 py-8">
-                    <h2 className="text-3xl font-bold text-foreground">
+                    <h2 className="text-3xl font-bold" style={{ color: "var(--text)" }}>
                         Welcome back 👋
                     </h2>
-                    <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+                    <p className="text-xl max-w-2xl mx-auto" style={{ color: "var(--muted-text)" }}>
                         Create and manage your databases with natural language. No SQL
                         knowledge required.
                     </p>
@@ -182,11 +203,11 @@ export default function DashboardPage() {
                 {/* Projects */}
                 <section>
                     <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-2xl font-semibold text-foreground">
+                        <h2 className="text-2xl font-semibold" style={{ color: "var(--text)" }}>
                             Your Projects
                         </h2>
                         <div className="flex items-center gap-4">
-                            <div className="text-sm text-muted-foreground">
+                            <div className="text-sm" style={{ color: "var(--muted-text)" }}>
                                 {projects.length} project{projects.length !== 1 ? "s" : ""}
                             </div>
                             <ImportDatabase onImported={(proj) => {
@@ -196,18 +217,32 @@ export default function DashboardPage() {
                     </div>
 
                     {loading ? (
-                        <Card className="text-center py-12">
-                            <CardContent>Loading projects...</CardContent>
+                        <Card 
+                            className="text-center py-12"
+                            style={{
+                                background: "var(--panel-bg)",
+                                borderColor: "var(--border)",
+                                color: "var(--text)"
+                            }}
+                        >
+                            <CardContent style={{ color: "var(--text)" }}>Loading projects...</CardContent>
                         </Card>
                     ) : projects.length === 0 ? (
-                        <Card className="text-center py-12">
+                        <Card 
+                            className="text-center py-12"
+                            style={{
+                                background: "var(--panel-bg)",
+                                borderColor: "var(--border)",
+                                color: "var(--text)"
+                            }}
+                        >
                             <CardContent className="space-y-4">
-                                <Database className="w-16 h-16 text-muted-foreground mx-auto" />
+                                <Database className="w-16 h-16 mx-auto" style={{ color: "var(--muted-text)" }} />
                                 <div>
-                                    <h3 className="text-lg font-medium text-foreground">
+                                    <h3 className="text-lg font-medium" style={{ color: "var(--text)" }}>
                                         No projects yet
                                     </h3>
-                                    <p className="text-muted-foreground">
+                                    <p style={{ color: "var(--muted-text)" }}>
                                         Create your first project to get started
                                     </p>
                                 </div>
@@ -240,15 +275,21 @@ export default function DashboardPage() {
 
                 {/* Quick Stats */}
                 <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-                    <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
+                    <Card 
+                        style={{
+                            background: "var(--accent)",
+                            borderColor: "var(--border)",
+                            boxShadow: "var(--shadow)"
+                        }}
+                    >
                         <CardContent className="pt-6">
                             <div className="flex items-center space-x-2">
-                                <Database className="w-8 h-8 text-primary" />
+                                <Database className="w-8 h-8" style={{ color: "var(--primary)" }} />
                                 <div>
-                                    <p className="text-2xl font-bold text-foreground">
+                                    <p className="text-2xl font-bold" style={{ color: "var(--text)" }}>
                                         {projects.length}
                                     </p>
-                                    <p className="text-sm text-muted-foreground">
+                                    <p className="text-sm" style={{ color: "var(--muted-text)" }}>
                                         Total Projects
                                     </p>
                                 </div>
@@ -256,15 +297,21 @@ export default function DashboardPage() {
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-gradient-to-r from-secondary/10 to-secondary/5 border-secondary/20">
+                    <Card 
+                        style={{
+                            background: "var(--accent)",
+                            borderColor: "var(--border)",
+                            boxShadow: "var(--shadow)"
+                        }}
+                    >
                         <CardContent className="pt-6">
                             <div className="flex items-center space-x-2">
-                                <CheckCircle className="w-8 h-8 text-secondary" />
+                                <CheckCircle className="w-8 h-8" style={{ color: "var(--primary)" }} />
                                 <div>
-                                    <p className="text-2xl font-bold text-foreground">
+                                    <p className="text-2xl font-bold" style={{ color: "var(--text)" }}>
                                         {projects.filter((p) => p.is_active).length}
                                     </p>
-                                    <p className="text-sm text-muted-foreground">
+                                    <p className="text-sm" style={{ color: "var(--muted-text)" }}>
                                         Active Databases
                                     </p>
                                 </div>
@@ -272,15 +319,21 @@ export default function DashboardPage() {
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-gradient-to-r from-secondary/10 to-secondary/5 border-secondary/20">
+                    <Card 
+                        style={{
+                            background: "var(--accent)",
+                            borderColor: "var(--border)",
+                            boxShadow: "var(--shadow)"
+                        }}
+                    >
                         <CardContent className="pt-6">
                             <div className="flex items-center space-x-2">
-                                <Table className="w-8 h-8 text-accent-foreground" />
+                                <Table className="w-8 h-8" style={{ color: "var(--primary)" }} />
                                 <div>
-                                    <p className="text-2xl font-bold text-foreground">
+                                    <p className="text-2xl font-bold" style={{ color: "var(--text)" }}>
                                         {projects.reduce((total, project) => total + (project.table_count || 0), 0)}
                                     </p>
-                                    <p className="text-sm text-muted-foreground">Total Tables</p>
+                                    <p className="text-sm" style={{ color: "var(--muted-text)" }}>Total Tables</p>
                                 </div>
                             </div>
                         </CardContent>

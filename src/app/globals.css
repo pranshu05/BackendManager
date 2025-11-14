@@ -1,81 +1,176 @@
 @import "tailwindcss";
 
-:root {
-    --font-size: 16px;
-    --background: #F3F3E0;
-    --foreground: #133E87;
-    --card: #ffffff;
-    --card-foreground: #133E87;
-    --popover: #ffffff;
-    --popover-foreground: #133E87;
-    --primary: #133E87;
-    --primary-foreground: #ffffff;
-    --secondary: #608BC1;
-    --secondary-foreground: #ffffff;
-    --muted: #CBDCEB;
-    --muted-foreground: #133E87;
-    --accent: #CBDCEB;
-    --accent-foreground: #133E87;
-    --destructive: #d4183d;
-    --destructive-foreground: #ffffff;
-    --border: rgba(19, 62, 135, 0.2);
-    --input: transparent;
-    --input-background: #ffffff;
-    --switch-background: #608BC1;
-    --font-weight-medium: 500;
-    --font-weight-normal: 400;
-    --ring: #608BC1;
-    --chart-1: #133E87;
-    --chart-2: #608BC1;
-    --chart-3: #CBDCEB;
-    --chart-4: #F3F3E0;
-    --chart-5: #133E87;
-    --radius: 0.625rem;
-    --sidebar: #F3F3E0;
-    --sidebar-foreground: #133E87;
-    --sidebar-primary: #133E87;
-    --sidebar-primary-foreground: #ffffff;
-    --sidebar-accent: #CBDCEB;
-    --sidebar-accent-foreground: #133E87;
-    --sidebar-border: rgba(19, 62, 135, 0.2);
-    --sidebar-ring: #608BC1;
+/* ============================================
+   GLOBAL THEME SYSTEM - THREE THEMES
+   ============================================ */
+
+/* Smooth transitions for all theme changes */
+*,
+*::before,
+*::after {
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease,
+    fill 0.25s ease;
 }
 
-.dark {
-    --background: #133E87;
-    --foreground: #F3F3E0;
-    --card: #608BC1;
-    --card-foreground: #F3F3E0;
-    --popover: #608BC1;
-    --popover-foreground: #F3F3E0;
-    --primary: #CBDCEB;
-    --primary-foreground: #133E87;
-    --secondary: #608BC1;
-    --secondary-foreground: #F3F3E0;
-    --muted: #608BC1;
-    --muted-foreground: #F3F3E0;
-    --accent: #CBDCEB;
-    --accent-foreground: #133E87;
-    --destructive: #d4183d;
-    --destructive-foreground: #F3F3E0;
-    --border: rgba(203, 220, 235, 0.3);
-    --input: #608BC1;
-    --ring: #CBDCEB;
-    --font-weight-medium: 500;
-    --font-weight-normal: 400;
-    --chart-1: #CBDCEB;
-    --chart-2: #608BC1;
-    --chart-3: #133E87;
-    --chart-4: #F3F3E0;
-    --chart-5: #133E87;
-    --sidebar: #608BC1;
-    --sidebar-foreground: #F3F3E0;
-    --sidebar-primary: #CBDCEB;
-    --sidebar-primary-foreground: #133E87;
-    --sidebar-accent: #133E87;
-    --sidebar-accent-foreground: #F3F3E0;
-    --sidebar-border: rgba(203, 220, 235, 0.3);
-    --sidebar-ring: #CBDCEB;
+/* ============================================
+   LIGHT THEME (default)
+   ============================================ */
+html.theme-light {
+  --background: #f5f7fa;
+  --panel-bg: #ffffff;
+  --text: #0e141b;
+  --muted-text: #6b7480;
+  --border: #d9dee5;
+  --primary: #2563eb;
+  --primary-contrast: #ffffff;
+  --accent: #e6eefc;
+  --shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  
+  /* Legacy variables for compatibility */
+  --foreground: #0e141b;
+  --card: #ffffff;
+  --card-foreground: #0e141b;
+  --popover: #ffffff;
+  --popover-foreground: #0e141b;
+  --primary-foreground: #ffffff;
+  --secondary: #608BC1;
+  --secondary-foreground: #ffffff;
+  --muted: #CBDCEB;
+  --muted-foreground: #6b7480;
+  --accent-foreground: #0e141b;
+  --destructive: #d4183d;
+  --destructive-foreground: #ffffff;
+  --input: transparent;
+  --input-background: #ffffff;
+  --switch-background: #608BC1;
+  --ring: #2563eb;
+  --chart-1: #2563eb;
+  --chart-2: #608BC1;
+  --chart-3: #CBDCEB;
+  --chart-4: #f5f7fa;
+  --chart-5: #2563eb;
+  --radius: 0.625rem;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0e141b;
+  --sidebar-primary: #2563eb;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e6eefc;
+  --sidebar-accent-foreground: #0e141b;
+  --sidebar-border: #d9dee5;
+  --sidebar-ring: #2563eb;
+}
+
+/* ============================================
+   DARK THEME
+   ============================================ */
+html.theme-dark {
+  --background: #0b0f14;
+  --panel-bg: #11181f;
+  --text: #e5ecf3;
+  --muted-text: #94a3b8;
+  --border: #1e2936;
+  --primary: #3b82f6;
+  --primary-contrast: #0b0f14;
+  --accent: #15202b;
+  --shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  
+  /* Legacy variables for compatibility */
+  --foreground: #e5ecf3;
+  --card: #11181f;
+  --card-foreground: #e5ecf3;
+  --popover: #11181f;
+  --popover-foreground: #e5ecf3;
+  --primary-foreground: #0b0f14;
+  --secondary: #608BC1;
+  --secondary-foreground: #e5ecf3;
+  --muted: #1e2936;
+  --muted-foreground: #94a3b8;
+  --accent-foreground: #e5ecf3;
+  --destructive: #d4183d;
+  --destructive-foreground: #e5ecf3;
+  --input: #1e2936;
+  --input-background: #11181f;
+  --switch-background: #608BC1;
+  --ring: #3b82f6;
+  --chart-1: #3b82f6;
+  --chart-2: #608BC1;
+  --chart-3: #1e2936;
+  --chart-4: #0b0f14;
+  --chart-5: #3b82f6;
+  --radius: 0.625rem;
+  --sidebar: #11181f;
+  --sidebar-foreground: #e5ecf3;
+  --sidebar-primary: #3b82f6;
+  --sidebar-primary-foreground: #0b0f14;
+  --sidebar-accent: #15202b;
+  --sidebar-accent-foreground: #e5ecf3;
+  --sidebar-border: #1e2936;
+  --sidebar-ring: #3b82f6;
+}
+
+/* ============================================
+   DARK-GREEN THEME
+   ============================================ */
+html.theme-dark-green {
+  --background: #07120e;
+  --panel-bg: #0e1d17;
+  --text: #e6fff4;
+  --muted-text: #9ccbb4;
+  --border: #1a3528;
+  --primary: #4ade80;
+  --primary-contrast: #07120e;
+  --accent: #123228;
+  --shadow: 0 6px 20px rgba(0, 40, 23, 0.6);
+  
+  /* Legacy variables for compatibility */
+  --foreground: #e6fff4;
+  --card: #0e1d17;
+  --card-foreground: #e6fff4;
+  --popover: #0e1d17;
+  --popover-foreground: #e6fff4;
+  --primary-foreground: #07120e;
+  --secondary: #4ade80;
+  --secondary-foreground: #07120e;
+  --muted: #1a3528;
+  --muted-foreground: #9ccbb4;
+  --accent-foreground: #e6fff4;
+  --destructive: #d4183d;
+  --destructive-foreground: #e6fff4;
+  --input: #1a3528;
+  --input-background: #0e1d17;
+  --switch-background: #4ade80;
+  --ring: #4ade80;
+  --chart-1: #4ade80;
+  --chart-2: #22c55e;
+  --chart-3: #1a3528;
+  --chart-4: #07120e;
+  --chart-5: #4ade80;
+  --radius: 0.625rem;
+  --sidebar: #0e1d17;
+  --sidebar-foreground: #e6fff4;
+  --sidebar-primary: #4ade80;
+  --sidebar-primary-foreground: #07120e;
+  --sidebar-accent: #123228;
+  --sidebar-accent-foreground: #e6fff4;
+  --sidebar-border: #1a3528;
+  --sidebar-ring: #4ade80;
+}
+
+/* Default to light theme if no theme class is set */
+html:not([class*="theme-"]) {
+  --background: #f5f7fa;
+  --panel-bg: #ffffff;
+  --text: #0e141b;
+  --muted-text: #6b7480;
+  --border: #d9dee5;
+  --primary: #2563eb;
+  --primary-contrast: #ffffff;
+  --accent: #e6eefc;
+  --shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
 }
 
 @theme inline {
@@ -133,11 +228,11 @@
 .chat-input-area.loading {
     border: 2px solid transparent;
     background: 
-        linear-gradient(#ffffff, #ffffff) padding-box,
+        linear-gradient(var(--panel-bg), var(--panel-bg)) padding-box,
         linear-gradient(90deg, 
             transparent 0%, 
             transparent 40%, 
-            #05ff6d 50%, 
+            var(--primary) 50%, 
             transparent 60%, 
             transparent 100%) border-box;
     background-size: 200% 100%;

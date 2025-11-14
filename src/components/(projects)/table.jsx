@@ -264,8 +264,14 @@ export default function TableExplorer({ safeJsonFetch, showNotification, showCon
 
   return (
     <>
-      <div className="table_select h-14 flex flex-row items-center bg-white sm:p-4 gap-2 max-[510]:flex-col max-[510]:h-25">
-        Table Explorer
+      <div 
+        className="table_select h-14 flex flex-row items-center sm:p-4 gap-2 max-[510]:flex-col max-[510]:h-25"
+        style={{ 
+          background: "var(--panel-bg)",
+          borderBottom: "1px solid var(--border)"
+        }}
+      >
+        <span style={{ color: "var(--muted-text)" }}>Table Explorer</span>
         <Dropdown
           items={tablelist}
           selected={selectedTable}
@@ -277,18 +283,37 @@ export default function TableExplorer({ safeJsonFetch, showNotification, showCon
           }}
         />
       </div>
-      <div className="mockbutton h-28 gap-2 bg-white items-center flex-col max-[510]:h-65 min-[820]:flex-row min-[820]:h-19 flex p-4 justify-between">
+      <div 
+        className="mockbutton h-28 gap-2 items-center flex-col max-[510]:h-65 min-[820]:flex-row min-[820]:h-19 flex p-4 justify-between"
+        style={{ 
+          background: "var(--panel-bg)",
+          borderBottom: "1px solid var(--border)"
+        }}
+      >
         <div className="frontbtn flex flex-row gap-2 max-[510]:flex-col max-[510]:w-full max-[510]:gap-3">
           <Button className=" max-[510]:w-full hover:cursor-pointer">
             + Insert Row
           </Button>
           <Button
-            className="text-black bg-sidebar border-1 hover:bg-gray-300 hover:cursor-pointer"
+            variant="outline"
             onClick={async () => {
               if (deletebtn) {
                 await handledelete();
               }
               setdeletebtn(!deletebtn);
+            }}
+            style={{
+              background: "var(--accent)",
+              borderColor: "var(--border)",
+              color: "var(--text)"
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "var(--primary)";
+              e.currentTarget.style.color = "var(--primary-contrast)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "var(--accent)";
+              e.currentTarget.style.color = "var(--text)";
             }}
           >
             <Trash />
@@ -296,7 +321,22 @@ export default function TableExplorer({ safeJsonFetch, showNotification, showCon
           </Button>
         </div>
         <div className="endbtn flex gap-4 max-[510]:gap-2 max-[510]:flex-col max-[510]:w-full">
-          <Button className="text-black bg-sidebar border-1 hover:bg-gray-300 hover:cursor-pointer">
+          <Button 
+            variant="outline"
+            style={{
+              background: "var(--accent)",
+              borderColor: "var(--border)",
+              color: "var(--text)"
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "var(--primary)";
+              e.currentTarget.style.color = "var(--primary-contrast)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "var(--accent)";
+              e.currentTarget.style.color = "var(--text)";
+            }}
+          >
             <Sparkles />
             Generate Mock Data
           </Button>
@@ -339,54 +379,67 @@ export default function TableExplorer({ safeJsonFetch, showNotification, showCon
                 ></path>
               </svg>
               <div>
-                <div className="h-4 w-56 bg-gray-200 rounded-md mb-2 animate-pulse" />
-                <div className="text-sm text-gray-500">
+                <div 
+                  className="h-4 w-56 rounded-md mb-2 animate-pulse"
+                  style={{ background: "var(--accent)" }}
+                />
+                <div className="text-sm" style={{ color: "var(--muted-text)" }}>
                   Loading table data...
                 </div>
               </div>
             </div>
-            <div className="mt-6 bg-white/90 backdrop-blur-sm rounded-lg shadow-md p-4 border border-gray-100">
+            <div 
+              className="mt-6 backdrop-blur-sm rounded-lg shadow-md p-4 border"
+              style={{
+                background: "var(--panel-bg)",
+                borderColor: "var(--border)",
+                boxShadow: "var(--shadow)"
+              }}
+            >
               <div className="flex items-center gap-4 mb-3">
                 <div
-                  className="h-4 bg-gray-200 rounded"
-                  style={{ width: "38%" }}
+                  className="h-4 rounded"
+                  style={{ width: "38%", background: "var(--accent)" }}
                 />
                 <div
-                  className="h-4 bg-gray-200 rounded"
-                  style={{ width: "16%" }}
+                  className="h-4 rounded"
+                  style={{ width: "16%", background: "var(--accent)" }}
                 />
                 <div
-                  className="h-4 bg-gray-200 rounded"
-                  style={{ width: "16%" }}
+                  className="h-4 rounded"
+                  style={{ width: "16%", background: "var(--accent)" }}
                 />
                 <div
-                  className="h-4 bg-gray-200 rounded"
-                  style={{ width: "16%" }}
+                  className="h-4 rounded"
+                  style={{ width: "16%", background: "var(--accent)" }}
                 />
                 <div
-                  className="h-4 bg-gray-200 rounded"
-                  style={{ width: "12%" }}
+                  className="h-4 rounded"
+                  style={{ width: "12%", background: "var(--accent)" }}
                 />
               </div>
               <div className="space-y-3">
                 {Array.from({ length: 6 }).map((_, i) => (
                   <div key={i} className="flex gap-4 items-center">
-                    <div className="h-4 bg-gray-200 rounded flex-1 animate-pulse" />
-                    <div
-                      className="h-4 bg-gray-200 rounded"
-                      style={{ width: "16%" }}
+                    <div 
+                      className="h-4 rounded flex-1 animate-pulse"
+                      style={{ background: "var(--accent)" }}
                     />
                     <div
-                      className="h-4 bg-gray-200 rounded"
-                      style={{ width: "16%" }}
+                      className="h-4 rounded"
+                      style={{ width: "16%", background: "var(--accent)" }}
                     />
                     <div
-                      className="h-4 bg-gray-200 rounded"
-                      style={{ width: "16%" }}
+                      className="h-4 rounded"
+                      style={{ width: "16%", background: "var(--accent)" }}
                     />
                     <div
-                      className="h-4 bg-gray-200 rounded"
-                      style={{ width: "12%" }}
+                      className="h-4 rounded"
+                      style={{ width: "16%", background: "var(--accent)" }}
+                    />
+                    <div
+                      className="h-4 rounded"
+                      style={{ width: "12%", background: "var(--accent)" }}
                     />
                   </div>
                 ))}
@@ -394,12 +447,21 @@ export default function TableExplorer({ safeJsonFetch, showNotification, showCon
             </div>
           </div>
         ) : tableData ? (
-          <div className="w-full overflow-x-auto max-w-full overflow-y-auto h-fit p-5">
+          <div 
+            className="w-full overflow-x-auto max-w-full overflow-y-auto h-fit p-5"
+            style={{ background: "var(--panel-bg)", borderRadius: "8px" }}
+          >
             <table className="min-w-max w-full table-auto">
-              <thead className="tb_head">
-                <tr>
+              <thead>
+                <tr style={{ background: "var(--accent)", borderColor: "var(--border)" }}>
                   {deletebtn ? (
-                    <th className="px-4 py-2 border-b text-center whitespace-nowrap">
+                    <th 
+                      className="px-4 py-2 border-b text-center whitespace-nowrap"
+                      style={{ 
+                        color: "var(--text)",
+                        borderColor: "var(--border)"
+                      }}
+                    >
                       {" "}
                     </th>
                   ) : null}
@@ -407,6 +469,10 @@ export default function TableExplorer({ safeJsonFetch, showNotification, showCon
                     <th
                       key={col.name}
                       className="px-4 py-2 border-b whitespace-nowrap"
+                      style={{ 
+                        color: "var(--text)",
+                        borderColor: "var(--border)"
+                      }}
                     >
                       {col.name}
                     </th>
@@ -416,63 +482,95 @@ export default function TableExplorer({ safeJsonFetch, showNotification, showCon
               <tbody>
                 {tableData.rows.length > 0 ? (
                   tableData.rows.map((row, i) => (
-                    <tr key={i} className="border-b">
+                    <tr key={i} style={{ borderColor: "var(--border)" }}>
                       {deletebtn ? (
-                        deletebtn ? (
-                          <td className="px-4 py-2 text-center whitespace-nowrap hover:bg-sidebar hover:border-1 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={deleteRows.some((dr) =>
-                                tableData.columns
-                                  .filter(
-                                    (c) =>
-                                      c.constraint === "PRIMARY KEY"
+                        <td 
+                          className="px-4 py-2 text-center whitespace-nowrap cursor-pointer"
+                          style={{ borderColor: "var(--border)" }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = "var(--accent)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "transparent";
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={deleteRows.some((dr) =>
+                              tableData.columns
+                                .filter(
+                                  (c) =>
+                                    c.constraint === "PRIMARY KEY"
+                                )
+                                .every(
+                                  (pkCol) =>
+                                    row[pkCol.name] === dr[pkCol.name]
+                                )
+                            )}
+                            onChange={(e) => {
+                              const pkCols = tableData.columns.filter(
+                                (c) => c.constraint === "PRIMARY KEY"
+                              );
+                              const columnsToUse = pkCols;
+                              const pkValues = {};
+                              columnsToUse.forEach((col) => {
+                                pkValues[col.name] = row[col.name];
+                              });
+                              if (e.target.checked) {
+                                setdeleteRows((prev) => [
+                                  ...prev,
+                                  pkValues,
+                                ]);
+                              } else {
+                                setdeleteRows((prev) =>
+                                  prev.filter(
+                                    (val) =>
+                                      !columnsToUse.every(
+                                        (col) =>
+                                          val[col.name] ===
+                                          row[col.name]
+                                      )
                                   )
-                                  .every(
-                                    (pkCol) =>
-                                      row[pkCol.name] === dr[pkCol.name]
-                                  )
-                              )}
-                              onChange={(e) => {
-                                const pkCols = tableData.columns.filter(
-                                  (c) => c.constraint === "PRIMARY KEY"
                                 );
-                                const columnsToUse = pkCols;
-                                const pkValues = {};
-                                columnsToUse.forEach((col) => {
-                                  pkValues[col.name] = row[col.name];
-                                });
-                                if (e.target.checked) {
-                                  setdeleteRows((prev) => [
-                                    ...prev,
-                                    pkValues,
-                                  ]);
-                                } else {
-                                  setdeleteRows((prev) =>
-                                    prev.filter(
-                                      (val) =>
-                                        !columnsToUse.every(
-                                          (col) =>
-                                            val[col.name] ===
-                                            row[col.name]
-                                        )
-                                    )
-                                  );
-                                }
-                              }}
-                            />
-                          </td>
-                        ) : null
+                              }
+                            }}
+                            style={{
+                              accentColor: "var(--primary)"
+                            }}
+                          />
+                        </td>
                       ) : null}
                       {tableData.columns.map((col) => (
                         <td
                           key={col.name}
-                          className={`px-4 py-2 text-center whitespace-nowrap hover:bg-sidebar hover:border-1 cursor-pointer ${
+                          className={`px-4 py-2 text-center whitespace-nowrap cursor-pointer ${
                             editingCell?.rowIndex === i &&
                             editingCell?.colName === col.name
-                              ? "hover:bg-sidebar ring-2 ring-blue-500 ring-opacity-50"
+                              ? "ring-2"
                               : ""
                           }`}
+                          style={{
+                            color: "var(--text)",
+                            borderColor: "var(--border)",
+                            ...(editingCell?.rowIndex === i &&
+                            editingCell?.colName === col.name
+                              ? { 
+                                  ringColor: "var(--primary)", 
+                                  ringOpacity: 0.5,
+                                  background: "var(--accent)"
+                                }
+                              : {})
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!(editingCell?.rowIndex === i && editingCell?.colName === col.name)) {
+                              e.currentTarget.style.background = "var(--accent)";
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!(editingCell?.rowIndex === i && editingCell?.colName === col.name)) {
+                              e.currentTarget.style.background = "transparent";
+                            }
+                          }}
                           onClick={() => {
                             handleCellClick(i, col.name, row[col.name]);
                           }}
@@ -488,6 +586,11 @@ export default function TableExplorer({ safeJsonFetch, showNotification, showCon
                               }
                               onKeyDown={handleCellKeyDown}
                               autoFocus
+                              style={{
+                                background: "var(--panel-bg)",
+                                color: "var(--text)",
+                                borderColor: "var(--border)"
+                              }}
                             />
                           ) : (
                             String(row[col.name] ?? "")
@@ -500,7 +603,8 @@ export default function TableExplorer({ safeJsonFetch, showNotification, showCon
                   <tr>
                     <td
                       colSpan={tableData.columns.length}
-                      className="text-center py-4 text-gray-500"
+                      className="text-center py-4"
+                      style={{ color: "var(--muted-text)" }}
                     >
                       No records found
                     </td>
@@ -510,19 +614,45 @@ export default function TableExplorer({ safeJsonFetch, showNotification, showCon
             </table>
           </div>
         ) : (
-          <div className="text-gray-500 italic">No table selected</div>
+          <div 
+            className="italic"
+            style={{ 
+              color: "var(--muted-text)",
+              textAlign: "center",
+              padding: "2rem"
+            }}
+          >
+            No table selected
+          </div>
         )}
         {!isExpanded &&
           tableData &&
           tableData.rows.length === limit && (
             <div className="flex justify-center mt-3 w-full">
               <Button
+                variant="outline"
                 onClick={() => {
                   setIsExpanded(true);
                   fetchtabledata(selectedTable, null);
                 }}
-                className="text-black bg-sidebar border-1 hover:bg-gray-300 hover:cursor-pointer"
                 disabled={loading}
+                style={{
+                  background: "var(--accent)",
+                  borderColor: "var(--border)",
+                  color: "var(--text)"
+                }}
+                onMouseEnter={(e) => {
+                  if (!loading) {
+                    e.currentTarget.style.background = "var(--primary)";
+                    e.currentTarget.style.color = "var(--primary-contrast)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!loading) {
+                    e.currentTarget.style.background = "var(--accent)";
+                    e.currentTarget.style.color = "var(--text)";
+                  }
+                }}
               >
                 {loading ? "Loading..." : "Load More"}
               </Button>
