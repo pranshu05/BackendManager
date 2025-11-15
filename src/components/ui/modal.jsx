@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useRef } from "react";
 
-export default function Modal({ open, onClose, title, children, loading, loadingTitle, loadingSubtitle, loadingOverlay }) {
+export default function Modal({ open, subtitle ,onClose, title, children, loading, loadingTitle, loadingSubtitle, loadingOverlay }) {
   const contentRef = useRef(null);
 
   useEffect(() => {
@@ -32,17 +32,20 @@ export default function Modal({ open, onClose, title, children, loading, loading
       {/* Modal content */}
       <div
         ref={contentRef}
-        role="dialog"
-        aria-modal="true"
         className="relative z-10 w-full max-w-lg mx-4 bg-white rounded-lg shadow-lg border"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b">
-          <h3 className="text-lg font-medium">{title}</h3>
+          <div className="modalhead flex-col">
+            <h3 className="text-lg font-medium">{title}</h3>
+          {subtitle && <p className="text-sm text-gray-500">{subtitle}</p>}
+          </div>
+        
           <button
             aria-label="Close modal"
             onClick={() => onClose && onClose()}
             className="text-gray-500 hover:text-gray-800"
+            style={{ cursor: "pointer" }}
           >
             ×
           </button>

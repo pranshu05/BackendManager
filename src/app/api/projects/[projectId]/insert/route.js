@@ -86,7 +86,7 @@ export const POST = withProjectAuth(async (request, _context, user, project) => 
     if (!tableMeta) return NextResponse.json({ error: `Table metadata for '${table}' not found` }, { status: 404 });
 
     const columns = tableMeta.columns || [];
-    console.log("Table columns:",columns);
+
 
     const validColumnNames = new Set(columns.map((c) => c.name));
     const providedcols = Object.keys(providedObj).filter((k) => validColumnNames.has(k));
@@ -94,7 +94,7 @@ export const POST = withProjectAuth(async (request, _context, user, project) => 
 
     const reqcols = columns.filter((c) => c.nullable === false && (c.default === null || c.default === undefined));
     const missingRequired = reqcols.map((c) => c.name).filter((n) => !providedcols.includes(n));
-
+    console.log('Missing required columns:', missingRequired);
     if (missingRequired.length >0) return NextResponse.json({ error: 'Missing required columns', missing: missingRequired }, { status: 400 });
 
     const colsEscaped = providedcols.map((k) => `"${k}"`);

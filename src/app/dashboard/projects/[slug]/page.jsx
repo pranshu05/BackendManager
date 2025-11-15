@@ -14,6 +14,7 @@ import SummaryCard from "@/components/(projects)/summary_card";
 import History from "@/components/(projects)/history";
 import Modal from "@/components/ui/modal";
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+import { showToast } from "nextjs-toast-notify";
 import {
   ArrowLeft,
   Database,
@@ -21,6 +22,8 @@ import {
   Sparkles,
   Loader2,
 } from "lucide-react";
+import { set } from "zod";
+import { fa } from "zod/v4/locales";
 
 
 
@@ -55,9 +58,11 @@ export default function DashboardPage() {
   // Used to pass a selected query from history to query editor
   const [queryToPass, setQueryToPass] = useState(null);
 
-    const [isInsertModalOpen, setIsInsertModalOpen] = useState(false);
+  const [isInsertModalOpen, setIsInsertModalOpen] = useState(false);
   const [insertLoading, setInsertLoading] = useState(false);
   const [insertTableMeta, setInsertTableMeta] = useState(null);
+  const [deletemodalopen,setdeletemodalopen]=useState(false);
+  const [deleteloading,setdeleteloading]=useState(false);
 
   const handleSetPage = (newPage) => {
     setpage(newPage);
@@ -65,12 +70,19 @@ export default function DashboardPage() {
 
  const handleinsertrow = async () => {
         try {
-            setInsertLoading(true);
+         
           if (!selectedTable) {
-            alert('Please select a table before inserting a row');
+            showToast.warning('Please select a table before inserting a row', {
+              duration: 2000,
+              progress: true,
+              position: "top-center",
+              transition: "bounceIn",
+            }
+            )
+           
             return;
           }
-
+           setIsInsertModalOpen(true);
           const res = await fetch(`/api/projects/${projectid}/schema`, {
             credentials: 'include',
           });
@@ -124,17 +136,30 @@ export default function DashboardPage() {
       const payload = await res.json();
       if (!res.ok) {
         const errMsg = payload?.error || "Failed to prepare insert";
-        alert(errMsg);
-
+        showToast.error(errMsg, {
+          duration: 2000,
+          progress: true,
+          position: "top-center",
+          transition: "bounceIn",
+        });
+        
       } else {
-        try {
-          // small toast-like feedback
-          alert("Insert prepared successfully (preview updated).");
-        } catch (e) {}
+        showToast.success('Row inserted successfully!', {
+          duration: 2000,
+          progress: true,
+          position: "top-center",
+          transition: "bounceIn",
+        });
+
       }
     } catch (err) {
-      console.error('Error preparing insert payload:', err);
-      alert('Error preparing insert payload: ' + (err?.message || err));
+      showToast.error('Error preparing insert payload: ' + (err?.message || err), {
+        duration: 2000,
+        progress: true,
+        position: "top-center",
+        transition: "bounceIn",
+      });
+   
     }
       setInsertLoading(false);
       setIsInsertModalOpen(false);
@@ -242,21 +267,13 @@ export default function DashboardPage() {
 
   const handledelete = async (e) => {
     if (deleteRows.length == 0) {
-      alert("No rows selected for deletion");
       return;
     }
+    setdeletemodalopen(true);
+  };
 
-    // Confirm deletion
-    const proceed = window.confirm(
-      `Are you sure you want to delete ${deleteRows.length} rows? This action cannot be undone.`
-    );
-
-    if (!proceed) {
-      setdeleteRows([]);
-      return;
-    }
-
-    try {
+  const deleteselectedrows = async () => {
+       try {
       const pkcolarray = [];
       //Get primary key columns from table metadata
       tableData.columns.forEach((col) => {
@@ -295,9 +312,18 @@ export default function DashboardPage() {
         return;
       }
 
-      // On successful deletion, refetch table data
-      alert(`Successfully deleted ${deleteRows.length} rows.`);
+
+    showToast.success(`Successfully deleted ${deleteRows.length} rows.`, {
+    duration: 2000,
+    progress: true,
+    position: "top-center",
+    transition: "bounceIn",
+    icon: '',
+    sound: true,
+  });
       setdeleteRows([]);
+      setdeletemodalopen(false);
+      setdeleteloading(false);
       setTableData((prev) => {
         if (!prev) return prev;
         const filteredRows = prev.rows.filter((row, i) => {
@@ -311,11 +337,18 @@ export default function DashboardPage() {
         return { ...prev, rows: filteredRows };
       });
     } catch (err) {
-      alert("Error deleting rows: " + (err?.message || err));
-    } finally {
-      return;
-    }
-  };
+
+    showToast.error("Error deleting rows: " + (err?.message || err), {
+    duration: 4000,
+    progress: true,
+    position: "top-center",
+    transition: "bounceIn",
+    icon: '',
+    sound: true,
+  });
+    } 
+
+  }
 
   const handleCellKeyDown = (e) => {
     if (e.key === "Enter") {
@@ -432,11 +465,11 @@ const fetchtabledata = async (tablename, recordLimit = limit) => {
         credentials: "include",
       });
       const data = await res.json();
+      if(data.rows==null || data.rows.length<recordLimit)
+      setloadmore(false);
       if (!res.ok) throw new Error(data.error);
-      if(recordLimit===null){
-        setloadmore(false);
-      }
       setTableData(data);
+
       setloadtable(false);
     } catch (err) {
       console.error("Error fetching table data:", err);
@@ -449,6 +482,41 @@ const fetchtabledata = async (tablename, recordLimit = limit) => {
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-background via-accent/20 to-secondary/30">
       <Header />
 
+      <Modal
+      open={deletemodalopen}
+      onClose={() => 
+      {  
+        setdeletemodalopen(false)
+        setdeleteRows([]);
+
+      }
+
+
+      }
+      title={`Are you sure you want to delete the selected rows?`}
+      subtitle={`This action can't be undone!`}
+      loading={deleteloading}
+      loadingTitle={deleteloading ? 'Deleting...' : undefined}
+      loadingSubtitle={deleteloading ? 'Please wait while we delete the rows.' : undefined}
+      loadingOverlay={true}
+      >
+         <form onSubmit={async (e) => {
+                    e.preventDefault();
+                    setdeleteloading(true);
+                    await deleteselectedrows();
+                  }}>
+                    <div className="flex gap-2 mt-4">
+                      <button type="button" className="px-4 py-2 border rounded cursor-pointer" onClick={() => 
+                       {
+                        setdeleteRows([]);
+                        setdeletemodalopen(false)
+                      }
+                        
+                        }>Cancel</button>
+                      <button type="submit" className="px-4 py-2 border rounded text-red-800 cursor-pointer">Delete</button>
+                    </div>
+                  </form>
+      </Modal>
       <Modal
               open={isInsertModalOpen}
               onClose={() => {
@@ -469,19 +537,35 @@ const fetchtabledata = async (tablename, recordLimit = limit) => {
                     e.preventDefault();
                     await handleinsertSubmit(e);
                   }}>
-                    {insertTableMeta.columns?.map((col) => (
-                      <div key={col.name} className="flex flex-col mb-2">
-                       {
-                        col.constraint === 'PRIMARY KEY' ? <></>:<>
-                        <label className="text-sm">{col.name}</label>
-                      <input name={col.name} required={!col.nullable && col.default === null} placeholder={!col.nullable && col.default ? `${col.default} will be set if no value provided` : ''}   className="border rounded p-2" /></>
-                       }
-                       
-                      </div>
-                    ))}
+                    {insertTableMeta.columns?.map((col) => {
+                      if (col.constraint === "PRIMARY KEY") return null;
+                      const isRequired = !col.nullable && col.default === null;
+                      return (
+                        <div key={col.name} className="flex flex-col mb-2">
+                          <label className="text-sm">
+                            {col.name}
+                            {isRequired && (
+                              <span className="text-red-500 ml-1" aria-hidden>
+                                *
+                              </span>
+                            )}
+                          </label>
+                          <input
+                            name={col.name}
+                            required={isRequired}
+                            placeholder={
+                              !col.nullable && col.default
+                                ? `${col.default} will be set if no value provided`
+                                : ""
+                            }
+                            className="border rounded p-2"
+                          />
+                        </div>
+                      );
+                    })}
                     <div className="flex gap-2 mt-4">
-                      <button type="button" className="px-4 py-2 border rounded" onClick={() => setIsInsertModalOpen(false)}>Cancel</button>
-                      <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded">Insert</button>
+                      <button type="button" className="px-4 py-2 border rounded cursor-pointer" onClick={() => setIsInsertModalOpen(false)}>Cancel</button>
+                      <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded cursor-pointer">Insert</button>
                     </div>
                   </form>
                  
@@ -490,7 +574,7 @@ const fetchtabledata = async (tablename, recordLimit = limit) => {
                 <div>
                   <p className="text-sm text-gray-600">No metadata available. Try re-opening the dialog.</p>
                   <div className="mt-3">
-                    <button onClick={handleinsertrow} className="px-3 py-1 border rounded">Retry</button>
+                    <button onClick={handleinsertrow} className="px-3 py-1 border rounded cursor-pointer">Please wait or retry</button>
                   </div>
                 </div>
               )}
@@ -560,7 +644,7 @@ const fetchtabledata = async (tablename, recordLimit = limit) => {
                    
                     await handleinsertrow();
                   
-                    setIsInsertModalOpen(true);
+                   
                   }}>
                     {insertLoading ? (
                       <>
@@ -574,13 +658,13 @@ const fetchtabledata = async (tablename, recordLimit = limit) => {
 
                   <Button
                    className="text-black bg-sidebar border-1 hover:bg-gray-300 hover:cursor-pointer"
-                    onClick={async () => {
+                    onClick={ tableData ? async () => {
                       if (deletebtn) await handledelete();
                       setdeletebtn(!deletebtn);
-                    }}
+                    }: null}
                   >
                     <Trash />
-                    {!deletebtn ? "Delete" : `Selected: ${deleteRows.length}`}
+                    {!deletebtn ? "Delete" :  tableData && tableData.rows.length > 0 ? `Selected: ${deleteRows.length}` : "Delete"}
                   </Button>
                 </div>
 
@@ -686,7 +770,7 @@ const fetchtabledata = async (tablename, recordLimit = limit) => {
                     <table className="min-w-max w-full table-auto">
                       <thead className="tb_head">
                         <tr>
-                          {deletebtn ? (
+                          {deletebtn && tableData && tableData.rows.length>0? (
                             <th className="px-4 py-2 border-b text-center whitespace-nowrap">
                               {" "}
                             </th>
@@ -706,9 +790,9 @@ const fetchtabledata = async (tablename, recordLimit = limit) => {
                           tableData.rows.map((row, i) => (
                             <tr key={i} className="border-b">
                              {deletebtn ? (
-                                deletebtn ? (
+                                deletebtn? (
                                   <td className="px-4 py-2 text-center whitespace-nowrap hover:bg-sidebar hover:border-1 cursor-pointer">
-                                    <input
+                                  { tableData.rows.length>0? <input
                                       type="checkbox"
                                       //here, in check we actually keep those rows checked
                                       //whose PK(s) are there in deleteRows
@@ -755,7 +839,7 @@ const fetchtabledata = async (tablename, recordLimit = limit) => {
                                           );
                                         }
                                       }}
-                                    />
+                                    />:<></>}
                                   </td>
                                 ) : null
                               ) : null}
@@ -807,7 +891,7 @@ const fetchtabledata = async (tablename, recordLimit = limit) => {
                   
                   </div>
                   {
-                    tableData ? (
+                    tableData && tableData.rows.length>0 ? (
                       <div className="flex justify-center mt-3 w-full">
                         <Button
                           onClick={async () => {

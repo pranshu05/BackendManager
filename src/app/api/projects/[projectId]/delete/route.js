@@ -91,10 +91,6 @@ if (!Array.isArray(pkvalues) || pkvalues.length === 0 || typeof pkvalues[0] !== 
         }
 
         const deletequery = `DELETE FROM "${table}" WHERE (${colsList}) IN (VALUES ${valuesTuples.join(', ')})`;
-
-        console.log('Delete Query:', deletequery);
-        console.log('Params for deletion:', params);
-
         await executeQuery(connectionString, deletequery, params);
 
         return NextResponse.json({ success: true, message: `record(s) deleted successfully` }, { status: 200 });

@@ -26,6 +26,7 @@
         "lucide-react": "^0.544.0",
         "luxon": "^3.7.2",
         "next": "^15.5.3",
+        "nextjs-toast-notify": "^1.57.0",
         "pdfkit-table": "^0.1.99",
         "pg": "^8.16.3",
         "plantuml-encoder": "^1.4.0",
