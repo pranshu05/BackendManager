@@ -436,30 +436,71 @@ export async function executeMockDataGeneration(connectionString, config = {}) {
     try {
         const result = await generateMockData(connectionString, config);
         
-        // Execute queries in transaction
-        await executeQuery(connectionString, 'BEGIN;');
+        const successfulTables = [];
+        const failedTables = [];
+        let totalRecordsInserted = 0;
         
-        try {
-            for (const query of result.queries) {
-                await executeQuery(connectionString, query);
-            }
-            await executeQuery(connectionString, 'COMMIT;');
+        // Execute queries per table (each table in its own transaction)
+        for (let i = 0; i < result.queries.length; i++) {
+            const query = result.queries[i];
+            // Extract table name from INSERT query
+            const tableNameMatch = query.match(/INSERT INTO "([^"]+)"/);
+            const tableName = tableNameMatch ? tableNameMatch[1] : `Table ${i + 1}`;
+            const recordCount = result.data[tableName]?.length || 0;
             
-            return {
-                success: true,
-                summary: result.summary,
-                message: `Successfully generated ${result.summary.totalRecords} records across ${result.summary.tablesProcessed} tables`
-            };
-        } catch (error) {
-            await executeQuery(connectionString, 'ROLLBACK;');
-            throw error;
+            try {
+                await executeQuery(connectionString, 'BEGIN;');
+                await executeQuery(connectionString, query);
+                await executeQuery(connectionString, 'COMMIT;');
+                
+                successfulTables.push({
+                    table: tableName,
+                    records: recordCount
+                });
+                totalRecordsInserted += recordCount;
+            } catch (error) {
+                await executeQuery(connectionString, 'ROLLBACK;').catch(() => {});
+                failedTables.push({
+                    table: tableName,
+                    error: error.message,
+                    records: recordCount
+                });
+                console.error(`Failed to insert data into ${tableName}:`, error.message);
+            }
         }
+        
+        const hasSuccess = successfulTables.length > 0;
+        const hasFailures = failedTables.length > 0;
+        
+        let message = '';
+        if (hasSuccess && !hasFailures) {
+            message = `Successfully generated ${totalRecordsInserted} records across ${successfulTables.length} tables`;
+        } else if (hasSuccess && hasFailures) {
+            message = `Partially completed: ${successfulTables.length} tables succeeded, ${failedTables.length} tables failed`;
+        } else {
+            message = `Failed to generate data for all ${failedTables.length} tables`;
+        }
+        
+        return {
+            success: hasSuccess,
+            summary: {
+                tablesProcessed: result.summary.tablesProcessed,
+                totalRecords: totalRecordsInserted,
+                successfulTables: successfulTables.length,
+                failedTables: failedTables.length
+            },
+            successfulTables,
+            failedTables,
+            message
+        };
     } catch (error) {
         console.error('Mock data generation failed:', error);
         return {
             success: false,
             error: error.message,
-            message: 'Failed to generate mock data'
+            message: 'Failed to generate mock data',
+            successfulTables: [],
+            failedTables: []
         };
     }
 }

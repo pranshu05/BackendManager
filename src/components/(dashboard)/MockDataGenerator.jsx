@@ -394,7 +394,7 @@ export default function MockDataGenerator({ projectId, onSuccess }) {
 
                         <TabsContent value="result" className="space-y-4">
                             {result ? (
-                                <div>
+                                <div className="space-y-4">
                                     <Alert className={result.success ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"}>
                                         {result.success ? (
                                             <CheckCircle className="h-4 w-4 text-green-600" />
@@ -406,7 +406,7 @@ export default function MockDataGenerator({ projectId, onSuccess }) {
                                         </AlertDescription>
                                     </Alert>
 
-                                    {result.success && result.summary && (
+                                    {result.summary && (
                                         <Card>
                                             <CardHeader>
                                                 <CardTitle>Generation Summary</CardTitle>
@@ -421,6 +421,69 @@ export default function MockDataGenerator({ projectId, onSuccess }) {
                                                         <span className="font-medium">Total Records:</span>
                                                         <span className="ml-2">{result.summary.totalRecords}</span>
                                                     </div>
+                                                    {result.summary.successfulTables !== undefined && (
+                                                        <>
+                                                            <div>
+                                                                <span className="font-medium text-green-600">Successful Tables:</span>
+                                                                <span className="ml-2">{result.summary.successfulTables}</span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="font-medium text-red-600">Failed Tables:</span>
+                                                                <span className="ml-2">{result.summary.failedTables}</span>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    )}
+
+                                    {/* Successful Tables */}
+                                    {result.successfulTables && result.successfulTables.length > 0 && (
+                                        <Card>
+                                            <CardHeader>
+                                                <CardTitle className="text-green-600 flex items-center gap-2">
+                                                    <CheckCircle className="h-5 w-5" />
+                                                    Successfully Generated Data
+                                                </CardTitle>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <div className="space-y-2">
+                                                    {result.successfulTables.map(({ table, records }) => (
+                                                        <div key={table} className="flex items-center justify-between p-2 bg-green-50 rounded border border-green-200">
+                                                            <span className="font-medium">{table}</span>
+                                                            <Badge variant="outline" className="bg-white text-green-700 border-green-300">
+                                                                {records} records
+                                                            </Badge>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    )}
+
+                                    {/* Failed Tables */}
+                                    {result.failedTables && result.failedTables.length > 0 && (
+                                        <Card>
+                                            <CardHeader>
+                                                <CardTitle className="text-red-600 flex items-center gap-2">
+                                                    <AlertCircle className="h-5 w-5" />
+                                                    Failed to Generate Data
+                                                </CardTitle>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <div className="space-y-2">
+                                                    {result.failedTables.map(({ table, error, records }) => (
+                                                        <div key={table} className="p-3 bg-red-50 rounded border border-red-200">
+                                                            <div className="flex items-center justify-between mb-1">
+                                                                <span className="font-medium">{table}</span>
+                                                                <Badge variant="outline" className="bg-white text-red-700 border-red-300">
+                                                                    {records} records attempted
+                                                                </Badge>
+                                                            </div>
+                                                            <p className="text-sm text-red-600">{error}</p>
+                                                        </div>
+                                                    ))}
                                                 </div>
                                             </CardContent>
                                         </Card>
