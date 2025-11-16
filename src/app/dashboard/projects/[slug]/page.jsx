@@ -22,9 +22,6 @@ import {
   Sparkles,
   Loader2,
 } from "lucide-react";
-import { set } from "zod";
-import { fa } from "zod/v4/locales";
-
 
 
 export default function DashboardPage() {
@@ -706,7 +703,7 @@ const fetchtabledata = async (tablename, recordLimit = limit) => {
                         ></path>
                       </svg>
                       <div>
-                        <div className="h-4 w-56 bg-gray-200 rounded-md mb-2 animate-pulse" />
+                        <div className="h-4 w-56 bg-gray-200 rounded-md mb-2" />
                         <div className="text-sm text-gray-500">
                           Loading table data...
                         </div>
@@ -721,46 +718,33 @@ const fetchtabledata = async (tablename, recordLimit = limit) => {
                           style={{ width: "35%" }}
                         />
                         <div
-                          className="h-4 bg-gray-200 rounded animate-pulse"
+                          className="h-4 bg-gray-200 rounded"
                           style={{ width: "16%" }}
                         />
                         <div
-                          className="h-4 bg-gray-200 rounded animate-pulse"
+                          className="h-4 bg-gray-200 rounded"
                           style={{ width: "16%" }}
                         />
                         <div
-                          className="h-4 bg-gray-200 rounded animate-pulse"
+                          className="h-4 bg-gray-200 rounded"
                           style={{ width: "16%" }}
                         />
                         <div
-                          className="h-4 bg-gray-200 rounded animate-pulse"
+                          className="h-4 bg-gray-200 rounded"
                           style={{ width: "12%" }}
                         />
                       </div>
 
                       <div className="space-y-3">
                         {Array.from({ length: 6 }).map((_, i) => (
-                          <div key={i} className="flex gap-4 items-center">
-                            <div className="h-4 bg-gray-200 rounded flex-1 animate-pulse" />
-                            <div
-                              className="h-4 bg-gray-200 rounded animate-pulse"
-                              style={{ width: "16%" }}
-                            />
-                            <div
-                              className="h-4 bg-gray-200 rounded animate-pulse"
-                              style={{ width: "16%" }}
-                            />
-                            <div
-                              className="h-4 bg-gray-200 rounded"
-                              style={{ width: "16%" }}
-                            />
-                            <div
-                              className="h-4 bg-gray-200 rounded animate-pulse"
-                              style={{ width: "12%" }}
-                            />
-                          </div>
-                        )
-                        )}
+                      <div key={i} className="flex gap-4 items-center">
+                        <div className="h-4 bg-gray-200 rounded flex-1" />
+                        <div className="h-4 bg-gray-200 rounded" style={{ width: '16%' }} />
+                        <div className="h-4 bg-gray-200 rounded" style={{ width: '16%' }} />
+                        <div className="h-4 bg-gray-200 rounded" style={{ width: '16%' }} />
+                        <div className="h-4 bg-gray-200 rounded" style={{ width: '12%' }} />
+                      </div>
+                    ))}
                       </div>
                     </div>
                   </div>
@@ -963,23 +947,23 @@ const fetchtabledata = async (tablename, recordLimit = limit) => {
 
                       <div className="flex items-center gap-4 mb-3">
                         <div
-                          className="h-4 bg-gray-200 rounded"
+                          className="h-4 bg-gray-200 rounded "
                           style={{ width: "35%" }}
                         />
                         <div
-                          className="h-4 bg-gray-200 rounded animate-pulse"
+                          className="h-4 bg-gray-200 rounded  animate-pulse"
                           style={{ width: "16%" }}
                         />
                         <div
-                          className="h-4 bg-gray-200 rounded animate-pulse"
+                          className="h-4 bg-gray-200 rounded "
                           style={{ width: "16%" }}
                         />
                         <div
-                          className="h-4 bg-gray-200 rounded animate-pulse"
+                          className="h-4 bg-gray-200 rounded"
                           style={{ width: "16%" }}
                         />
                         <div
-                          className="h-4 bg-gray-200 rounded animate-pulse"
+                          className="h-4 bg-gray-200 rounded  animate-pulse"
                           style={{ width: "12%" }}
                         />
                       </div>
@@ -987,13 +971,9 @@ const fetchtabledata = async (tablename, recordLimit = limit) => {
                       <div className="space-y-3">
                         {Array.from({ length: 6 }).map((_, i) => (
                           <div key={i} className="flex gap-4 items-center">
-                            <div className="h-4 bg-gray-200 rounded flex-1 animate-pulse" />
+                            <div className="h-4 bg-gray-200 rounded flex-1" />
                             <div
-                              className="h-4 bg-gray-200 rounded animate-pulse"
-                              style={{ width: "16%" }}
-                            />
-                            <div
-                              className="h-4 bg-gray-200 rounded animate-pulse"
+                              className="h-4 bg-gray-200 rounded"
                               style={{ width: "16%" }}
                             />
                             <div
@@ -1001,7 +981,11 @@ const fetchtabledata = async (tablename, recordLimit = limit) => {
                               style={{ width: "16%" }}
                             />
                             <div
-                              className="h-4 bg-gray-200 rounded animate-pulse"
+                              className="h-4 bg-gray-200 rounded"
+                              style={{ width: "16%" }}
+                            />
+                            <div
+                              className="h-4 bg-gray-200 rounded "
                               style={{ width: "12%" }}
                             />
                           </div>

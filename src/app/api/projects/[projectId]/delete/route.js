@@ -63,8 +63,8 @@ if (!Array.isArray(pkvalues) || pkvalues.length === 0 || typeof pkvalues[0] !== 
         const mapTypeToCast = (dt) => {
             if (!dt) return '';
             if (dt.includes('uuid')) return '::uuid';
-            if (dt.includes('int')) return '::integer';
             if (dt.includes('bigint')) return '::bigint';
+            if (dt.includes('int')) return '::integer';
             if (dt.includes('numeric') || dt.includes('decimal') || dt.includes('real') || dt.includes('double')) return '::numeric';
             if (dt.includes('boolean')) return '::boolean';
             if (dt.includes('jsonb')) return '::jsonb';
