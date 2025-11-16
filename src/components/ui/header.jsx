@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { signOut, useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { CircleUserRound } from 'lucide-react';
 import {
@@ -39,6 +40,8 @@ const handleLogout = async () => {
 };
 
 const header = () => {
+  const router = useRouter();
+  
   return (
     <div>
          <header className="bg-card/80 backdrop-blur-sm border-b border-border px-6 py-4">
@@ -52,7 +55,13 @@ const header = () => {
                             <p className="text-sm text-primary">Your Database Companion</p>
                         </div>
                     </div>
-                    <div className="side flex items-center">
+                    <div className="side flex items-center gap-2">
+                <Button
+                    onClick={() => router.push("/help")}
+                    className="bg-gray-200 text-black hover:bg-gray-300 flex items-center gap-2"
+                >
+                    Help & Support
+                </Button>
                 <Button
                 variant="outline"
                 size="sm"
