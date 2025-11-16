@@ -1,10 +1,16 @@
+"use client";
+
 import React from 'react'
+import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { CircleUserRound } from 'lucide-react';
+import { CircleUserRound, HelpCircle } from 'lucide-react';
 import {
     Database,
     LogOut,
 } from "lucide-react";
+
+const Header = () => {
+    const router = useRouter();
 
     const handleLogout = async () => {
         try {
@@ -15,10 +21,10 @@ import {
             window.location.href = "/";
         }
     };
-const header = () => {
-  return (
-    <div>
-         <header className="bg-card/80 backdrop-blur-sm border-b border-border px-6 py-4">
+
+    return (
+        <div>
+            <header className="bg-card/80 backdrop-blur-sm border-b border-border px-6 py-4">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                         <div className="p-2 bg-primary rounded-xl">
@@ -29,25 +35,33 @@ const header = () => {
                             <p className="text-sm text-primary">Your Database Companion</p>
                         </div>
                     </div>
-                    <div className="side flex items-center">
-                <Button
-                variant="outline"
-                size="sm"
-                onClick={() => (window.location.href = "/profile")}
-                className="cursor-pointer">
-                      <CircleUserRound  className='hover:cursor-pointer' />
-                </Button>
-                    <Button variant="outline" size="sm" asChild>
-                        <a onClick={handleLogout} className='hover:cursor-pointer'>
-                            <LogOut className="w-4 h-4" />
-                        </a>
-                    </Button>
+                    <div className="side flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => router.push("/help")}
+                            className="cursor-pointer bg-gray-200 text-black hover:bg-gray-300 flex items-center gap-2"
+                        >
+                            <HelpCircle className="w-4 h-4" />
+                            Help & Support
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => router.push("/profile")}
+                            className="cursor-pointer">
+                            <CircleUserRound className='hover:cursor-pointer' />
+                        </Button>
+                        <Button variant="outline" size="sm" asChild>
+                            <a onClick={handleLogout} className='hover:cursor-pointer'>
+                                <LogOut className="w-4 h-4" />
+                            </a>
+                        </Button>
                     </div>
-                    
                 </div>
             </header>
-    </div>
-  )
+        </div>
+    )
 }
 
-export default header
+export default Header

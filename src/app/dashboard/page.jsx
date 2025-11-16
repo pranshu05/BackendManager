@@ -1,14 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ProjectCard } from "@/components/(dashboard)/ProjectCard";
 import ImportDatabase from '@/components/(dashboard)/ImportDatabase';
-import { Database, LogOut, CheckCircle, Table, User, Sparkles } from "lucide-react";
+import { Database, LogOut, CheckCircle, Table, User, Sparkles, HelpCircle } from "lucide-react";
 import './index.css';
 
 export default function DashboardPage() {
+    const router = useRouter();
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
     const [nlInput, setNlInput] = useState("");
@@ -116,6 +118,14 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex items-center gap-2">
                         <div className="flex items-center gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => router.push("/help")}
+                                className="cursor-pointer bg-gray-200 text-black hover:bg-gray-300 flex items-center gap-2">
+                                <HelpCircle className="w-4 h-4" />
+                                Help and Support Center
+                            </Button>
                             <Button
                                 variant="outline"
                                 size="sm"
