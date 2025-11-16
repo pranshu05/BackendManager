@@ -41,11 +41,11 @@ export function verifyJWTToken(token) {
 
 // Set session cookie
 export async function setSessionCookie(sessionToken) {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() + 7); // 7 days
 
-    await cookieStore.set(SESSION_COOKIE_NAME, sessionToken, {
+    cookieStore.set(SESSION_COOKIE_NAME, sessionToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
@@ -63,7 +63,15 @@ export async function getSessionCookie() {
 // Clear session cookie
 export async function clearSessionCookie() {
     const cookieStore = await cookies();
-    cookieStore.delete(SESSION_COOKIE_NAME);
+    // Delete with options to ensure it's properly cleared
+    cookieStore.set(SESSION_COOKIE_NAME, '', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 0, // Expire immediately
+        expires: new Date(0) // Set to past date
+    });
 }
 
 // Get Bearer token from Authorization header
@@ -142,17 +150,23 @@ async function verifySessionAuth(sessionToken) {
     }
 }
 
-// Middleware function to check authentication (for both Cookie and Bearer token)
+// Middleware function to check authentication (for Bearer token, NextAuth, and legacy sessions)
 export async function requireAuth(request = null) {
-    // first try Bearer token (for API access)
+    // First try Bearer token (for API access)
     if (request) {
         const bearerToken = getBearerToken(request);
         if (bearerToken) {
             return await verifyBearerAuth(bearerToken);
         }
+        
+        // Try NextAuth session token
+        const nextAuthResult = await verifyNextAuthSession(request);
+        if (nextAuthResult.user) {
+            return nextAuthResult;
+        }
     }
 
-    // then session cookie (for web app)
+    // Then try legacy session cookie (for backwards compatibility)
     const sessionToken = await getSessionCookie();
     
     if (!sessionToken) {
@@ -160,4 +174,32 @@ export async function requireAuth(request = null) {
     }
 
     return await verifySessionAuth(sessionToken);
+}
+
+// Verify NextAuth JWT session
+async function verifyNextAuthSession(request) {
+    try {
+        const { getToken } = await import('next-auth/jwt');
+        
+        const token = await getToken({
+            req: request,
+            secret: process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET
+        });
+
+        if (!token?.id) {
+            return { error: 'No NextAuth session', status: 401 };
+        }
+
+        // Token exists, return user data
+        return {
+            user: {
+                id: token.id,
+                email: token.email,
+                name: token.name
+            }
+        };
+    } catch (error) {
+        console.error('NextAuth verification error:', error);
+        return { error: 'NextAuth verification failed', status: 401 };
+    }
 }

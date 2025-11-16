@@ -1,4 +1,7 @@
+"use client";
+
 import React from 'react'
+import { signOut, useSession } from 'next-auth/react';
 import { Button } from "@/components/ui/button";
 import { CircleUserRound } from 'lucide-react';
 import {
@@ -6,15 +9,35 @@ import {
     LogOut,
 } from "lucide-react";
 
-    const handleLogout = async () => {
+const handleLogout = async () => {
+    try {
+        // Call logout endpoint to clear both legacy and NextAuth session cookies
+        await fetch("/api/auth/logout", { 
+            method: "POST",
+            credentials: "include" // Ensure cookies are sent and received
+        });
+        
+        // Also explicitly sign out from NextAuth to trigger its cleanup
         try {
-            await fetch("/api/auth/logout", { method: "POST" });
-            window.location.href = "/";
-        } catch (error) {
-            console.error("Logout error:", error);
-            window.location.href = "/";
+            await signOut({ 
+                redirect: false,
+                callbackUrl: "/" 
+            });
+        } catch (e) {
+            console.error('NextAuth signOut error:', e);
         }
-    };
+        
+        // Force redirect to home page after a small delay to ensure cookies are cleared
+        setTimeout(() => {
+            window.location.href = "/";
+        }, 100);
+    } catch (error) {
+        console.error("Logout error:", error);
+        // Force redirect even on error to clear client state
+        window.location.href = "/";
+    }
+};
+
 const header = () => {
   return (
     <div>

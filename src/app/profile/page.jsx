@@ -41,7 +41,10 @@ export default function ProfilePage(){
 
   const handleLogout = async () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      await fetch("/api/auth/logout", { 
+        method: "POST",
+        credentials: "include"
+      });
       window.location.href = "/";
     } catch (error) {
       console.error("Logout error:", error);

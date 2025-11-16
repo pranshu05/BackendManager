@@ -59,7 +59,8 @@ export async function POST(request) {
 
         return NextResponse.json({ message: "OTP sent successfully" }, { status: 200 });
 
-    } catch {
+    } catch (error) {
+        console.error('Email check error:', error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }

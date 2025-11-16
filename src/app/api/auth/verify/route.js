@@ -22,7 +22,9 @@ export async function GET(request) {
 
         const user = pending_user.rows[0];
         const result = await pool.query(`
-            INSERT INTO users (email, password_hash, name) VALUES ($1, $2, $3) RETURNING id, email, name, created_at
+            INSERT INTO users (email, password_hash, name, is_active, email_verified) 
+            VALUES ($1, $2, $3, true, true) 
+            RETURNING id, email, name, created_at
         `, [user.email, user.password_hash, user.name]
         );
         const verified_user = result.rows[0];
@@ -41,7 +43,7 @@ export async function GET(request) {
 
         // Set cookie
         // User will be logged in immediately after registration
-        setSessionCookie(sessionToken);
+        await setSessionCookie(sessionToken);
 
         try {
             await fetch("https://api.brevo.com/v3/smtp/email", {
@@ -168,12 +170,17 @@ export async function GET(request) {
                 </html>
                 `})
             });
-        } catch {
-            return NextResponse.json({ error: "Failed to send welcome email" }, { status: 500 });
+        } catch (emailError) {
+            console.error('Welcome email error:', emailError);
+            // Don't fail the whole request if welcome email fails
         }
+        
         return NextResponse.redirect(`${process.env.web_url}`);
 
-    } catch {
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    } catch (error) {
+        console.error('Verification error:', error);
+        return NextResponse.json({ 
+            error: error.message || "Internal Server Error" 
+        }, { status: 500 });
     }
 }

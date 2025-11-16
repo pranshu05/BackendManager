@@ -49,7 +49,7 @@ export async function POST(request) {
         `, [user.id, sessionToken, expiryDate]);
 
         // Set cookie
-        setSessionCookie(sessionToken);
+        await setSessionCookie(sessionToken);
 
         return NextResponse.json({
             message: 'Login successful',
