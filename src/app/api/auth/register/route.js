@@ -129,7 +129,7 @@ export async function POST(request) {
 
         //Send email for verification purpose
         try {
-            await fetch("https://api.brevo.com/v3/smtp/email", {
+            const emailResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
                 method: "POST",
                 headers: {
                     "accept": "application/json",
@@ -150,17 +150,29 @@ export async function POST(request) {
                 </div>`
                 })
             });
-        } catch {
-            return NextResponse.json({ error: "Error sending verification email" }, { status: 500 });
+
+            if (!emailResponse.ok) {
+                const errorData = await emailResponse.text();
+                console.error('Email send error:', errorData);
+                return NextResponse.json({ 
+                    error: "Error sending verification email. Please try again." 
+                }, { status: 500 });
+            }
+        } catch (emailError) {
+            console.error('Email send exception:', emailError);
+            return NextResponse.json({ 
+                error: "Error sending verification email. Please try again." 
+            }, { status: 500 });
         }
 
         return NextResponse.json({
             message: 'Email verfication link sent on your entered email address. Please check your inbox!!'
         })
 
-    } catch {
+    } catch (error) {
+        console.error('Registration error:', error);
         return NextResponse.json(
-            { error: 'Internal server error' },
+            { error: error.message || 'Internal server error' },
             { status: 500 }
         );
     }

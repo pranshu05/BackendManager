@@ -3,10 +3,10 @@ import { Pool } from 'pg';
 // Main connection (to Neon account DBuddy project)
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+    ssl: { rejectUnauthorized: false }, // Always enable SSL for Neon
     max: 20,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
+    connectionTimeoutMillis: 10000,
 });
 
 // Function to create a new user database in Neon

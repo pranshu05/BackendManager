@@ -1,19 +1,33 @@
 import { NextResponse } from 'next/server';
+import { getToken } from 'next-auth/jwt';
 
-export function middleware(request) {
+export async function middleware(request) {
     const { pathname } = request.nextUrl;
-    const sessionToken = request.cookies.get('dbuddy-session')?.value;
+    
+    // Get NextAuth session token
+    let token = null;
+    try {
+        token = await getToken({ 
+            req: request, 
+            secret: process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET
+        });
+    } catch (error) {
+        console.error("Token retrieval error:", error);
+    }
+    
+    // Also check for legacy session cookie
+    const legacySessionToken = request.cookies.get('dbuddy-session')?.value;
 
     // Public routes that don't require authentication
-    const publicRoutes = ['/api/auth/login', '/api/auth/register'];
+    const publicRoutes = ['/api/auth', '/reset'];
 
     // Handle root path separately
     if (pathname === '/') {
-        if (sessionToken) {
-            // Logged-in users can access root
+        if (token || legacySessionToken) {
+            // Logged-in users redirect to dashboard
             return NextResponse.redirect(new URL('/dashboard', request.url));
         } else {
-            // Non-logged-in users can also access root (or redirect to login if you prefer)
+            // Non-logged-in users can access root
             return NextResponse.next();
         }
     }
@@ -22,9 +36,9 @@ export function middleware(request) {
         return NextResponse.next();
     }
 
-    // Check for session cookie on protected routes
+    // Check for session on protected routes
     // Page protection
-    if (!sessionToken && !pathname.startsWith('/api/')) {
+    if (!token && !legacySessionToken && !pathname.startsWith('/api/')) {
         return NextResponse.redirect(new URL('/', request.url));
     }
 
@@ -37,7 +51,6 @@ export const config = {
         '/dashboard/:path*',
         '/api/projects/:path*',
         '/api/ai/:path*',
-        '/api/auth/logout',
-        '/api/auth/me',
+        '/profile/:path*',
     ],
 };

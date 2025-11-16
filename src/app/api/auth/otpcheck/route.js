@@ -41,7 +41,8 @@ export async function POST(request) {
         await pool.query("DELETE FROM password_resets WHERE id = $1", [resetId]);
         return NextResponse.json({ message: "OTP verified Successfully!!" }, { status: 200 });
 
-    } catch {
+    } catch (error) {
+        console.error('OTP check error:', error);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }
