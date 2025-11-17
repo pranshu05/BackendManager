@@ -47,9 +47,9 @@ export default function TicketsPage() {
         
         const avgHours = totalHours / resolved.length;
         if (avgHours < 24) {
-            return `${Math.round(avgHours)}h`;
+            return ${Math.round(avgHours)}h;
         } else {
-            return `${Math.round(avgHours / 24)}d`;
+            return ${Math.round(avgHours / 24)}d;
         }
     };
     
