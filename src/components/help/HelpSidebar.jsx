@@ -14,38 +14,40 @@ export default function HelpSidebar() {
     ];
     
     return (
-        <div className="w-56 bg-white min-h-screen p-4">
+        <div className="w-48 bg-white min-h-screen p-3 border-r border-gray-100">
             {/* Branding Section */}
-            <div className="mb-6">
-                <div className="flex items-center gap-3 mb-2">
-                    <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                        <span className="text-white font-bold text-xl">D</span>
+            <div className="mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                    <div className="w-8 h-8 bg-gradient-to-br from-primary to-secondary rounded-xl flex items-center justify-center shadow-md shadow-primary/30">
+                        <span className="text-white font-bold text-lg">D</span>
                     </div>
                     <div>
-                        <h1 className="text-xl font-bold text-gray-900">DBuddy</h1>
-                        <p className="text-sm text-gray-500">Your Database Companion</p>
+                        <h1 className="text-base font-bold text-gray-900">DBuddy</h1>
+                        <p className="text-[10px] text-gray-500">Your Database Companion</p>
                     </div>
                 </div>
             </div>
             
             {/* Navigation Items */}
-            <div className="space-y-2">
+            <div className="space-y-1">
                 {menuItems.map((item, index) => {
                     const isActive = item.active || pathname === item.path;
                     return (
                         <div
                             key={index}
                             onClick={() => router.push(item.path)}
-                            className={`flex items-center gap-3 px-4 py-2 rounded-lg cursor-pointer transition-colors ${
+                            className={`flex items-center gap-2 px-3 py-2 rounded-xl cursor-pointer transition-all duration-300 ${
                                 isActive 
-                                    ? 'bg-blue-100 text-blue-600' 
-                                    : 'text-gray-700 hover:bg-gray-100'
+                                    ? 'bg-gradient-to-r from-primary to-secondary text-white shadow-md shadow-primary/30' 
+                                    : 'text-gray-700 hover:bg-gray-50 hover:shadow-sm'
                             }`}
                         >
-                            <div className={isActive ? 'text-blue-600' : 'text-gray-700'}>
-                                {item.icon}
+                            <div className={isActive ? 'text-white' : 'text-gray-700'}>
+                                {item.icon && <div className="w-4 h-4">{item.icon}</div>}
                             </div>
-                            <span className={isActive ? 'text-blue-600 font-medium' : 'text-gray-700'}>{item.label}</span>
+                            <span className={`text-sm font-medium ${isActive ? 'text-white' : 'text-gray-700'}`}>
+                                {item.label}
+                            </span>
                         </div>
                     );
                 })}

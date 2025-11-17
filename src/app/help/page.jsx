@@ -32,7 +32,7 @@ export default function HelpPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
             <Header />
             <div className="flex flex-col lg:flex-row">
                 {/* Left Sidebar */}
@@ -41,14 +41,14 @@ export default function HelpPage() {
                 </div>
 
                 {/* Main Content */}
-                <div className="flex-1 flex flex-col lg:flex-row gap-6 p-6">
+                <div className="flex-1 flex flex-col lg:flex-row gap-4 p-4">
                     {/* Center Content */}
-                    <div className="flex-1 space-y-6">
-                        <div>
-                            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                    <div className="flex-1 space-y-4">
+                        <div className="bg-gradient-to-r from-primary to-secondary rounded-2xl p-5 text-white shadow-lg">
+                            <h1 className="text-2xl font-bold mb-1">
                                 Help & Support Center
                             </h1>
-                            <p className="text-gray-600">
+                            <p className="text-white/90 text-sm">
                                 Find answers or reach out for assistance
                             </p>
                         </div>
