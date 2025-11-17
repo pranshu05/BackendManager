@@ -43,8 +43,13 @@
         "zod": "^4.1.8"
     },
     "devDependencies": {
+        "@babel/core": "^7.28.5",
+        "@babel/preset-env": "^7.28.5",
         "@babel/preset-react": "^7.28.5",
         "@eslint/eslintrc": "^3",
+        "@stryker-mutator/babel-transpiler": "^4.0.0",
+        "@stryker-mutator/core": "^9.3.0",
+        "@stryker-mutator/jest-runner": "^9.3.0",
         "@swc/jest": "^0.2.39",
         "@tailwindcss/postcss": "^4",
         "@testing-library/jest-dom": "^6.9.1",
@@ -53,6 +58,7 @@
         "@types/bcryptjs": "^2.4.6",
         "@types/jsonwebtoken": "^9.0.10",
         "@types/pg": "^8.15.5",
+        "babel-jest": "^30.2.0",
         "dotenv": "^17.2.3",
         "eslint": "^9",
         "eslint-config-next": "15.5.3",
