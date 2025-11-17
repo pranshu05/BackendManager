@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Search } from 'lucide-react';
+import { Search, Paperclip } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
 export default function TicketsTable() {
@@ -68,67 +68,98 @@ export default function TicketsTable() {
     }
     
     return (
-        <div className="space-y-4">
-            <div className="flex items-center justify-between">
-                <div className="relative flex-1 max-w-md">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+        <div className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+                <div className="relative flex-1 max-w-md group">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 group-focus-within:text-primary transition-colors" />
                     <Input
                         type="text"
                         placeholder="Search by keyword, subject, or ticket ID"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10"
+                        className="pl-10 h-9 text-sm rounded-xl border-2 border-gray-200 focus:border-primary"
                     />
                 </div>
                 <Button
                     onClick={() => router.push('/help')}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    className="bg-primary hover:bg-primary/90 text-white h-9 px-4 rounded-lg text-sm font-semibold shadow-md shadow-primary/30 hover:shadow-lg hover:shadow-primary/40 transition-all duration-300"
                 >
-                    New Ticket
+                    + New Ticket
                 </Button>
             </div>
             
-            <div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
+            <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
                 <table className="w-full">
-                    <thead className="bg-gray-50 border-b border-gray-300">
+                    <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
                         <tr>
-                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">ID</th>
-                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">SUBJECT</th>
-                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">DATE</th>
-                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">STATUS</th>
-                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">ACTION</th>
+                            <th className="px-3 py-2 text-left text-[10px] font-bold text-gray-700 uppercase tracking-wider">ID</th>
+                            <th className="px-3 py-2 text-left text-[10px] font-bold text-gray-700 uppercase tracking-wider">SUBJECT</th>
+                            <th className="px-3 py-2 text-left text-[10px] font-bold text-gray-700 uppercase tracking-wider">DATE</th>
+                            <th className="px-3 py-2 text-left text-[10px] font-bold text-gray-700 uppercase tracking-wider">STATUS</th>
+                            <th className="px-3 py-2 text-left text-[10px] font-bold text-gray-700 uppercase tracking-wider">ATTACHMENT</th>
+                            <th className="px-3 py-2 text-left text-[10px] font-bold text-gray-700 uppercase tracking-wider">ACTION</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200">
+                    <tbody className="divide-y divide-gray-100">
                         {filteredTickets.length === 0 ? (
                             <tr>
-                                <td colSpan="5" className="px-4 py-8 text-center text-gray-500">
-                                    No tickets found.
+                                <td colSpan="6" className="px-3 py-6 text-center text-gray-500">
+                                    <p className="text-sm">No tickets found.</p>
                                 </td>
                             </tr>
                         ) : (
                             filteredTickets.map((ticket) => (
-                                <tr key={ticket.id} className="hover:bg-gray-50">
-                                    <td className="px-4 py-3 text-sm text-gray-900">{ticket.id.slice(0, 8)}</td>
-                                    <td className="px-4 py-3 text-sm text-gray-900">{ticket.subject}</td>
-                                    <td className="px-4 py-3 text-sm text-gray-600">
+                                <tr key={ticket.id} className="hover:bg-gray-50/50 transition-colors">
+                                    <td className="px-3 py-2 text-xs font-medium text-gray-900">{ticket.id.slice(0, 8)}</td>
+                                    <td className="px-3 py-2 text-xs text-gray-900 font-medium">{ticket.subject}</td>
+                                    <td className="px-3 py-2 text-xs text-gray-600">
                                         {formatDate(ticket.createdAt)}
                                     </td>
-                                    <td className="px-4 py-3">
-                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(ticket.status)}`}>
+                                    <td className="px-3 py-2">
+                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${getStatusColor(ticket.status)}`}>
                                             {ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1)}
                                         </span>
                                     </td>
-                                    <td className="px-4 py-3">
+                                    <td className="px-3 py-2">
+                                        {ticket.attachment ? (
+                                            <button
+                                                onClick={() => {
+                                                    // Show attachment in modal or new tab
+                                                    const win = window.open();
+                                                    win.document.write(`
+                                                        <html>
+                                                            <head><title>${ticket.attachment.name}</title></head>
+                                                            <body style="margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#000;">
+                                                                <img src="${ticket.attachment.data}" style="max-width:100%;max-height:100vh;" />
+                                                            </body>
+                                                        </html>
+                                                    `);
+                                                }}
+                                                className="flex items-center gap-1 text-primary hover:text-primary/80 transition-colors"
+                                                title={ticket.attachment.name}
+                                            >
+                                                <Paperclip className="w-3 h-3" />
+                                                <span className="text-[10px]">View</span>
+                                            </button>
+                                        ) : (
+                                            <span className="text-[10px] text-gray-400">None</span>
+                                        )}
+                                    </td>
+                                    <td className="px-3 py-2">
                                         <Button
                                             variant="outline"
                                             size="sm"
                                             onClick={() => {
-                                                // Could navigate to a detail page or show modal
-                                                alert(`Ticket Details:\n\nSubject: ${ticket.subject}\nDescription: ${ticket.description}\nStatus: ${ticket.status}\nCreated: ${formatDate(ticket.createdAt)}`);
+                                                // Show ticket details with attachment
+                                                let details = `Ticket Details:\n\nSubject: ${ticket.subject}\nDescription: ${ticket.description}\nStatus: ${ticket.status}\nCreated: ${formatDate(ticket.createdAt)}`;
+                                                if (ticket.attachment) {
+                                                    details += `\nAttachment: ${ticket.attachment.name} (${(ticket.attachment.size / 1024).toFixed(1)} KB)`;
+                                                }
+                                                alert(details);
                                             }}
+                                            className="h-7 px-2 text-xs rounded-lg hover:bg-primary hover:text-white hover:border-primary transition-all duration-200"
                                         >
-                                            View Details
+                                            View
                                         </Button>
                                     </td>
                                 </tr>
