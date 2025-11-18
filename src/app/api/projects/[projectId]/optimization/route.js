@@ -64,7 +64,7 @@ export const POST = withProjectAuth(async (request, context, user, project) => {
 
         // Execute the optimization SQL
         const result = await executeQuery(connectionString, sql);
-        const executionTime = timer.getTime();
+        const executionTime = timer.elapsed();
 
         // Log the query to history with optimization context
         await logQueryHistory({
@@ -87,7 +87,7 @@ export const POST = withProjectAuth(async (request, context, user, project) => {
         });
 
     } catch (error) {
-        const executionTime = timer.getTime();
+        const executionTime = timer.elapsed();
         console.error('Optimization action error:', error);
 
         // Log the failed query to history

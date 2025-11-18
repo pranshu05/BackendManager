@@ -14,16 +14,13 @@ export async function middleware(request) {
     } catch (error) {
         console.error("Token retrieval error:", error);
     }
-    
-    // Also check for legacy session cookie
-    const legacySessionToken = request.cookies.get('dbuddy-session')?.value;
 
     // Public routes that don't require authentication
     const publicRoutes = ['/api/auth', '/reset'];
 
     // Handle root path separately
     if (pathname === '/') {
-        if (token || legacySessionToken) {
+        if (token) {
             // Logged-in users redirect to dashboard
             return NextResponse.redirect(new URL('/dashboard', request.url));
         } else {
@@ -38,7 +35,7 @@ export async function middleware(request) {
 
     // Check for session on protected routes
     // Page protection
-    if (!token && !legacySessionToken && !pathname.startsWith('/api/')) {
+    if (!token && !pathname.startsWith('/api/')) {
         return NextResponse.redirect(new URL('/', request.url));
     }
 

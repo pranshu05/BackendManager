@@ -122,12 +122,6 @@ export default function DashboardPage() {
                     <div className="flex items-center gap-2">
                         <div className="flex items-center gap-2">
                             <Button
-                                onClick={() => router.push("/help")}
-                                className="bg-gray-200 text-black hover:bg-gray-300 flex items-center gap-2"
-                            >
-                                Open Help
-                            </Button>
-                            <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => (window.location.href = "/profile")}

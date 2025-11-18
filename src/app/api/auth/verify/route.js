@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
-import { generateSessionToken, setSessionCookie } from '@/lib/auth';
 
 export async function GET(request) {
     try {
@@ -31,19 +30,6 @@ export async function GET(request) {
 
         //Deleting from pending users table
         await pool.query(`DELETE from pending_users where id=$1`, [user.id]);
-
-        // Create session
-        const sessionToken = generateSessionToken();
-        const expiryDate = new Date();
-        expiryDate.setDate(expiryDate.getDate() + 7);
-        await pool.query(`
-            INSERT INTO user_sessions (user_id, session_token, expires_at)
-            VALUES ($1, $2, $3)
-        `, [verified_user.id, sessionToken, expiryDate]);
-
-        // Set cookie
-        // User will be logged in immediately after registration
-        await setSessionCookie(sessionToken);
 
         try {
             await fetch("https://api.brevo.com/v3/smtp/email", {

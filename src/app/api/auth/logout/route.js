@@ -1,32 +1,11 @@
 import { NextResponse } from 'next/server';
-import { pool } from '@/lib/db';
-import { getSessionCookie, clearSessionCookie } from '@/lib/auth';
 import { cookies } from 'next/headers';
 
-// Logout endpoint that clears both legacy and NextAuth sessions
+// Logout endpoint that clears NextAuth session
 // Works even if session is expired or invalid
 export async function POST() {
     try {
-        const sessionToken = await getSessionCookie();
-
-        if (sessionToken) {
-            // Try to remove session from database if it exists
-            // Don't fail if it doesn't - just clear the cookies
-            try {
-                await pool.query(
-                    'DELETE FROM user_sessions WHERE session_token = $1',
-                    [sessionToken]
-                );
-            } catch (error) {
-                console.error('Error deleting session from DB:', error);
-                // Continue anyway - we still want to clear the cookies
-            }
-        }
-
-        // Clear legacy session cookie
-        await clearSessionCookie();
-
-        // Also clear NextAuth session cookie
+        // Clear NextAuth session cookie
         const cookieStore = await cookies();
         
         // Clear the next-auth.session-token cookie (development/HTTP)
@@ -59,7 +38,6 @@ export async function POST() {
         
         // Even on error, try to clear cookies
         try {
-            await clearSessionCookie();
             const cookieStore = await cookies();
             cookieStore.set('next-auth.session-token', '', {
                 httpOnly: true,

@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react'
-import { signOut, useSession } from 'next-auth/react';
+import { signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { CircleUserRound } from 'lucide-react';
@@ -12,22 +12,22 @@ import {
 
 const handleLogout = async () => {
     try {
-        // Call logout endpoint to clear both legacy and NextAuth session cookies
-        await fetch("/api/auth/logout", { 
+        // Call logout endpoint to clear NextAuth session cookies
+        await fetch("/api/auth/logout", {
             method: "POST",
             credentials: "include" // Ensure cookies are sent and received
         });
-        
+
         // Also explicitly sign out from NextAuth to trigger its cleanup
         try {
-            await signOut({ 
+            await signOut({
                 redirect: false,
-                callbackUrl: "/" 
+                callbackUrl: "/"
             });
         } catch (e) {
             console.error('NextAuth signOut error:', e);
         }
-        
+
         // Force redirect to home page after a small delay to ensure cookies are cleared
         setTimeout(() => {
             window.location.href = "/";
@@ -40,11 +40,11 @@ const handleLogout = async () => {
 };
 
 const header = () => {
-  const router = useRouter();
-  
-  return (
-    <div>
-         <header className="bg-card/80 backdrop-blur-sm border-b border-border px-6 py-4">
+    const router = useRouter();
+
+    return (
+        <div>
+            <header className="bg-card/80 backdrop-blur-sm border-b border-border px-6 py-4">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                         <div className="p-2 bg-primary rounded-xl">
@@ -56,30 +56,24 @@ const header = () => {
                         </div>
                     </div>
                     <div className="side flex items-center gap-2">
-                <Button
-                    onClick={() => router.push("/help")}
-                    className="bg-gray-200 text-black hover:bg-gray-300 flex items-center gap-2"
-                >
-                    Help & Support
-                </Button>
-                <Button
-                variant="outline"
-                size="sm"
-                onClick={() => (window.location.href = "/profile")}
-                className="cursor-pointer">
-                      <CircleUserRound  className='hover:cursor-pointer' />
-                </Button>
-                    <Button variant="outline" size="sm" asChild>
-                        <a onClick={handleLogout} className='hover:cursor-pointer'>
-                            <LogOut className="w-4 h-4" />
-                        </a>
-                    </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => (window.location.href = "/profile")}
+                            className="cursor-pointer">
+                            <CircleUserRound className='hover:cursor-pointer' />
+                        </Button>
+                        <Button variant="outline" size="sm" asChild>
+                            <a onClick={handleLogout} className='hover:cursor-pointer'>
+                                <LogOut className="w-4 h-4" />
+                            </a>
+                        </Button>
                     </div>
-                    
+
                 </div>
             </header>
-    </div>
-  )
+        </div>
+    )
 }
 
 export default header
