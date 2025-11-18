@@ -4,6 +4,9 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import ExportDropdown from "@/components/ui/ExportDropdown";
+import * as XLSX from 'xlsx';
 import {
   ArrowLeft,
   PencilLine,
@@ -29,7 +32,6 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
 
 function formatTimeAgo(dateString) {
   const date = new Date(dateString);
@@ -102,6 +104,9 @@ export default function History({ handleSetPage, setQueryToPass }) {
   const [tempTypeFilter, setTempTypeFilter] = useState("all");
   const [tempDateRangeFilter, setTempDateRangeFilter] = useState("all");
   const [tempFavoritesFilter, setTempFavoritesFilter] = useState(false);
+  const exportOptions = ["XLSX", "CSV", "JSON"];
+  const [isExporting, setIsExporting] = useState(false); 
+ 
 
   const handleSaveTitle = async () => {
     if (!editingTitle.id) {
@@ -226,14 +231,33 @@ export default function History({ handleSetPage, setQueryToPass }) {
   const handleRunEditedQuery = async () => {
     setIsModalRunning(true);
     setModalError("");
-
+    const sql = editedSql; 
+    const isSelectQuery = sql.trim().toUpperCase().startsWith("SELECT");
+    let newTitle = null; 
     try {
-      const res = await fetch(`/api/projects/${projectid}/query`, {
+      try {
+    // Request the AI service to generate a natural language title
+    const titleRes = await fetch(`/api/ai/generate-title/${projectid}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sql: sql }),
+    });
+
+    if (titleRes.ok) {
+        const titleData = await titleRes.json();
+        newTitle = titleData.naturalLanguageTitle;
+    }
+} catch (titleError) {
+    console.error("Title generation failed, proceeding without it:", titleError);
+    // If AI fails, newTitle stays null so the raw SQL can be shown instead
+}
+        // query run with new title
+        const res = await fetch(`/api/projects/${projectid}/query`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          query: editedSql,
-          naturalLanguageInput: queryToEdit?.title,
+          query: sql,
+          naturalLanguageInput: newTitle, 
         }),
       });
 
@@ -241,8 +265,17 @@ export default function History({ handleSetPage, setQueryToPass }) {
         const errData = await res.json();
         throw new Error(errData.error || "Failed to run edited query");
       }
-
-      await fetchHistory();
+      const resultData = await res.json();
+      if (isSelectQuery) {
+        // if  select query then show the result
+        const data = resultData.data || [];
+        setRunResult(data);
+        setRunQuerySql(sql);
+        setRunResultHeaders(data.length ? Object.keys(data[0]) : []);
+      } else {
+        // else only refresh
+        await fetchHistory();
+      }
       setIsEditModalOpen(false);
     } catch (err) {
       setModalError(err.message);
@@ -305,6 +338,83 @@ export default function History({ handleSetPage, setQueryToPass }) {
     dateRangeFilter,
     favoritesFilter,
   ]);
+  const downloadFile = ({ data, fileName, fileType }) => {
+    const blob = new Blob([data], { type: fileType });
+    const a = document.createElement("a");
+    a.download = fileName;
+    a.href = window.URL.createObjectURL(blob);
+    const clickEvt = new MouseEvent("click", {
+      view: window,
+      bubbles: true,
+      cancelable: true,
+    });
+    a.dispatchEvent(clickEvt);
+    a.remove();
+  };
+
+  const convertToCSV = (data) => {
+    if (!data || data.length === 0) {
+      return "";
+    }
+    const headers = Object.keys(data[0]);
+    const headerRow = headers.map(h => `"${String(h).replace(/"/g, '""')}"`).join(',');
+    
+    const rows = data.map(row => {
+      return headers.map(header => {
+        let value = row[header];
+        if (value === null || value === undefined) value = "";
+        const stringValue = String(value).replace(/"/g, '""');
+        return `"${stringValue}"`;
+      }).join(',');
+    });
+    
+    return [headerRow, ...rows].join('\n');
+  };
+  const handleExportResult = (format) => {
+    setIsExporting(true);
+    
+    const dataToExport = runResult; 
+    const fileFormat = format.toLowerCase();
+    
+    const queryTitle = queryHistory.find(q => q.sql === runQuerySql)?.title || 'query_result';
+    const safeTitle = queryTitle.replace(/[^a-z0-9]/gi, '_').substring(0, 30);
+    const fileName = `dbuddy_result_${safeTitle}.${fileFormat}`;
+
+    try {
+      if (!dataToExport || dataToExport.length === 0) {
+        alert("No data to export.");
+        setIsExporting(false);
+        return;
+      }
+      if (fileFormat === "xlsx") {
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(dataToExport);
+        XLSX.utils.book_append_sheet(wb, ws, "Result");
+        XLSX.writeFile(wb, fileName);
+
+      } else if (fileFormat === "json") {
+        const jsonData = JSON.stringify(dataToExport, null, 2);
+        downloadFile({
+          data: jsonData,
+          fileName: fileName,
+          fileType: "application/json",
+        });
+      } else if (fileFormat === "csv") {
+        const csvData = convertToCSV(dataToExport);
+        downloadFile({
+          data: csvData,
+          fileName: fileName,
+          fileType: "text/csv;charset=utf-8;",
+        });
+      }
+      
+    } catch (error) {
+      console.error("Export error:", error);
+      alert("Failed to export data.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   useEffect(() => {
     fetchHistory();
@@ -378,9 +488,18 @@ export default function History({ handleSetPage, setQueryToPass }) {
             <ArrowLeft size={16} className="mr-2" />
             Back to History
           </Button>
-          <h2 className="text-2xl font-semibold mb-4 text-blue-900">
-            Query Result
-          </h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-semibold text-blue-900">
+              Query Result
+            </h2>
+            <ExportDropdown
+              options={exportOptions}
+              onSelect={handleExportResult}
+              disabled={!runResult || runResult.length === 0 || isExporting}
+              isLoading={isExporting}
+              className="bg-white shadow-sm"
+            />
+          </div>
           <code className="block bg-gray-100 text-gray-800 p-2 rounded-md text-sm mb-4">
             {runQuerySql}
           </code>
@@ -663,13 +782,10 @@ export default function History({ handleSetPage, setQueryToPass }) {
                         ) : (
                           <>
                             <p
-                              className="font-medium text-gray-800 truncate cursor-pointer hover:underline"
+                              className="font-medium text-gray-800 truncate"
                               title={query.title}
-                              role="button"
-                              tabIndex={0}
                               onClick={() => {
                                 setQueryToPass(query.title);
-                                handleSetPage("query");
                               }}
                               onKeyDown={(e) => {
                                 if (e.key === "Enter") {
