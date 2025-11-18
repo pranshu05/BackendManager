@@ -1,9 +1,19 @@
-import React from 'react';
+'use client';
+
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import PropTypes from 'prop-types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle
+} from '@/components/ui/dialog';
 import {
     Database,
     CheckCircle,
@@ -11,10 +21,29 @@ import {
     AlertCircle,
     ExternalLink,
     Settings,
-    Table
+    Table,
+    Trash2
 } from 'lucide-react';
 
-export function ProjectCard({ project }) {
+export function ProjectCard({ project, onDeleted }) {
+    const [menuOpen, setMenuOpen] = useState(false);
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const menuRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (menuRef.current && !menuRef.current.contains(event.target)) {
+                setMenuOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
+
     const getStatusIcon = () => {
         switch (project.database.status) {
             case 'connected':
@@ -48,74 +77,138 @@ export function ProjectCard({ project }) {
         }
     };
 
+    const handleDeleteProject = async () => {
+        setIsDeleting(true);
+        try {
+            const res = await fetch(`/api/projects/${project.id}`, {
+                method: 'DELETE'
+            });
+
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.error || 'Failed to delete project');
+            }
+
+            if (onDeleted) {
+                onDeleted(project.id);
+            } else if (typeof window !== 'undefined') {
+                window.location.reload();
+            }
+        } catch (error) {
+            console.error('Delete project error:', error);
+            alert(error.message || 'Unable to delete project right now.');
+        } finally {
+            setIsDeleting(false);
+            setConfirmOpen(false);
+        }
+    };
+
     return (
-        <Card className="hover:shadow-lg transition-all duration-300 hover:scale-105 bg-card/90 backdrop-blur-sm border-accent/20">
-            <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-2">
-                        <Database className="w-5 h-5 text-primary" />
-                        <CardTitle className="text-lg">{project.name}</CardTitle>
-                    </div>
-                    <Badge className={`flex items-center space-x-1 ${getStatusColor()}`}>
-                        {getStatusIcon()}
-                        <span className="text-xs">{getStatusText()}</span>
-                    </Badge>
-                </div>
-                <CardDescription className="text-sm line-clamp-2">
-                    {project.description}
-                </CardDescription>
-            </CardHeader>
-
-            <CardContent className="space-y-4">
-                {/* Database Info */}
-                <div className="bg-accent/20 rounded-lg p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-foreground">Database</span>
-                        <span className="text-xs text-muted-foreground font-mono">{project.database.name}</span>
-                    </div>
-
-                    <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center space-x-1">
-                            <Table className="w-4 h-4 text-muted-foreground" />
-                            <span className="text-foreground">{project.database.tables} tables</span>
+        <>
+            <Card className="hover:shadow-lg transition-all duration-300 hover:scale-105 bg-card/90 backdrop-blur-sm border-accent/20">
+                <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                        <div className="flex items-center space-x-2">
+                            <Database className="w-5 h-5 text-primary" />
+                            <CardTitle className="text-lg">{project.name}</CardTitle>
                         </div>
-                        <span className="text-xs text-muted-foreground">
-                            Modified {project.database.lastModified}
-                        </span>
+                        <Badge className={`flex items-center space-x-1 ${getStatusColor()}`}>
+                            {getStatusIcon()}
+                            <span className="text-xs">{getStatusText()}</span>
+                        </Badge>
                     </div>
-                </div>
+                    <CardDescription className="text-sm line-clamp-2">
+                        {project.description}
+                    </CardDescription>
+                </CardHeader>
 
-                {/* Actions */}
-                <div className="flex space-x-2">
-                    <Link
-                        href={`/dashboard/projects/${project.id}`}
-                        className="flex-1"
-                        onClick={(e) => { if (project.database.status !== 'connected') { e.preventDefault(); } }}
-                    >
-                        <Button
-                            size="sm"
-                            className="w-full"
-                            disabled={project.database.status !== 'connected'}
+                <CardContent className="space-y-4">
+                    {/* Database Info */}
+                    <div className="bg-accent/20 rounded-lg p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-foreground">Database</span>
+                            <span className="text-xs text-muted-foreground font-mono">{project.database.name}</span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-sm">
+                            <div className="flex items-center space-x-1">
+                                <Table className="w-4 h-4 text-muted-foreground" />
+                                <span className="text-foreground">{project.database.tables} tables</span>
+                            </div>
+                            <span className="text-xs text-muted-foreground">
+                                Modified {project.database.lastModified}
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex space-x-2">
+                        <Link
+                            href={`/dashboard/projects/${project.id}`}
+                            className="flex-1"
+                            onClick={(e) => { if (project.database.status !== 'connected') { e.preventDefault(); } }}
                         >
-                            <ExternalLink className="w-4 h-4 mr-1" />
-                            Open
-                        </Button>
-                    </Link>
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={project.database.status !== 'connected'}
-                    >
-                        <Settings className="w-4 h-4" />
-                    </Button>
-                </div>
+                            <Button
+                                size="sm"
+                                className="w-full"
+                                disabled={project.database.status !== 'connected'}
+                            >
+                                <ExternalLink className="w-4 h-4 mr-1" />
+                                Open
+                            </Button>
+                        </Link>
+                        <div className="relative" ref={menuRef}>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={project.database.status !== 'connected'}
+                                onClick={() => setMenuOpen((prev) => !prev)}
+                            >
+                                <Settings className="w-4 h-4" />
+                            </Button>
+                            {menuOpen && (
+                                <div className="absolute right-0 mt-2 w-48 rounded-md border border-border bg-card shadow-lg z-20 p-1">
+                                    <button
+                                        className="w-full flex items-center gap-2 rounded-sm px-3 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground transition-colors"
+                                        onClick={() => {
+                                            setConfirmOpen(true);
+                                            setMenuOpen(false);
+                                        }}
+                                    >
+                                        <Trash2 className="w-4 h-4 text-destructive" />
+                                        Delete Database
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
 
-                {/* Creation Date */}
-                <div className="text-xs text-muted-foreground border-t border-border pt-2">
-                    Created on {new Date(project.createdAt).toLocaleDateString()}
-                </div>
-            </CardContent>
-        </Card>
+                    {/* Creation Date */}
+                    <div className="text-xs text-muted-foreground border-t border-border pt-2">
+                        Created on {new Date(project.createdAt).toLocaleDateString()}
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Dialog open={confirmOpen} onOpenChange={(open) => !isDeleting && setConfirmOpen(open)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Delete this database?</DialogTitle>
+                        <DialogDescription>
+                            This will permanently delete <span className="font-semibold">{project.database.name}</span> and all of its data. This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setConfirmOpen(false)} disabled={isDeleting}>
+                            Cancel
+                        </Button>
+                        <Button variant="destructive" onClick={handleDeleteProject} disabled={isDeleting}>
+                            {isDeleting ? 'Deleting...' : 'Delete'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
     );
 }
 
@@ -132,4 +225,9 @@ ProjectCard.propTypes = {
         }).isRequired,
         createdAt: PropTypes.string.isRequired,
     }).isRequired,
+    onDeleted: PropTypes.func,
+};
+
+ProjectCard.defaultProps = {
+    onDeleted: undefined,
 };
