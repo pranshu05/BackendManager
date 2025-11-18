@@ -408,3 +408,52 @@ Return ONLY this JSON (no markdown):
 
     return parseAIResponse(text);
 }
+export async function generateTitleFromSql(sqlQuery, schema) {
+    // Prepare schema details so the AI understands the database structure
+    const schemaContext = schema.map(t => {
+        const columns = t.columns.map(c => `${c.name} (${c.type})`).join(', ');
+        return `Table "${t.name}": ${columns}`;
+    }).join('\n');
+
+    // Build the prompt that will be sent to the AI model
+    const prompt = `You are an expert SQL analyst. Based on the database schema and the following SQL query, generate a short, concise, human-readable title in natural language (max 10 words).
+
+Database Schema:
+${schemaContext}
+
+SQL Query:
+"${sqlQuery}"
+
+Requirements:
+1.  Do NOT just repeat the SQL.
+2.  Summarize what the query is *doing* (e.g., "Find all users in the HR department", "Count total orders by customer", "Update product price for 'Laptop'").
+3.  Return ONLY the single string for the title. No JSON, no markdown, no extra text.
+
+Example Title: "Get all users from the marketing department"
+
+Generated Title:`;
+
+    try {
+        // Ask the AI model to generate the title
+        const { text } = await generateText({
+            model: groq(DEFAULT_MODEL),
+            prompt,
+            temperature: 0.3,
+            maxTokens: 100,
+        });
+
+        // Clean extra formatting from AI output
+        const cleanedTitle = cleanMarkdownCodeBlocks(text).replace(/^"|"$/g, '');
+
+        if (!cleanedTitle) {
+            throw new Error("AI returned an empty title.");
+        }
+
+        return cleanedTitle;
+
+    } catch (error) {
+        // If AI fails, return a small part of SQL as fallback title
+        return sqlQuery.substring(0, 50) + "...";
+    }
+}
+

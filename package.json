@@ -40,6 +40,7 @@
         "react-zoom-pan-pinch": "^3.7.0",
         "tailwind-merge": "^3.3.1",
         "winston": "^3.17.0",
+        "xlsx": "^0.18.5",
         "zod": "^4.1.8"
     },
     "devDependencies": {
