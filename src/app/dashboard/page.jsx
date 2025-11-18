@@ -226,25 +226,32 @@ export default function DashboardPage() {
                         </Card>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {projects.map((project) => (
-                                <ProjectCard
-                                    key={project.id}
-                                    project={{
-                                        id: project.id,
+                            {projects.map((project) => {
+                                const normalizedProject = {
+                                    id: project.id,
+                                    name: project.project_name,
+                                    description: project.description,
+                                    database: {
                                         name: project.project_name,
-                                        description: project.description,
-                                        database: {
-                                            name: project.project_name,
-                                            status: project.is_active ? "connected" : "error",
-                                            tables: project.table_count || 0,
-                                            lastModified: new Date(
-                                                project.updated_at
-                                            ).toLocaleString(),
-                                        },
-                                        createdAt: project.created_at,
-                                    }}
-                                />
-                            ))}
+                                        status: project.is_active ? "connected" : "error",
+                                        tables: project.table_count || 0,
+                                        lastModified: new Date(
+                                            project.updated_at
+                                        ).toLocaleString(),
+                                    },
+                                    createdAt: project.created_at,
+                                };
+
+                                return (
+                                    <ProjectCard
+                                        key={project.id}
+                                        project={normalizedProject}
+                                        onDeleted={(deletedId) =>
+                                            setProjects((prev) => prev.filter((p) => p.id !== deletedId))
+                                        }
+                                    />
+                                );
+                            })}
                         </div>
                     )}
                 </section>

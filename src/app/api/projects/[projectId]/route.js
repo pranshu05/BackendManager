@@ -40,10 +40,16 @@ export const PUT = withProjectAuth(async (request, _context, user, project) => {
     });
 });
 
+function isNeonManagedProject(connectionString = '') {
+    const neonHostHint = process.env.NEON_HOST_HINT || 'neon.tech';
+    return connectionString.includes(neonHostHint);
+}
+
 // Delete project
 export const DELETE = withProjectAuth(async (_request, _context, user, project) => {
-    // Delete the associated database
-    await deleteUserDatabase(project.database_name);
+    if (isNeonManagedProject(project.connection_string)) {
+        await deleteUserDatabase(project.database_name);
+    }
 
     const result = await pool.query(`
         DELETE FROM user_projects 
