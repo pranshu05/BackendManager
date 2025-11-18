@@ -24,8 +24,8 @@ function cleanMarkdownCodeBlocks(text) {
 }
 
 
-export async function generatequerysuggestions(schema){
-const prompt = `You are a helpful assistant that generates SQL query suggestions based on the provided database schema.
+export async function generatequerysuggestions(schema) {
+    const prompt = `You are a helpful assistant that generates SQL query suggestions based on the provided database schema.
 Database Schema:
 ${JSON.stringify(schema, null, 2)}  
 Generate 4 diverse and relevant query suggestions in natural language that a user might want to run against this database.
@@ -47,12 +47,12 @@ Return ONLY a JSON array of strings (no markdown, no extra text):
 
         //to clean and parse the response
         const suggestions = parseAIResponse(text);
-       
+
         //basic validation
         if (!Array.isArray(suggestions)) {
             throw new Error('Invalid suggestions format returned from AI');
         }
-       
+
         return suggestions;
     } catch (error) {
         console.error('Error generating query suggestions:', error);
@@ -451,9 +451,145 @@ Generated Title:`;
 
         return cleanedTitle;
 
-    } catch (error) {
+    } catch {
         // If AI fails, return a small part of SQL as fallback title
         return sqlQuery.substring(0, 50) + "...";
     }
 }
 
+/**
+ * Generate database optimization suggestions using AI
+ * @param {Array} schema - Database schema with table and column information
+ * @returns {Promise<Object>} - Optimization suggestions with various categories
+ */
+export async function generateOptimizationSuggestions(schema) {
+    // Prepare detailed schema context for AI
+    const schemaContext = schema.map(table => {
+        const columns = table.columns.map(col => {
+            let colInfo = `${col.name} (${col.type})`;
+            if (col.constraints && col.constraints.length > 0) {
+                colInfo += ` [${col.constraints.join(', ')}]`;
+            }
+            if (col.references) {
+                colInfo += ` -> ${col.references}`;
+            }
+            return colInfo;
+        }).join('\n      ');
+        
+        return `Table: ${table.name}\n    Columns:\n      ${columns}`;
+    }).join('\n\n');
+
+    const prompt = `You are a database optimization expert. Analyze the following PostgreSQL database schema and provide optimization suggestions.
+
+Database Schema:
+${schemaContext}
+
+Analyze the schema and provide optimization suggestions in the following categories:
+
+1. **Missing Indexes**: Identify columns that would benefit from indexes based on:
+   - Foreign key columns without indexes
+   - Columns likely used in WHERE clauses (status, type, category fields)
+   - Columns used in JOIN operations
+   - Date/timestamp columns used for filtering
+
+2. **Query Performance**: Suggest typical query patterns that might be slow and how to optimize them
+
+3. **Schema Improvements**: Identify:
+   - Missing constraints (foreign keys, unique constraints, check constraints)
+   - Data type optimizations
+   - Normalization issues
+   - Missing timestamps (created_at, updated_at)
+
+4. **Potential Issues**: Flag:
+   - Tables with no primary key
+   - Tables with many columns (might need normalization)
+   - Missing relationships between tables
+   - Redundant or duplicate columns
+
+Return ONLY valid JSON in this exact format (no markdown, no extra text):
+{
+  "totalSuggestions": 0,
+  "queryPerformance": [
+    {
+      "name": "Query type description",
+      "time": 0,
+      "count": 0,
+      "suggestion": "How to optimize this query pattern"
+    }
+  ],
+  "missingIndexes": [
+    {
+      "tableName": "table_name",
+      "columnName": "column_name",
+      "scanCount": 0,
+      "suggestion": "CREATE INDEX idx_table_column ON table_name(column_name);",
+      "severity": "HIGH|MEDIUM|LOW",
+      "estimatedImprovement": "percentage or description",
+      "reason": "Why this index is needed"
+    }
+  ],
+  "schemaImprovements": [
+    {
+      "tableName": "table_name",
+      "issue": "Description of the issue",
+      "suggestion": "SQL or recommendation to fix",
+      "priority": "HIGH|MEDIUM|LOW",
+      "impact": "Description of the impact"
+    }
+  ],
+  "potentialIssues": [
+    {
+      "tableName": "table_name",
+      "issue": "Description of the issue",
+      "severity": "HIGH|MEDIUM|LOW",
+      "recommendation": "What should be done"
+    }
+  ]
+}
+
+Important:
+- Provide realistic and actionable suggestions
+- Set totalSuggestions to the sum of all suggestions across categories
+- For queryPerformance, estimate execution times in milliseconds
+- For missingIndexes, provide exact CREATE INDEX statements
+- Prioritize suggestions by severity/priority
+- Be specific about the benefits of each optimization`;
+
+    try {
+        const { text } = await generateText({
+            model: groq(DEFAULT_MODEL),
+            prompt,
+            temperature: 0.3,
+            maxTokens: 3000,
+        });
+
+        const suggestions = parseAIResponse(text);
+
+        // Validate structure
+        if (!suggestions || typeof suggestions !== 'object') {
+            throw new Error('Invalid optimization suggestions structure');
+        }
+
+        // Ensure all required fields exist with defaults
+        const result = {
+            totalSuggestions: suggestions.totalSuggestions || 0,
+            queryPerformance: Array.isArray(suggestions.queryPerformance) ? suggestions.queryPerformance : [],
+            missingIndexes: Array.isArray(suggestions.missingIndexes) ? suggestions.missingIndexes : [],
+            schemaImprovements: Array.isArray(suggestions.schemaImprovements) ? suggestions.schemaImprovements : [],
+            potentialIssues: Array.isArray(suggestions.potentialIssues) ? suggestions.potentialIssues : []
+        };
+
+        // Recalculate totalSuggestions if needed
+        if (result.totalSuggestions === 0) {
+            result.totalSuggestions = 
+                result.missingIndexes.length + 
+                result.schemaImprovements.length + 
+                result.potentialIssues.length;
+        }
+
+        return result;
+    } catch (error) {
+        console.error('Error generating optimization suggestions:', error);
+        throw new Error(`Failed to generate optimization suggestions: ${error.message}`);
+    }
+}
