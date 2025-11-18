@@ -34,74 +34,8 @@ export default function Optimization() {
         }
     }, [projectid, fetchOptimizationData]);
 
-    const adjustOptimizationData = useCallback((updater) => {
-        setOptimizationData(prev => {
-            if (!prev) return prev;
-            const draft = typeof updater === 'function' ? updater(prev) : prev;
-            return draft;
-        });
-    }, []);
-
-    const decrementSuggestions = useCallback(() => {
-        adjustOptimizationData(prev => ({
-            ...prev,
-            totalSuggestions: Math.max(0, (prev.totalSuggestions ?? 0) - 1)
-        }));
-    }, [adjustOptimizationData]);
-
-    const dismissHighlightedIndex = useCallback(() => {
-        adjustOptimizationData(prev => {
-            if (!prev?.missingIndexes || prev.missingIndexes.length === 0) return prev;
-            const [, ...rest] = prev.missingIndexes;
-            return {
-                ...prev,
-                missingIndexes: rest,
-                totalSuggestions: Math.max(0, (prev.totalSuggestions ?? 0) - 1)
-            };
-        });
-    }, [adjustOptimizationData]);
-
-    const applyLocalActionResult = useCallback((action, result) => {
-        adjustOptimizationData(prev => {
-            if (!prev) return prev;
-            if (action === 'create_index') {
-                const [, ...rest] = prev.missingIndexes || [];
-                return {
-                    ...prev,
-                    missingIndexes: rest,
-                    totalSuggestions: Math.max(0, (prev.totalSuggestions ?? 0) - 1)
-                };
-            }
-            if (action === 'remove_table') {
-                const filtered = (prev.unusedTables || []).filter(
-                    table => table.tableName !== result?.tableName
-                );
-                return {
-                    ...prev,
-                    unusedTables: filtered,
-                    totalSuggestions: Math.max(0, (prev.totalSuggestions ?? 0) - 1)
-                };
-            }
-            if (action === 'remove_duplicates') {
-                const filtered = (prev.duplicateRecords || []).filter(
-                    record =>
-                        !(
-                            record.tableName === result?.tableName &&
-                            record.columnName === result?.columnName
-                        )
-                );
-                return {
-                    ...prev,
-                    duplicateRecords: filtered,
-                    totalSuggestions: Math.max(0, (prev.totalSuggestions ?? 0) - 1)
-                };
-            }
-            return prev;
-        });
-    }, [adjustOptimizationData]);
-
-    const handleOptimizationAction = useCallback(async ({ action, targetTable, targetColumn, duplicateIds }) => {
-        if (!projectid || !action || !targetTable) return;
+    const handleApplyOptimization = useCallback(async (sql, category, index, description) => {
+        if (!projectid || !sql) return;
         try {
             setActionLoading(true);
             setActionStatus(null);
@@ -109,10 +43,9 @@ export default function Optimization() {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    action,
-                    targetTable,
-                    targetColumn,
-                    duplicateIds
+                    action: 'apply',
+                    sql,
+                    description: description || 'Database optimization'
                 })
             });
 
@@ -121,17 +54,56 @@ export default function Optimization() {
                 throw new Error(data?.error || 'Failed to apply optimization');
             }
 
-            applyLocalActionResult(action, data.result);
+            // Remove the applied suggestion from UI
+            setOptimizationData(prev => {
+                if (!prev) return prev;
+                
+                const newData = { ...prev };
+                
+                if (category === 'missingIndexes') {
+                    newData.missingIndexes = [...prev.missingIndexes];
+                    newData.missingIndexes.splice(index, 1);
+                } else if (category === 'schemaImprovements') {
+                    newData.schemaImprovements = [...prev.schemaImprovements];
+                    newData.schemaImprovements.splice(index, 1);
+                }
+                
+                newData.totalSuggestions = Math.max(0, (prev.totalSuggestions || 0) - 1);
+                
+                return newData;
+            });
+
             setActionStatus({ type: 'success', message: data.message || 'Optimization applied successfully.' });
-            if (action === 'create_index') {
-                setShowSuccessModal(true);
-            }
+            setShowSuccessModal(true);
         } catch (err) {
             setActionStatus({ type: 'error', message: err.message || 'Failed to apply optimization.' });
         } finally {
             setActionLoading(false);
         }
-    }, [projectid, applyLocalActionResult]);
+    }, [projectid]);
+
+    const handleDismiss = useCallback((category, index) => {
+        setOptimizationData(prev => {
+            if (!prev) return prev;
+            
+            const newData = { ...prev };
+            
+            if (category === 'missingIndexes') {
+                newData.missingIndexes = [...prev.missingIndexes];
+                newData.missingIndexes.splice(index, 1);
+            } else if (category === 'schemaImprovements') {
+                newData.schemaImprovements = [...prev.schemaImprovements];
+                newData.schemaImprovements.splice(index, 1);
+            } else if (category === 'potentialIssues') {
+                newData.potentialIssues = [...prev.potentialIssues];
+                newData.potentialIssues.splice(index, 1);
+            }
+            
+            newData.totalSuggestions = Math.max(0, (prev.totalSuggestions || 0) - 1);
+            
+            return newData;
+        });
+    }, []);
 
     const styles = {
         optimizationContainer: {
@@ -606,11 +578,9 @@ export default function Optimization() {
         () => Math.max(...queryPerformance.map(item => item.time || 0), 1),
         [queryPerformance]
     );
-    const missingIndexes = optimizationData && optimizationData.missingIndexes ? optimizationData.missingIndexes : [];
-    const highlightedIndex = missingIndexes[0] || null;
-    const additionalIndexes = missingIndexes.slice(1);
-    const unusedTables = optimizationData && optimizationData.unusedTables ? optimizationData.unusedTables : [];
-    const duplicateRecords = optimizationData && optimizationData.duplicateRecords ? optimizationData.duplicateRecords : [];
+    const missingIndexes = optimizationData?.missingIndexes || [];
+    const schemaImprovements = optimizationData?.schemaImprovements || [];
+    const potentialIssues = optimizationData?.potentialIssues || [];
 
     if (loading) {
         return <div style={styles.loadingContainer}>Loading optimization data...</div>;
@@ -634,7 +604,7 @@ export default function Optimization() {
             </div>
 
             {optimizationData?.warning && (
-                <div style={{ ...styles.card, borderColor: "#FACC15", color: "#92400E" }}>
+                <div style={{ ...styles.card, borderColor: "#FACC15", color: "#92400E", margin: "24px auto", width: "90%" }}>
                     {optimizationData.warning}
                 </div>
             )}
@@ -651,14 +621,14 @@ export default function Optimization() {
             )}
 
             {/* Query Performance Card */}
-            <div style={styles.card}>
-                <div style={styles.cardHeader}>
-                    <h2 style={styles.cardTitle}>Query Performance</h2>
-                    <p style={styles.cardDescription}>
-                        Average execution time (ms) for different query types
-                    </p>
-                </div>
-                {queryPerformance.length > 0 ? (
+            {queryPerformance.length > 0 && (
+                <div style={styles.card}>
+                    <div style={styles.cardHeader}>
+                        <h2 style={styles.cardTitle}>Query Performance</h2>
+                        <p style={styles.cardDescription}>
+                            AI-estimated execution times for common query patterns
+                        </p>
+                    </div>
                     <div style={styles.cardContent}>
                         {queryPerformance.map((query, idx) => (
                             <div key={`${query.name}-${idx}`} style={styles.performanceItem}>
@@ -674,90 +644,191 @@ export default function Optimization() {
                                         }}
                                     ></div>
                                 </div>
+                                {query.suggestion && (
+                                    <p style={{...styles.cardDescription, marginTop: "8px", fontSize: "14px"}}>
+                                        💡 {query.suggestion}
+                                    </p>
+                                )}
                             </div>
                         ))}
                     </div>
-                ) : (
-                    <p style={styles.cardDescription}>No recent query activity.</p>
-                )}
-            </div>
+                </div>
+            )}
 
-            {/* Missing Index Alert Card */}
-            {highlightedIndex ? (
-                <div style={styles.cardAlert}>
+            {/* Missing Indexes */}
+            {missingIndexes.length > 0 && missingIndexes.map((index, idx) => (
+                <div key={`index-${idx}`} style={styles.cardAlert}>
                     <div style={styles.alertHeader}>
                         <div style={styles.alertIcon}>⚠️</div>
                         <div style={styles.alertTitleContainer}>
                             <h3 style={styles.alertTitle}>
-                                Missing Index on '{highlightedIndex.columnName}'
+                                Missing Index: {index.tableName}.{index.columnName}
                             </h3>
-                            <span style={styles.badgeHigh}>{highlightedIndex.severity || "HIGH"}</span>
+                            <span style={styles.badgeHigh}>{index.severity || "HIGH"}</span>
                         </div>
                     </div>
                     <p style={styles.alertDescription}>
-                        Frequent scans detected on {highlightedIndex.tableName}.{highlightedIndex.columnName}. 
-                        Estimated scans: {highlightedIndex.scanCount != null ? highlightedIndex.scanCount : "n/a"}.
+                        {index.reason || `Adding an index on this column could improve query performance.`}
                     </p>
                     <div style={styles.cardContent}>
                         <div style={styles.alertBox}>
                             <div style={styles.alertIcon}>💡</div>
                             <div style={styles.alertDetails}>
-                                <p style={styles.alertLabel}>Suggestion</p>
+                                <p style={styles.alertLabel}>SQL Command</p>
                                 <code style={styles.sqlCode}>
-                                    {highlightedIndex.suggestion || "N/A"}
+                                    {index.suggestion}
                                 </code>
                             </div>
                         </div>
-                        <div style={styles.performanceInsight}>
-                            <span style={styles.improvementIcon}>📈</span>
-                            <span style={styles.improvementText}>
-                                Could improve query performance by up to {highlightedIndex.estimatedImprovement || "60%"}
-                            </span>
-                        </div>
+                        {index.estimatedImprovement && (
+                            <div style={styles.performanceInsight}>
+                                <span style={styles.improvementIcon}>📈</span>
+                                <span style={styles.improvementText}>
+                                    Estimated improvement: {index.estimatedImprovement}
+                                </span>
+                            </div>
+                        )}
                     </div>
                     <div style={styles.actionButtons}>
                         <button
                             style={{ ...styles.buttonIgnore, opacity: actionLoading ? 0.7 : 1 }}
                             disabled={actionLoading}
-                            onClick={dismissHighlightedIndex}
+                            onClick={() => handleDismiss('missingIndexes', idx)}
                         >
                             <span>✕</span> Ignore
                         </button>
                         <button
                             style={{ ...styles.buttonApply, opacity: actionLoading ? 0.7 : 1 }}
                             disabled={actionLoading}
-                            onClick={() => handleOptimizationAction({
-                                action: 'create_index',
-                                targetTable: highlightedIndex.tableName,
-                                targetColumn: highlightedIndex.columnName
-                            })}
+                            onClick={() => handleApplyOptimization(
+                                index.suggestion, 
+                                'missingIndexes', 
+                                idx,
+                                `Index optimization: ${index.reason || 'Improve query performance'}`
+                            )}
                         >
-                            <span>✓</span> Apply Optimization
+                            <span>✓</span> Apply Index
                         </button>
                     </div>
                 </div>
-            ) : null}
+            ))}
 
-            {additionalIndexes.length > 0 && (
+            {/* Schema Improvements */}
+            {schemaImprovements.length > 0 && (
                 <div style={styles.card}>
-                    <h2 style={styles.cardTitle}>Other Index Suggestions</h2>
+                    <div style={styles.cardHeader}>
+                        <h2 style={styles.cardTitle}>Schema Improvements</h2>
+                        <p style={styles.cardDescription}>
+                            AI-recommended improvements to your database schema
+                        </p>
+                    </div>
+                    <div style={styles.cardContent}>
+                        {schemaImprovements.map((improvement, idx) => (
+                            <div key={`improvement-${idx}`} style={{
+                                ...styles.alertBox,
+                                marginBottom: idx < schemaImprovements.length - 1 ? "16px" : "0"
+                            }}>
+                                <div style={styles.alertDetails}>
+                                    <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px"}}>
+                                        <p style={styles.alertLabel}>
+                                            <strong>{improvement.tableName}</strong> - {improvement.issue}
+                                        </p>
+                                        <span style={{
+                                            ...styles.badgeHigh,
+                                            background: improvement.priority === 'HIGH' ? '#D4183D' : 
+                                                       improvement.priority === 'MEDIUM' ? '#F59E0B' : '#10B981',
+                                            padding: "2px 8px",
+                                            borderRadius: "4px",
+                                            fontSize: "12px"
+                                        }}>
+                                            {improvement.priority || "MEDIUM"}
+                                        </span>
+                                    </div>
+                                    {improvement.suggestion && (
+                                        <code style={styles.sqlCode}>
+                                            {improvement.suggestion}
+                                        </code>
+                                    )}
+                                    {improvement.impact && (
+                                        <p style={{...styles.cardDescription, marginTop: "8px", fontSize: "14px"}}>
+                                            Impact: {improvement.impact}
+                                        </p>
+                                    )}
+                                    <div style={{...styles.actionButtons, marginTop: "12px"}}>
+                                        <button
+                                            style={{ ...styles.buttonIgnore, opacity: actionLoading ? 0.7 : 1 }}
+                                            disabled={actionLoading}
+                                            onClick={() => handleDismiss('schemaImprovements', idx)}
+                                        >
+                                            <span>✕</span> Dismiss
+                                        </button>
+                                        {improvement.suggestion && improvement.suggestion.trim().toUpperCase().startsWith('ALTER') && (
+                                            <button
+                                                style={{ ...styles.buttonApply, opacity: actionLoading ? 0.7 : 1 }}
+                                                disabled={actionLoading}
+                                                onClick={() => handleApplyOptimization(
+                                                    improvement.suggestion, 
+                                                    'schemaImprovements', 
+                                                    idx,
+                                                    `Schema improvement: ${improvement.issue} - ${improvement.impact || 'Optimize database structure'}`
+                                                )}
+                                            >
+                                                <span>✓</span> Apply
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Potential Issues */}
+            {potentialIssues.length > 0 && (
+                <div style={styles.card}>
+                    <div style={styles.cardHeader}>
+                        <h2 style={styles.cardTitle}>Potential Issues</h2>
+                        <p style={styles.cardDescription}>
+                            AI-identified issues that may require manual review
+                        </p>
+                    </div>
                     <div style={styles.tableContainer}>
                         <table style={styles.dataTable}>
                             <thead style={styles.tableHeader}>
                                 <tr>
                                     <th style={styles.tableHeaderCell}>Table</th>
-                                    <th style={styles.tableHeaderCell}>Column</th>
-                                    <th style={styles.tableHeaderCell}>Scans</th>
-                                    <th style={styles.tableHeaderCell}>Improvement</th>
+                                    <th style={styles.tableHeaderCell}>Issue</th>
+                                    <th style={styles.tableHeaderCell}>Severity</th>
+                                    <th style={styles.tableHeaderCell}>Recommendation</th>
+                                    <th style={styles.tableHeaderCell}>Action</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {additionalIndexes.map((item, idx) => (
-                                    <tr key={`${item.tableName}-${item.columnName}-${idx}`} style={styles.tableRow}>
-                                        <td style={styles.tableCell}>{item.tableName}</td>
-                                        <td style={styles.tableCell}>{item.columnName}</td>
-                                        <td style={{ ...styles.tableCell, ...styles.centerAlign }}>{item.scanCount != null ? item.scanCount : "–"}</td>
-                                        <td style={styles.tableCell}>{item.estimatedImprovement || "60%"}</td>
+                                {potentialIssues.map((issue, idx) => (
+                                    <tr key={`issue-${idx}`} style={styles.tableRow}>
+                                        <td style={styles.tableCell}>{issue.tableName}</td>
+                                        <td style={styles.tableCell}>{issue.issue}</td>
+                                        <td style={{ ...styles.tableCell, ...styles.centerAlign }}>
+                                            <span style={{
+                                                ...styles.badgeHigh,
+                                                background: issue.severity === 'HIGH' ? '#D4183D' : 
+                                                           issue.severity === 'MEDIUM' ? '#F59E0B' : '#10B981',
+                                                padding: "4px 8px",
+                                                borderRadius: "4px"
+                                            }}>
+                                                {issue.severity || "MEDIUM"}
+                                            </span>
+                                        </td>
+                                        <td style={styles.tableCell}>{issue.recommendation}</td>
+                                        <td style={{ ...styles.tableCell, ...styles.actionCell }}>
+                                            <button
+                                                style={styles.actionButton}
+                                                onClick={() => handleDismiss('potentialIssues', idx)}
+                                            >
+                                                Dismiss
+                                            </button>
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -766,113 +837,12 @@ export default function Optimization() {
                 </div>
             )}
 
-            {/* Unused or Empty Tables Card */}
-            <div style={styles.card}>
-                <div style={styles.cardHeader}>
-                    <h2 style={styles.cardTitle}>Unused or Empty Tables</h2>
-                    <p style={styles.cardDescription}>
-                        These tables have no data or are not being used. You can safely remove them.
-                    </p>
-                </div>
-                <div style={styles.tableContainer}>
-                    <table style={styles.dataTable}>
-                        <thead style={styles.tableHeader}>
-                            <tr>
-                                <th style={styles.tableHeaderCell}>Table Name</th>
-                                <th style={styles.tableHeaderCell}>Rows</th>
-                                <th style={styles.tableHeaderCell}>Last Used</th>
-                                <th style={styles.tableHeaderCell}>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {unusedTables.length === 0 ? (
-                                <tr style={styles.tableRow}>
-                                    <td style={styles.tableCell} colSpan={4}>No unused tables detected.</td>
-                                </tr>
-                            ) : (
-                                unusedTables.map((table, idx) => (
-                                    <tr key={`${table.tableName}-${idx}`} style={styles.tableRow}>
-                                        <td style={styles.tableCell}>{table.tableName}</td>
-                                        <td style={{ ...styles.tableCell, ...styles.centerAlign }}>{table.rowCount != null ? table.rowCount : 0}</td>
-                                        <td style={styles.tableCell}>{table.lastUsed}</td>
-                                        <td style={{ ...styles.tableCell, ...styles.actionCell }}>
-                                            <button
-                                                style={{ ...styles.actionButton, opacity: actionLoading ? 0.7 : 1 }}
-                                                disabled={actionLoading}
-                                                onClick={() => handleOptimizationAction({
-                                                    action: 'remove_table',
-                                                    targetTable: table.tableName
-                                                })}
-                                            >
-                                                Delete Table
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            {/* Duplicate Records Card */}
-            <div style={styles.card}>
-                <div style={styles.cardHeader}>
-                    <h2 style={styles.cardTitle}>Duplicate Records</h2>
-                    <p style={styles.cardDescription}>
-                        Same data found multiple times in this table. You can clean it with one click.
-                    </p>
-                </div>
-                <div style={styles.tableContainer}>
-                    <table style={styles.dataTable}>
-                        <thead style={styles.tableHeader}>
-                            <tr>
-                                <th style={styles.tableHeaderCell}>Table Name</th>
-                                <th style={styles.tableHeaderCell}>Duplicate Count</th>
-                                <th style={styles.tableHeaderCell}>Suggested Actions</th>
-                                <th style={styles.tableHeaderCell}>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {duplicateRecords.length === 0 ? (
-                                <tr style={styles.tableRow}>
-                                    <td style={styles.tableCell} colSpan={4}>No duplicate patterns found.</td>
-                                </tr>
-                            ) : (
-                                duplicateRecords.map((record, idx) => (
-                                    <tr key={`${record.tableName}-${record.columnName}-${idx}`} style={styles.tableRow}>
-                                        <td style={styles.tableCell}>{record.tableName}</td>
-                                        <td style={{ ...styles.tableCell, ...styles.centerAlign }}>
-                                            <span style={styles.duplicateBadge}>
-                                                {record.duplicateCount} duplicates
-                                            </span>
-                                        </td>
-                                        <td style={styles.tableCell}>{record.suggestedAction || `Review ${record.columnName}`}</td>
-                                        <td style={{ ...styles.tableCell, ...styles.actionCell }}>
-                                            <button
-                                                style={{ ...styles.removeButton, opacity: actionLoading ? 0.7 : 1 }}
-                                                disabled={actionLoading}
-                                                onClick={() => handleOptimizationAction({
-                                                    action: 'remove_duplicates',
-                                                    targetTable: record.tableName,
-                                                    targetColumn: record.columnName
-                                                })}
-                                            >
-                                                Remove Duplicates
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            {/* Success Modal */}
             {showSuccessModal && (
                 <div style={styles.modalOverlay}>
                     <div style={styles.modalContent}>
-                        <h3 style={styles.modalTitle}>Change Successful</h3>
-                        <p>Your optimization has been applied.</p>
+                        <h3 style={styles.modalTitle}>✓ Optimization Applied</h3>
+                        <p>Your optimization has been successfully applied to the database.</p>
                         <button
                             style={styles.modalButton}
                             onClick={() => setShowSuccessModal(false)}
