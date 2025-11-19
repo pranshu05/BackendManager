@@ -5,13 +5,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ProjectCard } from "@/components/(dashboard)/ProjectCard";
 import ImportDatabase from '@/components/(dashboard)/ImportDatabase';
-import { Database, LogOut, CheckCircle, Table, User, Sparkles, HelpCircle } from "lucide-react";
+import { Database, LogOut, CheckCircle, Table, User, Sparkles, HelpCircle, Search } from "lucide-react";
 import './index.css';
 
 export default function DashboardPage() {
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
     const [nlInput, setNlInput] = useState("");
+    const [searchTerm, setSearchTerm] = useState("");
     const [creating, setCreating] = useState(false);
 
     useEffect(() => {
@@ -199,8 +200,20 @@ export default function DashboardPage() {
                             Your Projects
                         </h2>
                         <div className="flex items-center gap-4">
-                            <div className="text-sm text-muted-foreground">
-                                {projects.length} project{projects.length !== 1 ? "s" : ""}
+                            <div className="flex items-center space-x-2">
+                                <div className="relative">
+                                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                    <input
+                                        type="search"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        placeholder="Search projects..."
+                                        className="pl-9 pr-3 py-2 rounded-md border border-border bg-card/60 text-sm focus:outline-none"
+                                    />
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                    {projects.length} project{projects.length !== 1 ? "s" : ""}
+                                </div>
                             </div>
                             <ImportDatabase onImported={(proj) => {
                                 window.location.reload();
@@ -227,34 +240,59 @@ export default function DashboardPage() {
                             </CardContent>
                         </Card>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {projects.map((project) => {
-                                const normalizedProject = {
-                                    id: project.id,
-                                    name: project.project_name,
-                                    description: project.description,
-                                    database: {
-                                        name: project.project_name,
-                                        status: project.is_active ? "connected" : "error",
-                                        tables: project.table_count || 0,
-                                        lastModified: new Date(
-                                            project.updated_at
-                                        ).toLocaleString(),
-                                    },
-                                    createdAt: project.created_at,
-                                };
+                        (() => {
+                            const filteredProjects = projects.filter((project) => {
+                                if (!searchTerm || !searchTerm.trim()) return true;
+                                const q = searchTerm.toLowerCase();
+                                const name = (project.project_name || '').toLowerCase();
+                                const desc = (project.description || '').toLowerCase();
+                                return name.includes(q) || desc.includes(q);
+                            });
 
+                            if (filteredProjects.length === 0) {
                                 return (
-                                    <ProjectCard
-                                        key={project.id}
-                                        project={normalizedProject}
-                                        onDeleted={(deletedId) =>
-                                            setProjects((prev) => prev.filter((p) => p.id !== deletedId))
-                                        }
-                                    />
+                                    <Card className="text-center py-12">
+                                        <CardContent className="space-y-4">
+                                            <div>
+                                                <h3 className="text-lg font-medium text-foreground">No projects match your search</h3>
+                                                <p className="text-muted-foreground">Try a different keyword or clear the search.</p>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
                                 );
-                            })}
-                        </div>
+                            }
+
+                            return (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {filteredProjects.map((project) => {
+                                        const normalizedProject = {
+                                            id: project.id,
+                                            name: project.project_name,
+                                            description: project.description,
+                                            database: {
+                                                name: project.project_name,
+                                                status: project.is_active ? "connected" : "error",
+                                                tables: project.table_count || 0,
+                                                lastModified: new Date(
+                                                    project.updated_at
+                                                ).toLocaleString(),
+                                            },
+                                            createdAt: project.created_at,
+                                        };
+
+                                        return (
+                                            <ProjectCard
+                                                key={project.id}
+                                                project={normalizedProject}
+                                                onDeleted={(deletedId) =>
+                                                    setProjects((prev) => prev.filter((p) => p.id !== deletedId))
+                                                }
+                                            />
+                                        );
+                                    })}
+                                </div>
+                            );
+                        })()
                     )}
                 </section>
 
