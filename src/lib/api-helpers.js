@@ -103,6 +103,19 @@ export function createSuccessResponse(data, message = null, statusCode = 200) {
     return NextResponse.json(response, { status: statusCode });
 }
 
+// Check if user is an admin based on email
+export function isAdmin(email) {
+    if (!email) return false;
+    
+    const adminEmails = process.env.ADMIN_EMAILS || '';
+    const adminList = adminEmails
+        .split(',')
+        .map(e => e.trim().toLowerCase())
+        .filter(e => e.length > 0);
+    
+    return adminList.includes(email.toLowerCase());
+}
+
 // Wrapper for API route handlers with authentication
 export function withAuth(handler) {
     return async (request, context) => {
@@ -120,6 +133,36 @@ export function withAuth(handler) {
 
         } catch (error) {
             console.error('API route error:', error);
+            return createErrorResponse(error);
+        }
+    };
+}
+
+// Wrapper for API route handlers with admin authentication
+export function withAdminAuth(handler) {
+    return async (request, context) => {
+        try {
+            const authResult = await requireAuth(request);
+
+            if (authResult.error) {
+                return NextResponse.json(
+                    { error: authResult.error },
+                    { status: authResult.status }
+                );
+            }
+
+            // Check if user is admin
+            if (!isAdmin(authResult.user.email)) {
+                return NextResponse.json(
+                    { error: 'Unauthorized. Admin access required.' },
+                    { status: 403 }
+                );
+            }
+
+            return await handler(request, context, authResult.user);
+
+        } catch (error) {
+            console.error('Admin API route error:', error);
             return createErrorResponse(error);
         }
     };
