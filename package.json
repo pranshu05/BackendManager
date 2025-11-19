@@ -51,6 +51,7 @@
         "@stryker-mutator/babel-transpiler": "^4.0.0",
         "@stryker-mutator/core": "^9.3.0",
         "@stryker-mutator/jest-runner": "^9.3.0",
+        "@swc/core": "^1.15.2",
         "@swc/jest": "^0.2.39",
         "@tailwindcss/postcss": "^4",
         "@testing-library/jest-dom": "^6.9.1",

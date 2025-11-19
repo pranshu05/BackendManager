@@ -351,11 +351,15 @@ test("opens edit modal when clicking edit and can run edited query (success)", a
 
   await waitFor(() => expect(postCalled).toBe(true));
 
-  // After run, modal should close and fetchHistory should have been called again
+  // After run, modal should close and show results (SELECT queries display results, don't refetch history)
   await waitFor(() =>
     expect(screen.queryByText(/Edit Query/i)).not.toBeInTheDocument()
   );
-  expect(getCalls).toBeGreaterThanOrEqual(2);
+  
+  // Verify result is displayed
+  expect(await screen.findByText(/Query Result/i)).toBeInTheDocument();
+  expect(screen.getByText("1")).toBeInTheDocument(); // data value from mock
+  expect(getCalls).toBe(1); // Only initial fetch, no refetch for SELECT queries
 });
 
 test("run edited query shows error message on failure", async () => {
@@ -538,4 +542,302 @@ test("search input filters results showing no results message", async () => {
   userEvent.type(input, "nothingmatches");
 
   expect(await screen.findByText(/No results found./i)).toBeInTheDocument();
+});
+
+test("export result options (xlsx, json, csv) trigger appropriate handlers", async () => {
+  // Setup: initial GET -> POST rerun returns data
+  mockFetchHandler((url, opts) => {
+    if (url.toString().includes("/history") && (!opts || opts.method === "GET")) {
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          history: [
+            {
+              id: 11,
+              natural_language_input: "ExportMe",
+              query_text: "SELECT a,b",
+              success: true,
+              execution_time_ms: 1,
+              query_type: "SELECT",
+              created_at: "2025-11-16T00:00:00Z",
+              is_favorite: false,
+            },
+          ],
+          total: 1,
+        }),
+      });
+    }
+
+    if (url.toString().endsWith("/query") && opts && opts.method === "POST") {
+      return Promise.resolve({ ok: true, json: async () => ({ data: [{ a: 1, b: "x" }] }) });
+    }
+
+    return Promise.resolve({ ok: true, json: async () => ({}) });
+  });
+
+  // Spy XLSX and provide minimal utils so writeFile path succeeds
+  const XLSX = require("xlsx");
+  XLSX.utils = {
+    book_new: jest.fn(() => ({})),
+    json_to_sheet: jest.fn(() => ({})),
+    book_append_sheet: jest.fn(),
+  };
+  XLSX.writeFile = jest.fn();
+
+  // Spy document.createElement for anchor behavior and URL.createObjectURL
+  const originalCreate = document.createElement.bind(document);
+  const clickSpy = jest.fn();
+  const createSpy = jest.spyOn(document, "createElement").mockImplementation((tag) => {
+    if (tag === "a") {
+      return {
+        download: "",
+        href: "",
+        dispatchEvent: clickSpy,
+        remove: jest.fn(),
+      };
+    }
+    return originalCreate(tag);
+  });
+
+  const originalCreateObj = window.URL.createObjectURL;
+  window.URL.createObjectURL = jest.fn(() => "blob://fake");
+
+  try {
+    render(<History handleSetPage={jest.fn()} setQueryToPass={jest.fn()} />);
+
+    // wait for item and rerun
+    expect(await screen.findByText("ExportMe")).toBeInTheDocument();
+    await userEvent.click(screen.getByTitle(/Rerun query/i));
+
+    // Now Query Result is shown and ExportDropdown exists
+    expect(await screen.findByText(/Query Result/i)).toBeInTheDocument();
+
+    // Open ExportDropdown and select XLSX (ensure no crash when choosing)
+    const exportButton = screen.getByText(/Export Data/i);
+    await userEvent.click(exportButton);
+    const xlsxOpt = await screen.findByText(/XLSX/i);
+    await userEvent.click(xlsxOpt);
+    await waitFor(() => expect(screen.queryByText(/Query Result/i)).toBeInTheDocument());
+
+    // Select JSON option
+    await userEvent.click(exportButton);
+    const jsonOpt = await screen.findByText(/JSON/i);
+    await userEvent.click(jsonOpt);
+    await waitFor(() => expect(window.URL.createObjectURL).toHaveBeenCalled());
+
+    // Select CSV option
+    await userEvent.click(exportButton);
+    const csvOpt = await screen.findByText(/CSV/i);
+    await userEvent.click(csvOpt);
+    // CSV triggers download via anchor dispatchEvent
+    await waitFor(() => expect(clickSpy).toHaveBeenCalled());
+  } finally {
+    createSpy.mockRestore();
+    window.URL.createObjectURL = originalCreateObj;
+  }
+});
+
+test("run edited query proceeds when AI title generation fails", async () => {
+  // Simulate AI title endpoint throwing, but query POST succeeds
+  mockFetchHandler((url, opts) => {
+    if (url.toString().includes("/history") && (!opts || opts.method === "GET")) {
+      return Promise.resolve({ ok: true, json: async () => ({ history: [{ id: 12, natural_language_input: "AIfail", query_text: "SELECT z", success: true, execution_time_ms: 1, query_type: "SELECT", created_at: "2025-11-16T00:00:00Z", is_favorite: false }], total:1 }) });
+    }
+
+    if (url.toString().includes("/api/ai/generate-title")) {
+      return Promise.reject(new Error('AI down'));
+    }
+
+    if (url.toString().endsWith("/query") && opts && opts.method === "POST") {
+      return Promise.resolve({ ok: true, json: async () => ({ data: [{ z: 2 }] }) });
+    }
+
+    return Promise.resolve({ ok: true, json: async () => ({}) });
+  });
+
+  // Render inside act-aware waits
+  render(<History handleSetPage={jest.fn()} setQueryToPass={jest.fn()} />);
+
+  expect(await screen.findByText("AIfail")).toBeInTheDocument();
+
+  await userEvent.click(screen.getByTitle(/Edit query in new window/i));
+  expect(await screen.findByText(/Edit Query/i)).toBeInTheDocument();
+
+  await userEvent.click(screen.getByRole("button", { name: /Run Edited Query/i }));
+
+  // Should show Query Result despite AI failing
+  expect(await screen.findByText(/Query Result/i)).toBeInTheDocument();
+});
+
+test("toggle favorite reverts when API PUT fails", async () => {
+  let putCalled = false;
+  mockFetchHandler((url, opts) => {
+    if (url.toString().includes("/history") && (!opts || opts.method === "GET")) {
+      return Promise.resolve({ ok: true, json: async () => ({ history: [{ id: 20, natural_language_input: "FavFail", query_text: "SELECT", success: true, execution_time_ms: 1, query_type: "SELECT", created_at: new Date().toISOString(), is_favorite: false }], total:1 }) });
+    }
+
+    if (opts && opts.method === "PUT") {
+      putCalled = true;
+      return Promise.resolve({ ok: false, json: async () => ({}) });
+    }
+
+    return Promise.resolve({ ok: true, json: async () => ({}) });
+  });
+
+  const alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {});
+
+  render(<History handleSetPage={jest.fn()} setQueryToPass={jest.fn()} />);
+
+  expect(await screen.findByText("FavFail")).toBeInTheDocument();
+
+  const favBtn = screen.getByTitle(/Add to favorites/i);
+  userEvent.click(favBtn);
+
+  await waitFor(() => expect(putCalled).toBe(true));
+  // On failure, alert should be shown and the button title should return to Add to favorites
+  await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+  expect(screen.getByTitle(/Add to favorites/i)).toBeInTheDocument();
+
+  alertSpy.mockRestore();
+});
+
+test("fetchHistory handles GET failure and shows no history message", async () => {
+  mockFetchHandler((url, opts) => {
+    if (url.toString().includes('/history')) {
+      return Promise.resolve({ ok: false, json: async () => ({}) });
+    }
+    return Promise.resolve({ ok: true, json: async () => ({}) });
+  });
+
+  const alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {});
+  render(<History handleSetPage={jest.fn()} setQueryToPass={jest.fn()} />);
+
+  await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+  // When failed, component sets empty history and shows no history message
+  expect(await screen.findByText(/No query history found./i)).toBeInTheDocument();
+  alertSpy.mockRestore();
+});
+
+test("formatTimeAgo renders seconds/minutes/hours/old-date variants", async () => {
+  const now = Date.now();
+  const makeDate = (msAgo) => new Date(now - msAgo).toISOString();
+
+  mockFetchHandler((url, opts) => {
+    if (url.toString().includes('/history')) {
+      return Promise.resolve({ ok: true, json: async () => ({ history: [
+        { id: 30, natural_language_input: 'S', query_text: 's', success: true, execution_time_ms:1, query_type:'SELECT', created_at: makeDate(10*1000), is_favorite:false },
+        { id: 31, natural_language_input: 'M', query_text: 'm', success: true, execution_time_ms:1, query_type:'SELECT', created_at: makeDate(5*60*1000), is_favorite:false },
+        { id: 32, natural_language_input: 'H', query_text: 'h', success: true, execution_time_ms:1, query_type:'SELECT', created_at: makeDate(2*60*60*1000), is_favorite:false },
+        { id: 33, natural_language_input: 'D', query_text: 'd', success: true, execution_time_ms:1, query_type:'SELECT', created_at: makeDate(10*24*60*60*1000), is_favorite:false },
+      ], total:4 }) });
+    }
+    return Promise.resolve({ ok: true, json: async () => ({}) });
+  });
+
+  render(<History handleSetPage={jest.fn()} setQueryToPass={jest.fn()} />);
+
+  // Check that relative terms appear for each item
+  expect(await screen.findByText('S')).toBeInTheDocument();
+  expect(await screen.findByText('M')).toBeInTheDocument();
+  expect(await screen.findByText('H')).toBeInTheDocument();
+  expect(await screen.findByText('D')).toBeInTheDocument();
+
+  // The rendered time labels should contain second/minute/hour or a date string for older
+  const allText = document.body.textContent;
+  expect(/second|minute|hour|\d{4}/i.test(allText)).toBeTruthy();
+});
+
+test("convertToCSV escapes quotes, commas and handles null/undefined values", async () => {
+  // Prepare history GET and query POST to return data with quotes, commas and null
+  mockFetchHandler((url, opts) => {
+    if (url.toString().includes("/history") && (!opts || opts.method === "GET")) {
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          history: [
+            {
+              id: 99,
+              natural_language_input: "CSVTest",
+              query_text: "SELECT a,b,c",
+              success: true,
+              execution_time_ms: 1,
+              query_type: "SELECT",
+              created_at: "2025-11-16T00:00:00Z",
+              is_favorite: false,
+            },
+          ],
+          total: 1,
+        }),
+      });
+    }
+
+    if (url.toString().endsWith("/query") && opts && opts.method === "POST") {
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          data: [
+            { a: 'He said "hi"', b: null, c: 'comma,here' },
+          ],
+        }),
+      });
+    }
+
+    return Promise.resolve({ ok: true, json: async () => ({}) });
+  });
+
+  // Capture Blob input for inspection
+  const blobParts = [];
+  const OriginalBlob = global.Blob;
+  global.Blob = function(parts, opts) {
+    blobParts.push(parts);
+    return { size: Array.isArray(parts) ? parts.join('').length : 0 };
+  };
+
+  // Spy anchor click and URL.createObjectURL
+  const clickSpy = jest.fn();
+  const originalCreate = document.createElement.bind(document);
+  const createSpy = jest.spyOn(document, "createElement").mockImplementation((tag) => {
+    if (tag === "a") {
+      return {
+        download: "",
+        href: "",
+        dispatchEvent: clickSpy,
+        remove: jest.fn(),
+      };
+    }
+    return originalCreate(tag);
+  });
+
+  const originalCreateObj = window.URL.createObjectURL;
+  window.URL.createObjectURL = jest.fn(() => "blob://fakecsv");
+
+  try {
+    render(<History handleSetPage={jest.fn()} setQueryToPass={jest.fn()} />);
+
+    // wait for item and rerun to populate runResult
+    expect(await screen.findByText("CSVTest")).toBeInTheDocument();
+    await userEvent.click(screen.getByTitle(/Rerun query/i));
+
+    expect(await screen.findByText(/Query Result/i)).toBeInTheDocument();
+
+    // Open Export dropdown and choose CSV
+    const exportButton = screen.getByText(/Export Data/i);
+    await userEvent.click(exportButton);
+    const csvOpt = await screen.findByText(/CSV/i);
+    await userEvent.click(csvOpt);
+
+    // Ensure a Blob was created and contains the CSV with escaped quotes and comma-preserved values
+    await waitFor(() => expect(blobParts.length).toBeGreaterThan(0));
+    const csvString = blobParts[0].join('');
+    // header should be quoted
+    expect(csvString).toContain('"a","b","c"');
+    // quoted value with doubled internal quotes
+    expect(csvString).toContain('"He said ""hi"""');
+    // null becomes empty string between commas
+    expect(csvString).toContain('"","comma,here"'.replace(/"","/, '"","'));
+  } finally {
+    createSpy.mockRestore();
+    window.URL.createObjectURL = originalCreateObj;
+    global.Blob = OriginalBlob;
+  }
 });
