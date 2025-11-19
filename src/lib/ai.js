@@ -593,3 +593,97 @@ Important:
         throw new Error(`Failed to generate optimization suggestions: ${error.message}`);
     }
 }
+
+/**
+
+ * @param {string|Error} errorMessage - The database error message or Error object
+ * @param {string} sql - Optional SQL query that caused the error
+ * @param {Array} schema - Optional database schema for context
+ * @returns {Promise<Object>} - Parsed error with user-friendly explanation
+ */
+export async function parseDbError(errorMessage, sql = null, schema = null) {
+    const errorText = typeof errorMessage === 'string' ? errorMessage 
+    : errorMessage?.message || JSON.stringify(errorMessage);
+
+    const schemaContext = schema && Array.isArray(schema) && schema.length > 0
+        ? `Database Schema Context:\n${schema.map(t => `Table "${t.name}": ${t.columns.map(c => c.name).join(', ')}`).join('\n')}`
+        : 'Schema information: Unavailable';
+
+    const sqlContext = sql  ? `SQL Query that caused the error:\n${sql}` : 'SQL Query: Unavailable';
+    const prompt = `You are a database error interpreter. Convert technical database 
+    errors into simple, non-technical language that anyone can understand.
+
+${schemaContext}
+
+${sqlContext}
+
+Database Error Message:
+"${errorText}"
+
+Your task:
+1. Identify the error type (missing data, foreign key violation, constraint violation, syntax error, permission issue, etc.)
+2. Explain what went wrong in simple terms
+3. For Foreign Key errors: Explain dependencies in 3-4 lines using non-technical terms (avoid SQL jargon)
+4. Mark any missing context (schema, SQL query) as "Unavailable" in the response
+5. Provide actionable suggestions to fix the issue
+
+IMPORTANT Rules:
+- If the error mentions missing tables/columns/data, categorize as "Missing Data"
+- If it's a foreign key constraint violation, explain it as "Dependencies" - one record depends on another that doesn't exist
+- Use everyday language: avoid terms like "tuple", "relation", "constraint violation"
+- Keep foreign key explanations to 3-4 short lines maximum
+- Be clear and helpful, not condescending
+
+Return ONLY valid JSON in this exact format (no markdown, no extra text):
+{
+  "errorType": "Missing Data" | "Foreign Key Violation" | "Duplicate Value" | "Invalid Input" | "Syntax Error" | "Permission Denied" | "Connection Error" | "Unknown",
+  "summary": "One sentence summary of what went wrong",
+  "userFriendlyExplanation": "2-3 sentences explaining the error in plain English, as if talking to someone with no technical background",
+  "foreignKeyExplanation": "Only if foreign key error: 3-4 lines explaining the dependency issue in simple terms. Otherwise null.",
+  "technicalDetails": {
+    "originalError": "${errorText.substring(0, 200)}...",
+    "availableContext": {
+      "schema": ${schema ? 'true' : 'false'},
+      "sql": ${sql ? 'true' : 'false'}
+    },
+    "missingData": [] // Array of strings describing what data is missing/unavailable
+  }
+}`;
+
+    try {
+        const { text } = await generateText({
+            model: groq(DEFAULT_MODEL),
+            prompt,
+            temperature: 0.2,
+            maxTokens: 1500,
+        });
+
+        const parsed = parseAIResponse(text);
+
+        // Validate structure
+        if (!parsed || !parsed.errorType || !parsed.userFriendlyExplanation) {
+            throw new Error('Invalid error parsing response from AI');
+        }
+
+        return parsed;
+    } catch (error) {
+        console.error('Error parsing database error:', error);
+        // Fallback response if AI parsing fails
+        return {
+            errorType: 'Unknown',
+            summary: 'An error occurred while processing your request',
+            userFriendlyExplanation: errorText.length > 200 
+                ? errorText.substring(0, 200) + '...' 
+                : errorText,
+            foreignKeyExplanation: null,
+            technicalDetails: {
+                originalError: errorText,
+                availableContext: {
+                    schema: !!schema,
+                    sql: !!sql
+                },
+                missingData: []
+            }
+        };
+    }
+}
