@@ -1,14 +1,9 @@
 "use client";
 
-import React from 'react'
+import React, { useState, useEffect } from 'react';
 import { signOut } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { CircleUserRound, HelpCircle } from 'lucide-react';
-import {
-    Database,
-    LogOut,
-} from "lucide-react";
+import { CircleUserRound, HelpCircle, Shield, Database, LogOut } from 'lucide-react';
 
 const handleLogout = async () => {
     try {
@@ -39,8 +34,24 @@ const handleLogout = async () => {
     }
 };
 
-const header = () => {
-    const router = useRouter();
+const Header = () => {
+    const [isAdmin, setIsAdmin] = useState(false);
+
+    useEffect(() => {
+        // Check if user is admin
+        const checkAdmin = async () => {
+            try {
+                const res = await fetch('/api/admin/check');
+                if (res.ok) {
+                    const data = await res.json();
+                    setIsAdmin(data.isAdmin);
+                }
+            } catch (error) {
+                // Silently fail - user is not admin
+            }
+        };
+        checkAdmin();
+    }, []);
 
     return (
         <div>
@@ -56,13 +67,23 @@ const header = () => {
                         </div>
                     </div>
                     <div className="side flex items-center gap-2">
+                        {isAdmin && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => (window.location.href = "/admin")}
+                                className="cursor-pointer"
+                                title="Admin Panel">
+                                <Shield className="w-4 h-4" />
+                            </Button>
+                        )}
                         <Button
                             variant="outline"
                             size="sm"
                             onClick={() => (window.location.href = "/help")}
                             className="cursor-pointer"
                             title="Help & Support">
-                            <HelpCircle className='w-4 h-4' />
+                            <HelpCircle className="w-4 h-4" />
                         </Button>
                         <Button
                             variant="outline"
@@ -70,19 +91,18 @@ const header = () => {
                             onClick={() => (window.location.href = "/profile")}
                             className="cursor-pointer"
                             title="Profile">
-                            <CircleUserRound className='hover:cursor-pointer' />
+                            <CircleUserRound className="hover:cursor-pointer" />
                         </Button>
                         <Button variant="outline" size="sm" asChild>
-                            <a onClick={handleLogout} className='hover:cursor-pointer' title="Logout">
+                            <a onClick={handleLogout} className="hover:cursor-pointer" title="Logout">
                                 <LogOut className="w-4 h-4" />
                             </a>
                         </Button>
                     </div>
-
                 </div>
             </header>
         </div>
-    )
-}
+    );
+};
 
-export default header
+export default Header;
