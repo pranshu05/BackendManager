@@ -4,7 +4,7 @@ import React from 'react'
 import { signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { CircleUserRound } from 'lucide-react';
+import { CircleUserRound, HelpCircle } from 'lucide-react';
 import {
     Database,
     LogOut,
@@ -59,12 +59,21 @@ const header = () => {
                         <Button
                             variant="outline"
                             size="sm"
+                            onClick={() => (window.location.href = "/help")}
+                            className="cursor-pointer"
+                            title="Help & Support">
+                            <HelpCircle className='w-4 h-4' />
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => (window.location.href = "/profile")}
-                            className="cursor-pointer">
+                            className="cursor-pointer"
+                            title="Profile">
                             <CircleUserRound className='hover:cursor-pointer' />
                         </Button>
                         <Button variant="outline" size="sm" asChild>
-                            <a onClick={handleLogout} className='hover:cursor-pointer'>
+                            <a onClick={handleLogout} className='hover:cursor-pointer' title="Logout">
                                 <LogOut className="w-4 h-4" />
                             </a>
                         </Button>

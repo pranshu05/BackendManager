@@ -119,7 +119,7 @@ const SupportSection = () => {
         }
 
         try {
-            const res = await fetch(/api/support/${ticketId}, {
+            const res = await fetch(`/api/support/${ticketId}`, {
                 method: 'DELETE'
             });
 
@@ -286,8 +286,8 @@ const SupportSection = () => {
                                         <div className="flex items-start justify-between gap-4">
                                             <div className="flex-1 space-y-2">
                                                 <div className="flex items-start gap-3">
-                                                    <div className={p-2 rounded-lg ${statusInfo.bg}}>
-                                                        <StatusIcon className={w-5 h-5 ${statusInfo.color}} />
+                                                    <div className={`p-2 rounded-lg ${statusInfo.bg}`}>
+                                                        <StatusIcon className={`w-5 h-5 ${statusInfo.color}`} />
                                                     </div>
                                                     <div className="flex-1">
                                                         <h3 className="font-semibold text-foreground">
@@ -300,10 +300,10 @@ const SupportSection = () => {
                                                 </div>
 
                                                 <div className="flex flex-wrap gap-2 text-xs">
-                                                    <span className={px-2 py-1 rounded-full ${statusInfo.bg} ${statusInfo.color} font-medium}>
+                                                    <span className={`px-2 py-1 rounded-full ${statusInfo.bg} ${statusInfo.color} font-medium`}>
                                                         {statusInfo.label}
                                                     </span>
-                                                    <span className={px-2 py-1 rounded-full bg-muted ${priorityInfo?.color || ''}}>
+                                                    <span className={`px-2 py-1 rounded-full bg-muted ${priorityInfo?.color || ''}`}>
                                                         Priority: {priorityInfo?.label || ticket.priority}
                                                     </span>
                                                     <span className="px-2 py-1 rounded-full bg-muted text-muted-foreground">

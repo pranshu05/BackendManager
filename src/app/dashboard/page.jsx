@@ -1,16 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ProjectCard } from "@/components/(dashboard)/ProjectCard";
 import ImportDatabase from '@/components/(dashboard)/ImportDatabase';
-import { Database, LogOut, CheckCircle, Table, User, Sparkles } from "lucide-react";
+import { Database, LogOut, CheckCircle, Table, User, Sparkles, HelpCircle } from "lucide-react";
 import './index.css';
 
 export default function DashboardPage() {
-    const router = useRouter();
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
     const [nlInput, setNlInput] = useState("");
@@ -42,7 +40,7 @@ export default function DashboardPage() {
 
     const handleLogout = async () => {
         try {
-            await fetch("/api/auth/logout", { 
+            await fetch("/api/auth/logout", {
                 method: "POST",
                 credentials: "include"
             });
@@ -53,7 +51,7 @@ export default function DashboardPage() {
         }
     };
 
-     const handleCreateProjectandDatabase = () => {
+    const handleCreateProjectandDatabase = () => {
         // POST the natural language input to the AI create-project API
         (async () => {
             if (!nlInput || !nlInput.trim()) {
@@ -85,7 +83,7 @@ export default function DashboardPage() {
 
                 // Success — provide feedback and refresh the page (or re-fetch projects)
                 alert(data.message || 'Project created successfully');
-                
+
                 // If API returned project id, optionally navigate to it.
                 if (data.project && data.project.id) {
                     // try to navigate to project page
@@ -124,15 +122,25 @@ export default function DashboardPage() {
                             <Button
                                 variant="outline"
                                 size="sm"
+                                onClick={() => (window.location.href = "/help")}
+                                className="cursor-pointer"
+                                title="Help & Support">
+                                <HelpCircle className="w-4 h-4" />
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
                                 onClick={() => (window.location.href = "/profile")}
-                                className="cursor-pointer">
+                                className="cursor-pointer"
+                                title="Profile">
                                 <User className="w-4 h-4" />
                             </Button>
                             <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={handleLogout}
-                                className="cursor-pointer">
+                                className="cursor-pointer"
+                                title="Logout">
                                 <LogOut className="w-4 h-4" />
                             </Button>
                         </div>
@@ -158,31 +166,31 @@ export default function DashboardPage() {
                         <span className="cp-icon" aria-hidden>
                             <Sparkles className="sparkles" />
                         </span>
-                            <h2 className="cp-title">
-                                Create New Project
-                            </h2>
-                            </div>
-                                <p className="cp-subtitle">
-                                Describe your project and we'll automatically create the database and schema for you
-                                </p>
-                            <textarea
-                                className="cp-textarea"
-                                placeholder="Example: I want to create a database for managing employee records with departments, salaries, and performance reviews..."
-                                rows={5}
-                                value={nlInput}
-                                onChange={(e) => setNlInput(e.target.value)}
-                            />
-                            <button
-                                className="cp-button"
-                                type="button"
-                                onClick={handleCreateProjectandDatabase}
-                                disabled={creating || !nlInput.trim()}
-                            >
-                                <span className="cp-plus" aria-hidden></span>
-                                <span>{creating ? "Creating..." : "+ Create Project & Database"}</span>
-                            </button>
+                        <h2 className="cp-title">
+                            Create New Project
+                        </h2>
+                    </div>
+                    <p className="cp-subtitle">
+                        Describe your project and we'll automatically create the database and schema for you
+                    </p>
+                    <textarea
+                        className="cp-textarea"
+                        placeholder="Example: I want to create a database for managing employee records with departments, salaries, and performance reviews..."
+                        rows={5}
+                        value={nlInput}
+                        onChange={(e) => setNlInput(e.target.value)}
+                    />
+                    <button
+                        className="cp-button"
+                        type="button"
+                        onClick={handleCreateProjectandDatabase}
+                        disabled={creating || !nlInput.trim()}
+                    >
+                        <span className="cp-plus" aria-hidden></span>
+                        <span>{creating ? "Creating..." : "+ Create Project & Database"}</span>
+                    </button>
                 </div>
-                
+
 
                 {/* Projects */}
                 <section>
@@ -195,8 +203,8 @@ export default function DashboardPage() {
                                 {projects.length} project{projects.length !== 1 ? "s" : ""}
                             </div>
                             <ImportDatabase onImported={(proj) => {
-    window.location.reload();
-}} />
+                                window.location.reload();
+                            }} />
                         </div>
                     </div>
 
