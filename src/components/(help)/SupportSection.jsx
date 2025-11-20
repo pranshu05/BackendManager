@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { showToast } from "nextjs-toast-notify";
 import {
     Ticket,
     Plus,
@@ -79,7 +80,12 @@ const SupportSection = () => {
         e.preventDefault();
 
         if (!formData.subject.trim() || !formData.message.trim()) {
-            alert('Please fill in all required fields');
+            showToast.error('Please fill in all required fields', {
+                duration: 3000,
+                progress: true,
+                position: "top-center",
+                transition: "bounceIn",
+            });
             return;
         }
 
@@ -92,7 +98,12 @@ const SupportSection = () => {
             });
 
             if (res.ok) {
-                alert('Support ticket created successfully!');
+                showToast.success('Support ticket created successfully!', {
+                    duration: 3000,
+                    progress: true,
+                    position: "top-center",
+                    transition: "bounceIn",
+                });
                 setFormData({
                     subject: '',
                     message: '',
@@ -103,11 +114,21 @@ const SupportSection = () => {
                 fetchTickets(); // Refresh the list
             } else {
                 const data = await res.json();
-                alert(data.error || 'Failed to create support ticket');
+                showToast.error(data.error || 'Failed to create support ticket', {
+                    duration: 3000,
+                    progress: true,
+                    position: "top-center",
+                    transition: "bounceIn",
+                });
             }
         } catch (error) {
             console.error('Error creating ticket:', error);
-            alert('An error occurred while creating the ticket');
+            showToast.error('An error occurred while creating the ticket', {
+                duration: 3000,
+                progress: true,
+                position: "top-center",
+                transition: "bounceIn",
+            });
         } finally {
             setSubmitting(false);
         }
@@ -124,15 +145,30 @@ const SupportSection = () => {
             });
 
             if (res.ok) {
-                alert('Ticket deleted successfully');
+                showToast.success('Ticket deleted successfully', {
+                    duration: 3000,
+                    progress: true,
+                    position: "top-center",
+                    transition: "bounceIn",
+                });
                 fetchTickets(); // Refresh the list
             } else {
                 const data = await res.json();
-                alert(data.error || 'Failed to delete ticket');
+                showToast.error(data.error || 'Failed to delete ticket', {
+                    duration: 3000,
+                    progress: true,
+                    position: "top-center",
+                    transition: "bounceIn",
+                });
             }
         } catch (error) {
             console.error('Error deleting ticket:', error);
-            alert('An error occurred while deleting the ticket');
+            showToast.error('An error occurred while deleting the ticket', {
+                duration: 3000,
+                progress: true,
+                position: "top-center",
+                transition: "bounceIn",
+            });
         }
     };
 
@@ -164,7 +200,7 @@ const SupportSection = () => {
                         </div>
                         <Button
                             onClick={() => setShowCreateForm(!showCreateForm)}
-                            className="flex items-center gap-2"
+                            className="flex items-center gap-2 cursor-pointer"
                         >
                             <Plus className="w-4 h-4" />
                             New Ticket
@@ -240,10 +276,11 @@ const SupportSection = () => {
                                     variant="outline"
                                     onClick={() => setShowCreateForm(false)}
                                     disabled={submitting}
+                                    className="cursor-pointer"
                                 >
                                     Cancel
                                 </Button>
-                                <Button type="submit" disabled={submitting}>
+                                <Button type="submit" disabled={submitting} className="cursor-pointer">
                                     {submitting ? 'Submitting...' : 'Submit Ticket'}
                                 </Button>
                             </div>
@@ -333,7 +370,7 @@ const SupportSection = () => {
                                                     variant="ghost"
                                                     size="sm"
                                                     onClick={() => handleDelete(ticket.id)}
-                                                    className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                                                    className="text-red-500 hover:text-red-600 cursor-pointer hover:bg-red-500/10"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
                                                 </Button>

@@ -16,7 +16,7 @@ export default function ProfileHeader() {
       </div>
       <button
         onClick={() => (window.location.href = "/dashboard")}
-        className="p-2 rounded-full text-[#1e4a8a] hover:bg-gray-500/10 transition-colors"
+        className="p-2 rounded-full text-[#1e4a8a] hover:bg-gray-500/10 transition-colors cursor-pointer"
         aria-label="Close">
         <X className="w-6 h-6" />
       </button>

@@ -20,7 +20,7 @@ export default function ContactInfoSection({
           <button
             onClick={onSave}
             disabled={savingContact}
-            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50">
+            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 cursor-pointer">
             <Save className="w-4 h-4" />
             {savingContact ? "Saving..." : "Save Changes"}
           </button>

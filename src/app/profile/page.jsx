@@ -9,6 +9,7 @@ import PasswordUpdateSection from "@/components/(profile)/PasswordUpdateSection"
 import APITokenSection from "@/components/(profile)/APITokenSection";
 import LogoutButton from "@/components/(profile)/LogoutButton";
 import TokenModal from "@/components/(profile)/TokenModal";
+import { showToast } from "nextjs-toast-notify";
 
 export default function ProfilePage() {
   const [showTokenModal, setShowTokenModal] = useState(false);
@@ -131,16 +132,31 @@ export default function ProfilePage() {
       });
 
       if (res.ok) {
-        alert("Contact information updated successfully!");
+        showToast.success("Contact information updated successfully!", {
+          duration: 3000,
+          progress: true,
+          position: "top-center",
+          transition: "bounceIn",
+        });
         setContactChanged(false);
         await fetchProfile();
       } else {
         const error = await res.json();
-        alert(`Error: ${error.error || "Failed to update"}`);
+        showToast.error(`Error: ${error.error || "Failed to update"}`, {
+          duration: 3000,
+          progress: true,
+          position: "top-center",
+          transition: "bounceIn",
+        });
       }
     } catch (error) {
       console.error("Error updating contact:", error);
-      alert("Failed to update contact information");
+      showToast.error("Failed to update contact information", {
+        duration: 3000,
+        progress: true,
+        position: "top-center",
+        transition: "bounceIn",
+      });
     } finally {
       setSavingContact(false);
     }
@@ -156,16 +172,31 @@ export default function ProfilePage() {
       });
 
       if (res.ok) {
-        alert("General information updated successfully!");
+        showToast.success("General information updated successfully!", {
+          duration: 3000,
+          progress: true,
+          position: "top-center",
+          transition: "bounceIn",
+        });
         setGeneralChanged(false);
         await fetchProfile();
       } else {
         const error = await res.json();
-        alert(`Error: ${error.error || "Failed to update"}`);
+        showToast.error(`Error: ${error.error || "Failed to update"}`, {
+          duration: 3000,
+          progress: true,
+          position: "top-center",
+          transition: "bounceIn",
+        });
       }
     } catch (error) {
       console.error("Error updating general info:", error);
-      alert("Failed to update general information");
+      showToast.error("Failed to update general information", {
+        duration: 3000,
+        progress: true,
+        position: "top-center",
+        transition: "bounceIn",
+      });
     } finally {
       setSavingGeneral(false);
     }
@@ -183,15 +214,30 @@ export default function ProfilePage() {
       const data = await res.json();
 
       if (res.ok) {
-        alert("OTP sent to your email!");
+        showToast.success("OTP sent to your email!", {
+          duration: 3000,
+          progress: true,
+          position: "top-center",
+          transition: "bounceIn",
+        });
         setOtpSent(true);
         setPasswordStep(2);
       } else {
-        alert(`Error: ${data.error || "Failed to send OTP"}`);
+        showToast.error(`Error: ${data.error || "Failed to send OTP"}`, {
+          duration: 3000,
+          progress: true,
+          position: "top-center",
+          transition: "bounceIn",
+        });
       }
     } catch (error) {
       console.error("Error requesting OTP:", error);
-      alert("Failed to send OTP. Please try again.");
+      showToast.error("Failed to send OTP. Please try again.", {
+        duration: 3000,
+        progress: true,
+        position: "top-center",
+        transition: "bounceIn",
+      });
     } finally {
       setSavingPassword(false);
     }
@@ -199,7 +245,12 @@ export default function ProfilePage() {
 
   const verifyOTP = async () => {
     if (!passwordForm.otp || passwordForm.otp.length !== 6) {
-      alert("Please enter a valid 6-digit OTP");
+      showToast.error("Please enter a valid 6-digit OTP", {
+        duration: 3000,
+        progress: true,
+        position: "top-center",
+        transition: "bounceIn",
+      });
       return;
     }
 
@@ -217,15 +268,30 @@ export default function ProfilePage() {
       const data = await res.json();
 
       if (res.ok) {
-        alert("OTP verified successfully!");
+        showToast.success("OTP verified successfully!", {
+          duration: 3000,
+          progress: true,
+          position: "top-center",
+          transition: "bounceIn",
+        });
         setOtpVerified(true);
         setPasswordStep(3);
       } else {
-        alert(`Error: ${data.error || "Invalid OTP"}`);
+        showToast.error(`Error: ${data.error || "Invalid OTP"}`, {
+          duration: 3000,
+          progress: true,
+          position: "top-center",
+          transition: "bounceIn",
+        });
       }
     } catch (error) {
       console.error("Error verifying OTP:", error);
-      alert("Failed to verify OTP. Please try again.");
+      showToast.error("Failed to verify OTP. Please try again.", {
+        duration: 3000,
+        progress: true,
+        position: "top-center",
+        transition: "bounceIn",
+      });
     } finally {
       setSavingPassword(false);
     }
@@ -233,12 +299,22 @@ export default function ProfilePage() {
 
   const savePassword = async () => {
     if (passwordForm.newpwd !== passwordForm.confirmPassword) {
-      alert("Passwords do not match!");
+      showToast.error("Passwords do not match!", {
+        duration: 3000,
+        progress: true,
+        position: "top-center",
+        transition: "bounceIn",
+      });
       return;
     }
 
     if (passwordForm.newpwd.length < 6) {
-      alert("Password must be at least 6 characters long!");
+      showToast.error("Password must be at least 6 characters long!", {
+        duration: 3000,
+        progress: true,
+        position: "top-center",
+        transition: "bounceIn",
+      });
       return;
     }
 
@@ -257,7 +333,12 @@ export default function ProfilePage() {
       const data = await res.json();
 
       if (res.ok) {
-        alert("Password updated successfully!");
+        showToast.success("Password updated successfully!", {
+          duration: 3000,
+          progress: true,
+          position: "top-center",
+          transition: "bounceIn",
+        });
         setPasswordForm(prev => ({
           ...prev,
           otp: "",
@@ -269,11 +350,21 @@ export default function ProfilePage() {
         setOtpSent(false);
         setOtpVerified(false);
       } else {
-        alert(`Error: ${data.error || "Failed to update password"}`);
+        showToast.error(`Error: ${data.error || "Failed to update password"}`, {
+          duration: 3000,
+          progress: true,
+          position: "top-center",
+          transition: "bounceIn",
+        });
       }
     } catch (error) {
       console.error("Error updating password:", error);
-      alert("Failed to update password. Please try again.");
+      showToast.error("Failed to update password. Please try again.", {
+        duration: 3000,
+        progress: true,
+        position: "top-center",
+        transition: "bounceIn",
+      });
     } finally {
       setSavingPassword(false);
     }

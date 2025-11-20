@@ -22,13 +22,19 @@ import {
     ExternalLink,
     Settings,
     Table,
-    Trash2
+    Trash2,
+    Pencil
 } from 'lucide-react';
+import { showToast } from "nextjs-toast-notify";
 
 export function ProjectCard({ project, onDeleted }) {
     const [menuOpen, setMenuOpen] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editLoading, setEditLoading] = useState(false);
+    const [editName, setEditName] = useState("");
+    const [editDescription, setEditDescription] = useState("");
     const menuRef = useRef(null);
 
     useEffect(() => {
@@ -74,6 +80,74 @@ export function ProjectCard({ project, onDeleted }) {
                 return 'bg-yellow-100 text-yellow-800';
             case 'error':
                 return 'bg-red-100 text-red-800';
+        }
+    };
+
+    const handleEditProject = () => {
+        setEditName(project.name || "");
+        setEditDescription(project.description || "");
+        setIsEditModalOpen(true);
+        setMenuOpen(false);
+    };
+
+    const handleEditSubmit = async (e) => {
+        e.preventDefault();
+        
+        if (!editName.trim()) {
+            showToast.error('Project name cannot be empty', {
+                duration: 2000,
+                progress: true,
+                position: "top-center",
+                transition: "bounceIn",
+            });
+            return;
+        }
+
+        setEditLoading(true);
+        try {
+            const res = await fetch(`/api/projects/${project.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    projectName: editName.trim(),
+                    description: editDescription.trim()
+                })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                showToast.error(data.error || 'Failed to update project', {
+                    duration: 3000,
+                    progress: true,
+                    position: "top-center",
+                    transition: "bounceIn",
+                });
+                return;
+            }
+
+            showToast.success('Project updated successfully!', {
+                duration: 3000,
+                progress: true,
+                position: "top-center",
+                transition: "bounceIn",
+            });
+
+            setIsEditModalOpen(false);
+            
+            // Reload page to reflect changes
+            if (typeof window !== 'undefined') {
+                window.location.reload();
+            }
+        } catch (err) {
+            showToast.error('Error updating project: ' + (err?.message || err), {
+                duration: 3000,
+                progress: true,
+                position: "top-center",
+                transition: "bounceIn",
+            });
+        } finally {
+            setEditLoading(false);
         }
     };
 
@@ -150,7 +224,7 @@ export function ProjectCard({ project, onDeleted }) {
                         >
                             <Button
                                 size="sm"
-                                className="w-full"
+                                className="w-full cursor-pointer"
                                 disabled={project.database.status !== 'connected'}
                             >
                                 <ExternalLink className="w-4 h-4 mr-1" />
@@ -159,6 +233,7 @@ export function ProjectCard({ project, onDeleted }) {
                         </Link>
                         <div className="relative" ref={menuRef}>
                             <Button
+                                className="cursor-pointer"
                                 size="sm"
                                 variant="outline"
                                 disabled={project.database.status !== 'connected'}
@@ -169,7 +244,14 @@ export function ProjectCard({ project, onDeleted }) {
                             {menuOpen && (
                                 <div className="absolute right-0 mt-2 w-48 rounded-md border border-border bg-card shadow-lg z-20 p-1">
                                     <button
-                                        className="w-full flex items-center gap-2 rounded-sm px-3 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground transition-colors"
+                                        className="w-full flex items-center gap-2 rounded-sm px-3 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
+                                        onClick={handleEditProject}
+                                    >
+                                        <Pencil className="w-4 h-4 text-blue-500" />
+                                        Edit Project
+                                    </button>
+                                    <button
+                                        className="w-full flex items-center gap-2 rounded-sm px-3 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
                                         onClick={() => {
                                             setConfirmOpen(true);
                                             setMenuOpen(false);
@@ -190,6 +272,53 @@ export function ProjectCard({ project, onDeleted }) {
                 </CardContent>
             </Card>
 
+            <Dialog open={isEditModalOpen} onOpenChange={(open) => !editLoading && setIsEditModalOpen(open)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit Project</DialogTitle>
+                        <DialogDescription>
+                            Update your project name and description
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleEditSubmit} className="space-y-4">
+                        <div className="flex flex-col">
+                            <label className="text-sm font-medium mb-1">
+                                Project Name
+                                <span className="text-red-500 ml-1" aria-hidden>
+                                    *
+                                </span>
+                            </label>
+                            <input
+                                type="text"
+                                value={editName}
+                                onChange={(e) => setEditName(e.target.value)}
+                                placeholder="Enter project name"
+                                className="border rounded p-2"
+                                required
+                            />
+                        </div>
+                        <div className="flex flex-col">
+                            <label className="text-sm font-medium mb-1">Description</label>
+                            <textarea
+                                value={editDescription}
+                                onChange={(e) => setEditDescription(e.target.value)}
+                                placeholder="Enter project description (optional)"
+                                className="border rounded p-2 min-h-[100px]"
+                                rows={4}
+                            />
+                        </div>
+                        <DialogFooter>
+                            <Button className="cursor-pointer" type="button" variant="ghost" onClick={() => setIsEditModalOpen(false)} disabled={editLoading}>
+                                Cancel
+                            </Button>
+                            <Button className="cursor-pointer" type="submit" disabled={editLoading}>
+                                {editLoading ? 'Updating...' : 'Update'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
             <Dialog open={confirmOpen} onOpenChange={(open) => !isDeleting && setConfirmOpen(open)}>
                 <DialogContent>
                     <DialogHeader>
@@ -199,10 +328,10 @@ export function ProjectCard({ project, onDeleted }) {
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
-                        <Button variant="ghost" onClick={() => setConfirmOpen(false)} disabled={isDeleting}>
+                        <Button className="cursor-pointer" variant="ghost" onClick={() => setConfirmOpen(false)} disabled={isDeleting}>
                             Cancel
                         </Button>
-                        <Button variant="destructive" onClick={handleDeleteProject} disabled={isDeleting}>
+                        <Button className="cursor-pointer" variant="destructive" onClick={handleDeleteProject} disabled={isDeleting}>
                             {isDeleting ? 'Deleting...' : 'Delete'}
                         </Button>
                     </DialogFooter>

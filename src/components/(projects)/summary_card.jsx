@@ -55,7 +55,7 @@ export default function SummaryCard({ projectId, onClose }) {
                 </div>
                 
                 <div className="close-button">
-                    <X onClick = {onClose}className="icon"/>
+                    <X onClick = {onClose}className="icon cursor-pointer"/>
                 </div>
                 
             
@@ -106,7 +106,7 @@ export default function SummaryCard({ projectId, onClose }) {
                             <p className="error-msg">{error}</p>
                         </div>
                     </div>
-                    <Button onClick={fetchSummary} className="error-btn">
+                    <Button onClick={fetchSummary} className="error-btn cursor-pointer">
                         Try Again
                     </Button>
                 </div>

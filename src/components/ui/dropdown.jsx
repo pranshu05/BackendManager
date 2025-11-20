@@ -23,7 +23,7 @@ export default function Dropdown({ items = [], selected, onSelect }) {
         <div className="relative inline-block" ref={dropdownRef}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[150px] justify-between"
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[150px] justify-between cursor-pointer"
             >
                 <span className="truncate">{selected || "Select an option"}</span>
                 <ChevronDown

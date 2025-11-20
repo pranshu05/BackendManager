@@ -691,14 +691,14 @@ export default function Optimization() {
                     </div>
                     <div style={styles.actionButtons}>
                         <button
-                            style={{ ...styles.buttonIgnore, opacity: actionLoading ? 0.7 : 1 }}
+                            style={{ ...styles.buttonIgnore, opacity: actionLoading ? 0.7 : 1, cursor: 'pointer' }}
                             disabled={actionLoading}
                             onClick={() => handleDismiss('missingIndexes', idx)}
                         >
                             <span>✕</span> Ignore
                         </button>
                         <button
-                            style={{ ...styles.buttonApply, opacity: actionLoading ? 0.7 : 1 }}
+                            style={{ ...styles.buttonApply, opacity: actionLoading ? 0.7 : 1, cursor: 'pointer' }}
                             disabled={actionLoading}
                             onClick={() => handleApplyOptimization(
                                 index.suggestion, 
@@ -756,7 +756,7 @@ export default function Optimization() {
                                     )}
                                     <div style={{...styles.actionButtons, marginTop: "12px"}}>
                                         <button
-                                            style={{ ...styles.buttonIgnore, opacity: actionLoading ? 0.7 : 1 }}
+                                            style={{ ...styles.buttonIgnore, opacity: actionLoading ? 0.7 : 1, cursor: 'pointer' }}
                                             disabled={actionLoading}
                                             onClick={() => handleDismiss('schemaImprovements', idx)}
                                         >
@@ -764,7 +764,7 @@ export default function Optimization() {
                                         </button>
                                         {improvement.suggestion && improvement.suggestion.trim().toUpperCase().startsWith('ALTER') && (
                                             <button
-                                                style={{ ...styles.buttonApply, opacity: actionLoading ? 0.7 : 1 }}
+                                                style={{ ...styles.buttonApply, opacity: actionLoading ? 0.7 : 1, cursor: 'pointer' }}
                                                 disabled={actionLoading}
                                                 onClick={() => handleApplyOptimization(
                                                     improvement.suggestion, 
@@ -823,7 +823,7 @@ export default function Optimization() {
                                         <td style={styles.tableCell}>{issue.recommendation}</td>
                                         <td style={{ ...styles.tableCell, ...styles.actionCell }}>
                                             <button
-                                                style={styles.actionButton}
+                                                style={{...styles.actionButton, cursor: 'pointer'}}
                                                 onClick={() => handleDismiss('potentialIssues', idx)}
                                             >
                                                 Dismiss
@@ -844,7 +844,7 @@ export default function Optimization() {
                         <h3 style={styles.modalTitle}>✓ Optimization Applied</h3>
                         <p>Your optimization has been successfully applied to the database.</p>
                         <button
-                            style={styles.modalButton}
+                            style={{...styles.modalButton, cursor: 'pointer'}}
                             onClick={() => setShowSuccessModal(false)}
                         >
                             Close
