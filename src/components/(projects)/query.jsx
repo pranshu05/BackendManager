@@ -229,10 +229,10 @@ export default function Query() {
                                   }`}>{parsedError.errorType}</h3>
                                   <button 
                                     onClick={() => setShowError(false)}
-                                    className={parsedError.errorType === 'No Data Found' 
-                                      ? 'text-yellow-500 hover:text-yellow-700' 
-                                      : 'text-red-500 hover:text-red-700'
-                                    }
+                                    className={`cursor-pointer ${parsedError.errorType === 'No Data Found' 
+                                        ? 'text-yellow-500 hover:text-yellow-700' 
+                                        : 'text-red-500 hover:text-red-700'
+                                    }`}
                                   >
                                     <svg className="w-5 h-5" cursor="pointer" fill="none" stroke="currentColor">
                                       <path  d="M6 18L18 6M6 6l12 12" />

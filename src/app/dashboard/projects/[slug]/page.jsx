@@ -603,7 +603,7 @@ const fetchtabledata = async (tablename, recordLimit = limit) => {
           </div>
 
           <div className="ml-auto flex items-center">
-            <Button onClick={() => setShowSummary(true)} className="generate-btn">
+            <Button onClick={() => setShowSummary(true)} className="generate-btn cursor-pointer">
               <Sparkles className="w-4 h-4 mr-1" />
               Summary
             </Button>
@@ -637,7 +637,7 @@ const fetchtabledata = async (tablename, recordLimit = limit) => {
 
               <div className="mockbutton  h-28 gap-2 bg-white items-center flex-col  max-[510]:h-65   min-[820]:flex-row min-[820]:h-19 flex p-4 justify-between">
                <div className="frontbtn flex flex-row gap-2 max-[510]:flex-col max-[510]:w-full max-[510]:gap-3">
-                    <Button className="max-[510]:w-full" disabled={insertLoading} onClick={async ()=>{
+                    <Button className="max-[510]:w-full cursor-pointer" disabled={insertLoading} onClick={async ()=>{
                    
                     await handleinsertrow();
                   

@@ -483,7 +483,7 @@ export default function History({ handleSetPage, setQueryToPass }) {
           <Button
             variant="outline"
             onClick={handleBackToHistory}
-            className="mb-4 bg-white shadow-md"
+            className="mb-4 bg-white shadow-md cursor-pointer"
           >
             <ArrowLeft size={16} className="mr-2" />
             Back to History
@@ -561,7 +561,7 @@ export default function History({ handleSetPage, setQueryToPass }) {
             <Button
               variant="outline"
               onClick={handleOpenFilterModal}
-              className="bg-white shadow-sm relative"
+              className="bg-white shadow-sm relative cursor-pointer"
             >
               <Funnel className="w-4 h-4 mr-2" />
               Filters
@@ -588,10 +588,10 @@ export default function History({ handleSetPage, setQueryToPass }) {
                     onClick={() =>
                       setTempFavoritesFilter(!tempFavoritesFilter)
                     }
-                    className="flex items-center gap-1.5"
+                    className="flex items-center gap-1.5 cursor-pointer"
                   >
                     <Star
-                      className={`w-4 h-4 ${
+                      className={`w-4 h-4 cursor-pointer ${
                         tempFavoritesFilter ? "text-yellow-300" : ""
                       }`}
                     />
@@ -604,6 +604,7 @@ export default function History({ handleSetPage, setQueryToPass }) {
                   <div className="flex flex-wrap gap-2">
                     {dateRangeTypes.map((range) => (
                       <Button
+                        className="cursor-pointer"
                         key={range.value}
                         variant={
                           tempDateRangeFilter === range.value
@@ -632,7 +633,7 @@ export default function History({ handleSetPage, setQueryToPass }) {
                         }
                         size="sm"
                         onClick={() => setTempStatusFilter(status.value)}
-                        className="flex items-center gap-1.5"
+                        className="flex items-center gap-1.5 cursor-pointer"
                       >
                         {status.icon && <status.icon className="w-4 h-4" />}
                         {status.label}
@@ -654,7 +655,7 @@ export default function History({ handleSetPage, setQueryToPass }) {
                         }
                         size="sm"
                         onClick={() => setTempTypeFilter(type.value)}
-                        className="flex items-center gap-1.5"
+                        className="flex items-center gap-1.5 cursor-pointer"
                       >
                         <type.icon className="w-4 h-4" />
                         {type.label}
@@ -665,15 +666,15 @@ export default function History({ handleSetPage, setQueryToPass }) {
               </div>
 
               <DialogFooter className="flex justify-between">
-                <Button variant="ghost" onClick={handleClearFilters}>
+                <Button className="cursor-pointer" variant="ghost" onClick={handleClearFilters}>
                   Clear All
                 </Button>
 
                 <div className="flex gap-2">
                   <DialogClose asChild>
-                    <Button variant="outline">Cancel</Button>
+                    <Button variant="outline" className="cursor-pointer">Cancel</Button>
                   </DialogClose>
-                  <Button onClick={handleApplyFilters}>Apply</Button>
+                  <Button onClick={handleApplyFilters} className="cursor-pointer">Apply</Button>
                 </div>
               </DialogFooter>
             </DialogContent>
@@ -701,6 +702,7 @@ export default function History({ handleSetPage, setQueryToPass }) {
 
               <DialogFooter>
                 <Button
+                  className="cursor-pointer"
                   variant="outline"
                   onClick={() => setIsEditModalOpen(false)}
                   disabled={isModalRunning}
@@ -802,7 +804,7 @@ export default function History({ handleSetPage, setQueryToPass }) {
                                 setQueryToPass(query.title);
                                 handleSetPage("query");
                               }}
-                              className="text-gray-400 hover:text-gray-600"
+                              className="text-gray-400 hover:text-gray-600 cursor-pointer"
                               title="Open in Query"
                             >
                               <SquarePen size={14} />
@@ -816,7 +818,7 @@ export default function History({ handleSetPage, setQueryToPass }) {
                           onClick={() =>
                             handleToggleFavorite(query.id, query.is_favorite)
                           }
-                          className="hover:text-yellow-500 disabled:opacity-50"
+                          className="hover:text-yellow-500 disabled:opacity-50 cursor-pointer"
                           title={
                             query.is_favorite
                               ? "Remove from favorites"
@@ -836,7 +838,7 @@ export default function History({ handleSetPage, setQueryToPass }) {
 
                         <button
                           onClick={() => handleRerun(query)}
-                          className="hover:text-gray-800 disabled:opacity-50"
+                          className="hover:text-gray-800 disabled:opacity-50 cursor-pointer"
                           title="Rerun query"
                           disabled={runningQueryId !== null}
                         >
@@ -849,7 +851,7 @@ export default function History({ handleSetPage, setQueryToPass }) {
 
                         <button
                           onClick={() => handleEdit(query)}
-                          className="hover:text-gray-800 disabled:opacity-50"
+                          className="hover:text-gray-800 disabled:opacity-50 cursor-pointer"
                           title="Edit query in new window"
                           disabled={runningQueryId !== null}
                         >
@@ -887,7 +889,7 @@ export default function History({ handleSetPage, setQueryToPass }) {
                 <Button
                   onClick={() => setHistoryLimit(99999)}
                   variant="outline"
-                  className="bg-white shadow-md"
+                  className="bg-white shadow-md cursor-pointer"
                 >
                   Load All Previous ({totalQueries - queryHistory.length} more)
                 </Button>

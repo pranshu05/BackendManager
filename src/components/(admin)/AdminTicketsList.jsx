@@ -166,12 +166,12 @@ const AdminTicketsList = () => {
                         </CardTitle>
                         <div className="flex gap-2">
                             {(filters.status || filters.priority || filters.category) && (
-                                <Button variant="outline" size="sm" onClick={clearFilters}>
+                                <Button variant="outline" size="sm" onClick={clearFilters} className="cursor-pointer">
                                     <X className="w-4 h-4 mr-2" />
                                     Clear
                                 </Button>
                             )}
-                            <Button variant="outline" size="sm" onClick={fetchTickets}>
+                            <Button variant="outline" size="sm" onClick={fetchTickets} className="cursor-pointer">
                                 <RefreshCw className="w-4 h-4 mr-2" />
                                 Refresh
                             </Button>
@@ -399,7 +399,7 @@ const AdminTicketsList = () => {
                                         <Button
                                             onClick={handleUpdateTicket}
                                             disabled={updating}
-                                            className="flex-1"
+                                            className="flex-1 cursor-pointer"
                                         >
                                             <Save className="w-4 h-4 mr-2" />
                                             {updating ? 'Updating...' : 'Update Ticket'}
@@ -408,6 +408,7 @@ const AdminTicketsList = () => {
                                             variant="destructive"
                                             onClick={() => handleDeleteTicket(selectedTicket.id)}
                                             disabled={updating}
+                                            className="cursor-pointer"
                                         >
                                             <Trash2 className="w-4 h-4" />
                                         </Button>

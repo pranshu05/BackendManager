@@ -46,7 +46,7 @@ export default function TokenModal({ onClose }) {
                     <h3 className="text-lg font-semibold text-white">API Token</h3>
                     <button
                         onClick={onClose}
-                        className="text-white hover:bg-white/20 p-1 rounded-full transition">
+                        className="text-white hover:bg-white/20 p-1 rounded-full transition cursor-pointer">
                         <X className="w-5 h-5 cursor-pointer" />
                     </button>
                 </div>
@@ -60,7 +60,7 @@ export default function TokenModal({ onClose }) {
                             <button
                                 onClick={handleGenerateToken}
                                 disabled={loadingToken}
-                                className="w-full bg-[#1e4a8a] text-white py-3 rounded-lg hover:bg-[#1e3a6a] transition font-semibold disabled:opacity-50">
+                                className="w-full bg-[#1e4a8a] text-white py-3 rounded-lg hover:bg-[#1e3a6a] transition font-semibold disabled:opacity-50 cursor-pointer">
                                 {loadingToken ? "Generating..." : "Generate Token"}
                             </button>
                         </div>
@@ -72,7 +72,7 @@ export default function TokenModal({ onClose }) {
                                     <div className="flex gap-1">
                                         <button
                                             onClick={() => setShowToken(!showToken)}
-                                            className="text-[#1e4a8a] hover:bg-blue-100 p-1 rounded transition"
+                                            className="text-[#1e4a8a] hover:bg-blue-100 p-1 rounded transition cursor-pointer"
                                             title={showToken ? "Hide" : "Show"}>
                                             {showToken ? (
                                                 <EyeOff className="w-4 h-4 cursor-pointer" />
@@ -82,7 +82,7 @@ export default function TokenModal({ onClose }) {
                                         </button>
                                         <button
                                             onClick={handleCopyToken}
-                                            className="text-[#1e4a8a] hover:bg-blue-100 p-1 rounded transition"
+                                            className="text-[#1e4a8a] hover:bg-blue-100 p-1 rounded transition cursor-pointer"
                                             title="Copy">
                                             <Copy className="w-4 h-4 cursor-pointer" />
                                         </button>
@@ -107,7 +107,7 @@ export default function TokenModal({ onClose }) {
                             <button
                                 onClick={handleGenerateToken}
                                 disabled={loadingToken}
-                                className="w-full bg-gray-500 text-white py-2 rounded-lg hover:bg-gray-600 transition font-semibold disabled:opacity-50">
+                                className="w-full bg-gray-500 text-white py-2 rounded-lg hover:bg-gray-600 transition font-semibold disabled:opacity-50 cursor-pointer">
                                 {loadingToken ? "Generating..." : "Regenerate Token"}
                             </button>
                         </div>

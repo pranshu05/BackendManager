@@ -11,7 +11,7 @@ const FAQItem = ({ question, answer }) => {
         <div className="border-b border-border last:border-b-0">
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-full flex items-center justify-between py-4 px-2 text-left hover:bg-muted/50 transition-colors rounded-lg"
+                className="w-full flex items-center justify-between py-4 px-2 text-left hover:bg-muted/50 transition-colors rounded-lg cursor-pointer"
             >
                 <span className="font-medium text-foreground pr-4">{question}</span>
                 {isOpen ? (

@@ -182,7 +182,7 @@ export default function DashboardPage() {
                         onChange={(e) => setNlInput(e.target.value)}
                     />
                     <button
-                        className="cp-button"
+                        className="cp-button cursor-pointer"
                         type="button"
                         onClick={handleCreateProjectandDatabase}
                         disabled={creating || !nlInput.trim()}

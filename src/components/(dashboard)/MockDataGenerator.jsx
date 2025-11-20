@@ -166,7 +166,7 @@ export default function MockDataGenerator({ projectId, onSuccess }) {
             if (!open) resetDialog();
         }}>
             <DialogTrigger asChild>
-                <Button variant="outline" className="gap-2">
+                <Button variant="outline" className="gap-2 cursor-pointer">
                     <Database className="h-4 w-4" />
                     Generate Mock Data
                 </Button>
@@ -188,19 +188,19 @@ export default function MockDataGenerator({ projectId, onSuccess }) {
                 ) : analysis ? (
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                         <TabsList className="grid w-full grid-cols-4">
-                            <TabsTrigger value="configure" className="gap-2">
+                            <TabsTrigger value="configure" className="gap-2 cursor-pointer">
                                 <Settings className="h-4 w-4" />
                                 Configure
                             </TabsTrigger>
-                            <TabsTrigger value="templates" className="gap-2">
+                            <TabsTrigger value="templates" className="gap-2 cursor-pointer">
                                 <Lightbulb className="h-4 w-4" />
                                 Templates
                             </TabsTrigger>
-                            <TabsTrigger value="preview" className="gap-2">
+                            <TabsTrigger value="preview" className="gap-2 cursor-pointer">
                                 <Eye className="h-4 w-4" />
                                 Preview
                             </TabsTrigger>
-                            <TabsTrigger value="result" className="gap-2">
+                            <TabsTrigger value="result" className="gap-2 cursor-pointer">
                                 <CheckCircle className="h-4 w-4" />
                                 Result
                             </TabsTrigger>
@@ -216,6 +216,7 @@ export default function MockDataGenerator({ projectId, onSuccess }) {
                                             disabled={loading}
                                             variant="outline"
                                             size="sm"
+                                            className="cursor-pointer"
                                         >
                                             {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
                                             Preview
@@ -224,6 +225,7 @@ export default function MockDataGenerator({ projectId, onSuccess }) {
                                             onClick={generateMockData} 
                                             disabled={generating}
                                             size="sm"
+                                            className="cursor-pointer"
                                         >
                                             {generating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Play className="h-4 w-4 mr-2" />}
                                             Generate
@@ -298,7 +300,7 @@ export default function MockDataGenerator({ projectId, onSuccess }) {
                                 <div className="grid gap-4">
                                     {analysis.templates.map(template => (
                                         <Card key={template} className={`cursor-pointer transition-colors ${selectedTemplate === template ? 'ring-2 ring-blue-500' : ''}`}>
-                                            <CardContent className="p-4" onClick={() => applyTemplate(template)}>
+                                            <CardContent className="p-4 cursor-pointer" onClick={() => applyTemplate(template)}>
                                                 <div className="flex items-center justify-between">
                                                     <div>
                                                         <h4 className="font-semibold capitalize">{template.replace('_', ' ')}</h4>
@@ -376,7 +378,7 @@ export default function MockDataGenerator({ projectId, onSuccess }) {
                                             Back to Configure
                                         </Button>
                                         <Button onClick={generateMockData} disabled={generating}>
-                                            {generating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Play className="h-4 w-4 mr-2" />}
+                                            {generating ? <Loader2 className="h-4 w-4 animate-spin mr-2 cursor-pointer" /> : <Play className="h-4 w-4 mr-2" />}
                                             Generate Data
                                         </Button>
                                     </div>
@@ -385,7 +387,7 @@ export default function MockDataGenerator({ projectId, onSuccess }) {
                                 <div className="text-center py-8">
                                     <p className="text-gray-600 mb-4">No preview available. Generate a preview first.</p>
                                     <Button onClick={generatePreview} disabled={loading}>
-                                        {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
+                                        {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2 cursor-pointer" /> : <Eye className="h-4 w-4 mr-2" />}
                                         Generate Preview
                                     </Button>
                                 </div>
@@ -490,7 +492,7 @@ export default function MockDataGenerator({ projectId, onSuccess }) {
                                     )}
 
                                     <div className="flex justify-end">
-                                        <Button onClick={() => setIsOpen(false)}>
+                                        <Button className="cursor-pointer" onClick={() => setIsOpen(false)}>
                                             Close
                                         </Button>
                                     </div>

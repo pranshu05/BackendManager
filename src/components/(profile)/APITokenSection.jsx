@@ -15,7 +15,7 @@ export default function APITokenSection({ onGenerateToken }) {
         </div>
         <button
           onClick={onGenerateToken}
-          className="bg-[#1e4a8a] hover:bg-[#1e3a6a] text-white px-6 py-2 rounded-lg transition-colors font-semibold">
+          className="bg-[#1e4a8a] hover:bg-[#1e3a6a] text-white px-6 py-2 rounded-lg transition-colors font-semibold cursor-pointer">
           Generate Token
         </button>
       </div>

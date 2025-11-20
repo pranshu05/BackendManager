@@ -46,7 +46,7 @@ export function ImportDatabase({ onImported }) {
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button variant="default" size="sm">Import Database</Button>
+                <Button variant="default" size="sm" className="cursor-pointer">Import Database</Button>
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
@@ -91,9 +91,9 @@ export function ImportDatabase({ onImported }) {
 
                     <DialogFooter>
                         <DialogClose asChild>
-                            <Button variant="ghost" type="button">Cancel</Button>
+                            <Button variant="ghost" type="button" className="cursor-pointer">Cancel</Button>
                         </DialogClose>
-                        <Button type="submit" disabled={loading}>{loading ? 'Importing...' : 'Import'}</Button>
+                        <Button className="cursor-pointer" type="submit" disabled={loading}>{loading ? 'Importing...' : 'Import'}</Button>
                     </DialogFooter>
                 </form>
             </DialogContent>

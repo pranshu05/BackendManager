@@ -26,7 +26,7 @@ export default function PasswordUpdateSection({
           <button
             onClick={onRequestOTP}
             disabled={savingPassword}
-            className="flex items-center gap-2 bg-[#1e4a8a] hover:bg-[#1e3a6a] text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50">
+            className="flex items-center gap-2 bg-[#1e4a8a] hover:bg-[#1e3a6a] text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 cursor-pointer">
             {savingPassword ? "Sending..." : "Send OTP"}
           </button>
         )}
@@ -34,7 +34,7 @@ export default function PasswordUpdateSection({
           <button
             onClick={onVerifyOTP}
             disabled={savingPassword || !passwordForm.otp}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50">
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 cursor-pointer">
             {savingPassword ? "Verifying..." : "Verify OTP"}
           </button>
         )}
@@ -108,7 +108,7 @@ export default function PasswordUpdateSection({
             {passwordStep === 2 && (
               <button
                 onClick={onResetFlow}
-                className="text-xs text-blue-600 hover:underline mt-2">
+                className="text-xs text-blue-600 hover:underline mt-2 cursor-pointer">
                 Didn't receive OTP? Restart process
               </button>
             )}
@@ -134,7 +134,7 @@ export default function PasswordUpdateSection({
                 <button
                   type="button"
                   onClick={() => onTogglePasswordVisibility('new')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-[#1e4a8a]">
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-[#1e4a8a] cursor-pointer">
                   {showPasswords.new ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
@@ -156,7 +156,7 @@ export default function PasswordUpdateSection({
                 <button
                   type="button"
                   onClick={() => onTogglePasswordVisibility('confirm')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-[#1e4a8a]">
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-[#1e4a8a] cursor-pointer">
                   {showPasswords.confirm ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
@@ -172,7 +172,7 @@ export default function PasswordUpdateSection({
           <div className="pt-4 border-t">
             <button
               onClick={onResetFlow}
-              className="text-sm text-gray-600 hover:text-[#1e4a8a] hover:underline">
+              className="text-sm text-gray-600 hover:text-[#1e4a8a] hover:underline cursor-pointer">
               ← Start over
             </button>
           </div>
