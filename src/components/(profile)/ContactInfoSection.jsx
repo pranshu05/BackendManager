@@ -29,11 +29,12 @@ export default function ContactInfoSection({
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="phone-number" className="block text-sm font-medium text-gray-700 mb-2">
             <Phone className="w-4 h-4 inline mr-1" />
             Phone Number
           </label>
           <input
+            id="phone-number"
             type="tel"
             value={contactForm.phone_number}
             onChange={(e) => onContactChange('phone_number', e.target.value)}
@@ -43,11 +44,12 @@ export default function ContactInfoSection({
         </div>
         
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-2">
             <MapPin className="w-4 h-4 inline mr-1" />
             City
           </label>
           <input
+            id="city"
             type="text"
             value={contactForm.city}
             onChange={(e) => onContactChange('city', e.target.value)}
@@ -57,11 +59,12 @@ export default function ContactInfoSection({
         </div>
         
         <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-2">
             <Building className="w-4 h-4 inline mr-1" />
             Address
           </label>
           <input
+            id="address"
             type="text"
             value={contactForm.address}
             onChange={(e) => onContactChange('address', e.target.value)}
@@ -71,11 +74,12 @@ export default function ContactInfoSection({
         </div>
         
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="pin-code" className="block text-sm font-medium text-gray-700 mb-2">
             <MapPin className="w-4 h-4 inline mr-1" />
             Pin Code
           </label>
           <input
+            id="pin-code"
             type="text"
             value={contactForm.pincode}
             onChange={(e) => onContactChange('pincode', e.target.value)}

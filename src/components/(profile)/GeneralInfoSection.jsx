@@ -29,11 +29,12 @@ export default function GeneralInfoSection({
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="nationality" className="block text-sm font-medium text-gray-700 mb-2">
             <Globe className="w-4 h-4 inline mr-1" />
             Nationality
           </label>
           <input
+            id="nationality"
             type="text"
             value={generalForm.nationality}
             onChange={(e) => onGeneralChange('nationality', e.target.value)}
@@ -43,11 +44,12 @@ export default function GeneralInfoSection({
         </div>
         
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="birth-date" className="block text-sm font-medium text-gray-700 mb-2">
             <Calendar className="w-4 h-4 inline mr-1" />
             Birth Date
           </label>
           <input
+            id="birth-date"
             type="date"
             value={generalForm.birth_date}
             onChange={(e) => onGeneralChange('birth_date', e.target.value)}
@@ -56,11 +58,12 @@ export default function GeneralInfoSection({
         </div>
         
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="organization-name" className="block text-sm font-medium text-gray-700 mb-2">
             <Building className="w-4 h-4 inline mr-1" />
             Organization Name
           </label>
           <input
+            id="organization-name"
             type="text"
             value={generalForm.organization_name}
             onChange={(e) => onGeneralChange('organization_name', e.target.value)}
@@ -70,11 +73,12 @@ export default function GeneralInfoSection({
         </div>
         
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="organization-type" className="block text-sm font-medium text-gray-700 mb-2">
             <Building className="w-4 h-4 inline mr-1" />
             Organization Type
           </label>
           <select
+            id="organization-type"
             value={generalForm.organization_type}
             onChange={(e) => onGeneralChange('organization_type', e.target.value)}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1e4a8a] focus:border-transparent">
@@ -88,11 +92,12 @@ export default function GeneralInfoSection({
         </div>
         
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="joining-date" className="block text-sm font-medium text-gray-700 mb-2">
             <Calendar className="w-4 h-4 inline mr-1" />
             Joining Date
           </label>
           <input
+            id="joining-date"
             type="date"
             value={generalForm.joining_date}
             onChange={(e) => onGeneralChange('joining_date', e.target.value)}
@@ -101,11 +106,12 @@ export default function GeneralInfoSection({
         </div>
         
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
             <Briefcase className="w-4 h-4 inline mr-1" />
             Role
           </label>
           <select
+            id="role"
             value={generalForm.role}
             onChange={(e) => onGeneralChange('role', e.target.value)}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1e4a8a] focus:border-transparent">
