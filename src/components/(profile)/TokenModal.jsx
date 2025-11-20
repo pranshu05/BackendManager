@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { X, Copy, Eye, EyeOff } from "lucide-react";
 
-export default function TokenModal({ onClose }) {
+export default function TokenModal({ onClose, showToast }) {
     const [apiToken, setApiToken] = useState("");
     const [loadingToken, setLoadingToken] = useState(false);
     const [showToken, setShowToken] = useState(false);
@@ -33,10 +33,20 @@ export default function TokenModal({ onClose }) {
         }
     };
 
-    const handleCopyToken = () => {
-        navigator.clipboard.writeText(apiToken);
-        setCopySuccess(true);
-        setTimeout(() => setCopySuccess(false), 2000);
+    const handleCopyToken = async () => {
+        try {
+            await navigator.clipboard.writeText(apiToken);
+            setCopySuccess(true);
+            if (showToast) {
+                showToast("Token copied to clipboard!", "success");
+            }
+            setTimeout(() => setCopySuccess(false), 2000);
+        } catch (error) {
+            console.error("Failed to copy token:", error);
+            if (showToast) {
+                showToast("Failed to copy token to clipboard", "error");
+            }
+        }
     };
 
     return (
@@ -46,7 +56,7 @@ export default function TokenModal({ onClose }) {
                     <h3 className="text-lg font-semibold text-white">API Token</h3>
                     <button
                         onClick={onClose}
-                        className="text-white hover:bg-white/20 p-1 rounded-full transition cursor-pointer">
+                        className="text-white hover:bg-white/20 p-1 rounded-full transition">
                         <X className="w-5 h-5 cursor-pointer" />
                     </button>
                 </div>
@@ -60,7 +70,7 @@ export default function TokenModal({ onClose }) {
                             <button
                                 onClick={handleGenerateToken}
                                 disabled={loadingToken}
-                                className="w-full bg-[#1e4a8a] text-white py-3 rounded-lg hover:bg-[#1e3a6a] transition font-semibold disabled:opacity-50 cursor-pointer">
+                                className="w-full bg-[#1e4a8a] text-white py-3 rounded-lg hover:bg-[#1e3a6a] transition font-semibold disabled:opacity-50">
                                 {loadingToken ? "Generating..." : "Generate Token"}
                             </button>
                         </div>
@@ -75,16 +85,16 @@ export default function TokenModal({ onClose }) {
                                             className="text-[#1e4a8a] hover:bg-blue-100 p-1 rounded transition cursor-pointer"
                                             title={showToken ? "Hide" : "Show"}>
                                             {showToken ? (
-                                                <EyeOff className="w-4 h-4 cursor-pointer" />
+                                                <EyeOff className="w-4 h-4" />
                                             ) : (
-                                                <Eye className="w-4 h-4 cursor-pointer" />
+                                                <Eye className="w-4 h-4" />
                                             )}
                                         </button>
                                         <button
                                             onClick={handleCopyToken}
                                             className="text-[#1e4a8a] hover:bg-blue-100 p-1 rounded transition cursor-pointer"
                                             title="Copy">
-                                            <Copy className="w-4 h-4 cursor-pointer" />
+                                            <Copy className="w-4 h-4" />
                                         </button>
                                     </div>
                                 </div>
@@ -107,7 +117,7 @@ export default function TokenModal({ onClose }) {
                             <button
                                 onClick={handleGenerateToken}
                                 disabled={loadingToken}
-                                className="w-full bg-gray-500 text-white py-2 rounded-lg hover:bg-gray-600 transition font-semibold disabled:opacity-50 cursor-pointer">
+                                className="w-full bg-gray-500 text-white py-2 rounded-lg hover:bg-gray-600 transition font-semibold disabled:opacity-50">
                                 {loadingToken ? "Generating..." : "Regenerate Token"}
                             </button>
                         </div>

@@ -35,14 +35,14 @@ export default function PasswordUpdateSection({
             onClick={onVerifyOTP}
             disabled={savingPassword || !passwordForm.otp}
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 cursor-pointer">
-            {savingPassword ? "Verifying..." : "Verify OTP"}
+            {savingPassword ? "Verifying..." : "Verify Your OTP"}
           </button>
         )}
         {passwordStep === 3 && passwordChanged && (
           <button
             onClick={onUpdatePassword}
             disabled={savingPassword}
-            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50">
+            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 cursor-pointer">
             <Save className="w-4 h-4" />
             {savingPassword ? "Updating..." : "Update Password"}
           </button>
@@ -76,11 +76,12 @@ export default function PasswordUpdateSection({
       <div className="space-y-4">
         {/* Email Field - Always visible */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="password-email" className="block text-sm font-medium text-gray-700 mb-2">
             <Mail className="w-4 h-4 inline mr-1" />
             Email
           </label>
           <input
+            id="password-email"
             type="email"
             value={passwordForm.email}
             readOnly
@@ -92,10 +93,11 @@ export default function PasswordUpdateSection({
         {/* OTP Field - Visible after OTP is sent (Step 2) */}
         {passwordStep >= 2 && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="password-otp" className="block text-sm font-medium text-gray-700 mb-2">
               Enter OTP
             </label>
             <input
+              id="password-otp"
               type="text"
               value={passwordForm.otp}
               onChange={(e) => onPasswordChange('otp', e.target.value.replace(/\D/g, '').slice(0, 6))}
@@ -119,11 +121,12 @@ export default function PasswordUpdateSection({
         {passwordStep >= 3 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="password-new" className="block text-sm font-medium text-gray-700 mb-2">
                 New Password
               </label>
               <div className="relative">
                 <input
+                  id="password-new"
                   type={showPasswords.new ? "text" : "password"}
                   value={passwordForm.newpwd}
                   onChange={(e) => onPasswordChange('newpwd', e.target.value)}
@@ -142,11 +145,12 @@ export default function PasswordUpdateSection({
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="password-confirm" className="block text-sm font-medium text-gray-700 mb-2">
                 Confirm Password
               </label>
               <div className="relative">
                 <input
+                  id="password-confirm"
                   type={showPasswords.confirm ? "text" : "password"}
                   value={passwordForm.confirmPassword}
                   onChange={(e) => onPasswordChange('confirmPassword', e.target.value)}
