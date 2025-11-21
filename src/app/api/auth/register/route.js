@@ -70,13 +70,11 @@ export async function POST(request) {
                 const minutesSinceCreation = tokenExpiryMinutes - minutesUntilExpiry;
                 const remainingTime = rateLimitMinutes - minutesSinceCreation;
 
-                // Only rate limit if there's actually remaining time
-                if (remainingTime > 0) {
-                    return NextResponse.json({
-                        error: 'A verification email was already sent recently. Please check your inbox or wait a few minutes before requesting another one.',
-                        remainingTime: remainingTime
-                    }, { status: 429 }); // 429 Too Many Requests
-                }
+                // Rate limit: return the remaining time to the user
+                return NextResponse.json({
+                    error: 'A verification email was already sent recently. Please check your inbox or wait a few minutes before requesting another one.',
+                    remainingTime: remainingTime
+                }, { status: 429 }); // 429 Too Many Requests
             }
 
             // If more than 2 minutes have passed, allow resending with a new token

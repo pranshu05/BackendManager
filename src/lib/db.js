@@ -187,7 +187,7 @@ export async function waitForDatabaseReady(connectionString, maxAttempts = 4, de
             await new Promise(resolve => setTimeout(resolve, delayMs * attempt));
         }
     }
-    return false;
+    // return false;
 }
 
 // Function to execute queries safely
