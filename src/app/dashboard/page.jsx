@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ProjectCard } from "@/components/(dashboard)/ProjectCard";
 import ImportDatabase from '@/components/(dashboard)/ImportDatabase';
+import { showToast } from "nextjs-toast-notify";
 import { Database, LogOut, CheckCircle, Table, User, Sparkles, HelpCircle, Search } from "lucide-react";
 import './index.css';
 
@@ -56,7 +57,12 @@ export default function DashboardPage() {
         // POST the natural language input to the AI create-project API
         (async () => {
             if (!nlInput || !nlInput.trim()) {
-                alert('Please enter a project description before creating.');
+        showToast.error('Please enter a project description before creating.', {
+          duration: 2000,
+          progress: true,
+          position: "top-center",
+          transition: "bounceIn",
+        });
                 return;
             }
 
@@ -74,17 +80,34 @@ export default function DashboardPage() {
                     console.error('Create project failed', data);
                     if (res.status === 401) {
                         // likely session expired or not authenticated
-                        alert(data.error || 'Invalid or expired session. Please log in again.');
-                        // redirect to login page
+                        showToast.error('Invalid or expired session. Please log in again.', {
+                            duration: 2000,
+                            progress: true,
+                            position: "top-center",
+                            transition: "bounceIn",
+                        });
+
                         return;
                     }
-                    alert(data.error || 'Failed to create project');
+                    showToast.error(data.error || 'Failed to create project', {
+                        duration: 2000,
+                        progress: true,
+                        position: "top-center",
+                        transition: "bounceIn",
+                    });
                     return;
                 }
 
                 // Success — provide feedback and refresh the page (or re-fetch projects)
-                alert(data.message || 'Project created successfully');
-
+                showToast.success(data.message || 'Project created successfully', {
+                    duration: 2000,
+                    progress: true,
+                    position: "top-center",
+                    transition: "bounceIn",
+                });
+               await new Promise(resolve => setTimeout(resolve, 3000));
+                    
+               
                 // If API returned project id, optionally navigate to it.
                 if (data.project && data.project.id) {
                     // try to navigate to project page
@@ -95,7 +118,12 @@ export default function DashboardPage() {
                 }
             } catch (err) {
                 console.error('Error creating project:', err);
-                alert('An unexpected error occurred while creating the project.');
+               showToast.error('An error occurred while creating the project. Please try again.', {
+                    duration: 2000,
+                    progress: true,
+                    position: "top-center",
+                    transition: "bounceIn",
+                });
             } finally {
                 setCreating(false);
             }

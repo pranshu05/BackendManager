@@ -43,6 +43,10 @@ export default function DashboardPage() {
 
   const [editingCell, setEditingCell] = useState(null);
   const [editedvalue, seteditedvalue] = useState("");
+  // Update confirmation modal state
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+  const [pendingUpdatePayload, setPendingUpdatePayload] = useState(null);
+  const [updateLoading, setUpdateLoading] = useState(false);
 
   const [deletebtn, setdeletebtn] = useState(false);
   const [deleteRows, setdeleteRows] = useState([]);
@@ -88,14 +92,24 @@ export default function DashboardPage() {
 
           if (!res.ok) {
             console.error('Failed to fetch schema for insert row:', payload.error || payload);
-            alert(payload.error || 'Failed to fetch schema');
+            showToast.error(payload.error || 'Failed to fetch schema for insert row', {
+              duration: 2000,
+              progress: true,
+              position: "top-center",
+              transition: "bounceIn",
+            });
             return;
           }
 
           const schema = payload?.schema || [];
           const tableMeta = schema.find((t) => t.name === selectedTable);
           if (!tableMeta) {
-            alert(`Table metadata for '${selectedTable}' not found`);
+            showToast.error(`Table metadata for '${selectedTable}' not found`, {
+              duration: 2000,
+              progress: true,
+              position: "top-center",
+              transition: "bounceIn",
+            });
             return;
           }
 
@@ -105,7 +119,12 @@ export default function DashboardPage() {
           setInsertLoading(false);
         } catch (err) {
           console.error('Error in handleinsertrow:', err);
-          alert('Error fetching table metadata: ' + (err?.message || err));
+          showToast.error('Error fetching table metadata: ' + (err?.message || err), {
+              duration: 2000,
+              progress: true,
+              position: "top-center",
+              transition: "bounceIn",
+            });
         }
       };
 
@@ -168,7 +187,12 @@ export default function DashboardPage() {
   const handleExport = async (format) => {
 
     if (!selectedTable) {
-      alert("Please select a table to export");
+      showToast.error("Please select a table to export", {
+        duration: 2000,
+        progress: true,
+        position: "top-center",
+        transition: "bounceIn",
+      });
       return;
     }
 
@@ -216,7 +240,12 @@ export default function DashboardPage() {
       }, 1000);
     } catch (error) {
       console.error("Export error:", error);
-      alert(error.message || "Failed to export data");
+      showToast.error(error.message || "Failed to export data", {
+        duration: 2000,
+        progress: true,
+        position: "top-center",
+        transition: "bounceIn",
+      });
     } finally {
       setIsExporting(false);
     }
@@ -305,7 +334,12 @@ export default function DashboardPage() {
       const result = await res.json();
 
       if (!res.ok) {
-        alert(result?.error || "Failed to delete rows");
+        showToast.error(result?.error || "Failed to delete rows", {
+          duration: 2000,
+          progress: true,
+          position: "top-center",
+          transition: "bounceIn",
+        });
         return;
       }
 
@@ -356,70 +390,96 @@ export default function DashboardPage() {
         return;
       }
 
-      const proceed = window.confirm(
-        `Are you sure you want to update this value?\nFrom: ${editingCell.value}\nTo: ${editedvalue}`
-      );
-
-      if (!proceed) {
-        setEditingCell(null);
-        return;
-      }
-
       // Prevent sending empty or whitespace-only values
       if (String(editedvalue).trim() === "") {
-        alert("Value cannot be empty");
+        showToast.error("Value cannot be empty", {
+          duration: 2000,
+          progress: true,
+          position: "top-center",
+          transition: "bounceIn",
+        });
         return;
       }
-      //Here, we call API for updating in the database neon
-      (async () => {
-        try {
-          // determine primary key column from metadata
-          const pkCol =
-            tableData?.columns?.find((c) => c.constraint === "PRIMARY KEY")
-              ?.name || tableData?.columns?.[0]?.name;
-          const row = tableData.rows[editingCell.rowIndex];
-          const payload = {
-            table: selectedTable || tableData.table,
-            pkColumn: pkCol,
-            pkValue: row[pkCol],
-            column: editingCell.colName,
-            newValue: String(editedvalue).trim(),
-            oldValue: editingCell.value,
-          };
 
-          const res = await fetch(`/api/projects/${projectid}/update`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
+      // Build the payload (do not perform update yet) and open confirmation modal
+      try {
+        const pkCol =
+          tableData?.columns?.find((c) => c.constraint === "PRIMARY KEY")
+            ?.name || tableData?.columns?.[0]?.name;
+        const row = tableData.rows[editingCell.rowIndex];
+        const payload = {
+          table: selectedTable || tableData.table,
+          pkColumn: pkCol,
+          pkValue: row[pkCol],
+          column: editingCell.colName,
+          newValue: String(editedvalue).trim(),
+          oldValue: editingCell.value,
+          editingRowIndex: editingCell.rowIndex,
+        };
 
-          const result = await res.json();
-          if (!res.ok) {
-            // show error to user
-            alert(result?.error || "Failed to update value");
-          } else {
-            //Updating local table data
-            const updatedRow = result.row;
-            setTableData((prev) => {
-              if (!prev) return prev;
-              const rows = prev.rows.map((r, idx) => {
-                if (idx !== editingCell.rowIndex) return r;
-
-                return updatedRow;
-              });
-              return { ...prev, rows };
-            });
-          }
-        } catch (err) {
-          alert("Error updating value", err);
-        } finally {
-          setEditingCell(null);
-        }
-      })();
+        setPendingUpdatePayload(payload);
+        setIsUpdateModalOpen(true);
+      } catch (err) {
+        console.error('Error preparing update payload:', err);
+        showToast.error('Error preparing update.', {
+          duration: 2000,
+          progress: true,
+          position: "top-center",
+          transition: "bounceIn",
+        });
+        setEditingCell(null);
+      }
     } else if (e.key === "Escape") {
       setEditingCell(null);
     }
   };
+
+  async function performUpdate(payload) {
+    setUpdateLoading(true);
+    try {
+      const res = await fetch(`/api/projects/${projectid}/update`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          table: payload.table,
+          pkColumn: payload.pkColumn,
+          pkValue: payload.pkValue,
+          column: payload.column,
+          newValue: payload.newValue,
+          oldValue: payload.oldValue,
+        }),
+      });
+
+      const result = await res.json();
+      if (!res.ok) {
+        // show error to user
+        showToast.error(result?.error || "Failed to update value", {
+          duration: 2000,
+          progress: true,
+          position: "top-center",
+          transition: "bounceIn",
+        });
+      } else {
+        const updatedRow = result.row;
+        setTableData((prev) => {
+          if (!prev) return prev;
+          const rows = prev.rows.map((r, idx) => {
+            if (idx !== payload.editingRowIndex) return r;
+
+            return updatedRow;
+          });
+          return { ...prev, rows };
+        });
+      }
+    } catch (err) {
+      alert("Error updating value", err);
+    } finally {
+      setEditingCell(null);
+      setPendingUpdatePayload(null);
+      setIsUpdateModalOpen(false);
+      setUpdateLoading(false);
+    }
+  }
  
 const fetchTables = async () => {
     try {
@@ -562,7 +622,7 @@ const fetchtabledata = async (tablename, recordLimit = limit) => {
                     })}
                     <div className="flex gap-2 mt-4">
                       <button type="button" className="px-4 py-2 border rounded cursor-pointer" onClick={() => setIsInsertModalOpen(false)}>Cancel</button>
-                      <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded cursor-pointer">Insert</button>
+                      <button type="submit" className="px-4 py-2 bg-primary text-white rounded cursor-pointer">Insert</button>
                     </div>
                   </form>
                  
@@ -576,6 +636,37 @@ const fetchtabledata = async (tablename, recordLimit = limit) => {
                 </div>
               )}
             </Modal>
+      <Modal
+        open={isUpdateModalOpen}
+        onClose={() => {
+          setIsUpdateModalOpen(false);
+          setPendingUpdatePayload(null);
+          setEditingCell(null);
+        }}
+        title={pendingUpdatePayload ? `Update ${pendingUpdatePayload.column}` : 'Confirm Update'}
+        subtitle={pendingUpdatePayload ? `Change value from "${pendingUpdatePayload.oldValue}" to "${pendingUpdatePayload.newValue}"?` : ''}
+        loading={updateLoading}
+        loadingTitle={updateLoading ? 'Updating...' : undefined}
+        loadingSubtitle={updateLoading ? 'Please wait while we update the value.' : undefined}
+        loadingOverlay={true}
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-gray-700">Are you sure you want to update this value?</p>
+          <div className="flex gap-2 mt-4">
+            <button type="button" className="px-4 py-2 border rounded cursor-pointer" onClick={() => {
+              setIsUpdateModalOpen(false);
+              setPendingUpdatePayload(null);
+              setEditingCell(null);
+            }}>Cancel</button>
+            <button type="button" className="px-4 py-2 bg-primary text-white rounded cursor-pointer" onClick={async () => {
+              if (!pendingUpdatePayload) return;
+              await performUpdate(pendingUpdatePayload);
+            }}>
+              {updateLoading ? 'Updating...' : 'Confirm'}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       <div className="db bg-white w-full flex items-center h-26 gap-4 px-6">
         <div className="db_left flex items-center">
@@ -603,7 +694,7 @@ const fetchtabledata = async (tablename, recordLimit = limit) => {
           </div>
 
           <div className="ml-auto flex items-center">
-            <Button onClick={() => setShowSummary(true)} className="generate-btn cursor-pointer">
+            <Button onClick={() => setShowSummary(true)} className="generate-btn">
               <Sparkles className="w-4 h-4 mr-1" />
               Summary
             </Button>
@@ -637,7 +728,7 @@ const fetchtabledata = async (tablename, recordLimit = limit) => {
 
               <div className="mockbutton  h-28 gap-2 bg-white items-center flex-col  max-[510]:h-65   min-[820]:flex-row min-[820]:h-19 flex p-4 justify-between">
                <div className="frontbtn flex flex-row gap-2 max-[510]:flex-col max-[510]:w-full max-[510]:gap-3">
-                    <Button className="max-[510]:w-full cursor-pointer" disabled={insertLoading} onClick={async ()=>{
+                    <Button className="max-[510]:w-full" disabled={insertLoading} onClick={async ()=>{
                    
                     await handleinsertrow();
                   
