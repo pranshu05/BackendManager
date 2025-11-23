@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect} from "react";
 import { useParams } from "next/navigation";
 import Header from "@/components/ui/header";
 import Sidebar from "@/components/ui/sidebar";
@@ -140,8 +140,6 @@ export default function DashboardPage() {
       if(value!=='')
         body[key] = value;
       }
-
-   
       const res = await fetch(`/api/projects/${projectid}/insert`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -151,13 +149,37 @@ export default function DashboardPage() {
 
       const payload = await res.json();
       if (!res.ok) {
-        const errMsg = payload?.error || "Failed to prepare insert";
-        showToast.error(errMsg, {
-          duration: 2000,
-          progress: true,
-          position: "top-center",
-          transition: "bounceIn",
-        });
+        try {
+          const parseResponse = await fetch(`/api/ai/parse-error/${projectid}`, { method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ error: payload?.error})});
+          const parseData = await parseResponse.json();
+          if (parseData.success && parseData.parsed) {
+            showToast.error(parseData.parsed.userFriendlyExplanation, {
+              duration: 5000,
+              progress: true,
+              position: "top-center",
+              transition: "bounceIn",
+            });
+          } else {
+            showToast.error(payload?.error || "Failed to prepare insert", {
+              duration: 5000,
+              progress: true,
+              position: "top-center",
+              transition: "bounceIn",
+            });
+          }
+        } catch (parseError) {
+          console.error("Error parsing insert error:", parseError);
+          showToast.error(payload?.error || "Failed to prepare insert",{
+            duration: 2000,
+            progress: true,
+            position: "top-center",
+            transition: "bounceIn",
+          });
+        }
         
       } else {
         showToast.success('Row inserted successfully!', {
@@ -334,15 +356,51 @@ export default function DashboardPage() {
       const result = await res.json();
 
       if (!res.ok) {
-        showToast.error(result?.error || "Failed to delete rows", {
-          duration: 2000,
-          progress: true,
-          position: "top-center",
-          transition: "bounceIn",
-        });
+        // Parse the error using AI for user-friendly message
+        try {
+          const parseResponse = await fetch(`/api/ai/parse-error/${projectid}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+              error: result?.error || "Failed to delete rows"
+            }),
+          });
+          
+          const parseData = await parseResponse.json();
+          if (parseData.success && parseData.parsed) {
+            showToast.error(parseData.parsed.userFriendlyExplanation, {
+              duration: 10000,
+              progress: true,
+              position: "top-center",
+              transition: "bounceIn",
+            });
+          } else {
+            // Fallback to original error
+            showToast.error(result?.error || "Failed to delete rows", {
+              duration: 2000,
+              progress: true,
+              position: "top-center",
+              transition: "bounceIn",
+            });
+          }
+        } catch (parseError) {
+          console.error("Error parsing deletion error:", parseError);
+          // Fallback to original error
+          showToast.error(result?.error || "Failed to delete rows", {
+            duration: 2000,
+            progress: true,
+            position: "top-center",
+            transition: "bounceIn",
+          });
+        }
+        
+        setdeleteRows([]);
+        setdeletemodalopen(false);
+        setdeleteloading(false);
         return;
       }
-
 
     showToast.success(`Successfully deleted ${deleteRows.length} rows.`, {
     duration: 2000,

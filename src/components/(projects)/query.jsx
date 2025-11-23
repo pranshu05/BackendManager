@@ -4,7 +4,8 @@ import { useParams } from "next/navigation";
 import { Sparkles,Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
-
+import ExportDropdown from "@/components/ui/ExportDropdown";
+import { showToast } from "nextjs-toast-notify";
 export default function Query() {
     const params = useParams();
     const projectid = params.slug;
@@ -18,6 +19,100 @@ export default function Query() {
     const [displayquery,setdisplayquery]=useState(null);
     const [parsedError, setParsedError] = useState(null);
     const [showError, setShowError] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
+    const [exportOptions, setExportOptions] = useState(["XLSX", "CSV", "JSON"]);
+
+  useEffect(()=>{
+    console.log("Query Result Updated: ", queryResult);
+  },[queryResult])
+    const handleExport = async (format) => {
+    if(!queryResult || queryResult.length === 0) {
+      showToast.warning("No data to export", {
+        duration: 2000,
+        progress: true,
+        position: "top-center",
+        transition: "bounceIn",
+      });
+      return;
+    }
+    
+    setIsExporting(true);
+    try {
+      // Convert query result data to the appropriate format
+      let fileContent;
+      let filename = `query_result_${Date.now()}`;
+      let mimeType;
+      
+      if (format.toLowerCase() === 'json') {
+        fileContent = JSON.stringify(queryResult, null, 2);
+        filename += '.json';
+        mimeType = 'application/json';
+      } else if (format.toLowerCase() === 'csv') {
+        // Convert to CSV
+        if (headers.length === 0) {
+          throw new Error('No headers available for CSV export');
+        }
+        const csvRows = [];
+        csvRows.push(headers.join(','));
+        queryResult.forEach(row => {
+          const values = headers.map(header => {
+            const value = row[header];
+            // Escape quotes and wrap in quotes if contains comma or quote
+            if (value === null || value === undefined) return '';
+            const stringValue = String(value);
+            if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+              return `"${stringValue.replace(/"/g, '""')}"`;
+            }
+            return stringValue;
+          });
+          csvRows.push(values.join(','));
+        });
+        fileContent = csvRows.join('\n');
+        filename += '.csv';
+        mimeType = 'text/csv';
+      } else if (format.toLowerCase() === 'xlsx') {
+        // For XLSX, we need to send to backend as it requires a library
+        showToast.info("XLSX export requires server processing. Please use CSV or JSON for now.", {
+          duration: 3000,
+          progress: true,
+          position: "top-center",
+          transition: "bounceIn",
+        });
+        setIsExporting(false);
+        return;
+      }
+
+      // Create blob and download
+      const blob = new Blob([fileContent], { type: mimeType });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 1000);
+      
+      showToast.success(`Successfully exported as ${format.toUpperCase()}`, {
+        duration: 2000,
+        progress: true,
+        position: "top-center",
+        transition: "bounceIn",
+      });
+    } catch (error) {
+      console.error("Export error:", error);
+      showToast.error(error.message || "Failed to export data", {
+        duration: 2000,
+        progress: true,
+        position: "top-center",
+        transition: "bounceIn",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
 
     useEffect(()=>{
@@ -276,11 +371,19 @@ export default function Query() {
                         </div>
                       </div> : 
                       <>
-                        <div className="mx-10 mt-6">
+                        <div className="mx-10 mt-6 flex items-center justify-between">
                           <div className="flex items-center gap-2 mb-2">
                             <Sparkles className="w-5 h-5 text-blue-500"/>
                             <h3 className="font-medium text-gray-700">Your Query:</h3>
                           </div>
+                          <ExportDropdown
+                            options={exportOptions}
+                            onSelect={handleExport}
+                            disabled={!queryResult || queryResult.length === 0}
+                            isLoading={isExporting}
+                          />
+                        </div>
+                        <div className="mx-10">
                           <p className="text-gray-600 pl-7">{displayquery}</p>
                         </div>
                         <hr />
