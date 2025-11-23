@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { showToast } from "nextjs-toast-notify";
 import { 
     Ticket, 
     AlertCircle, 
@@ -99,16 +100,31 @@ const AdminTicketsList = () => {
             });
 
             if (res.ok) {
-                alert('Ticket updated successfully!');
+                showToast.success('Ticket updated successfully!', {
+                    duration: 3000,
+                    progress: true,
+                    position: "top-center",
+                    transition: "bounceIn",
+                });
                 setSelectedTicket(null);
                 fetchTickets(); // Refresh list
             } else {
                 const data = await res.json();
-                alert(data.error || 'Failed to update ticket');
+                showToast.error(data.error || 'Failed to update ticket', {
+                    duration: 3000,
+                    progress: true,
+                    position: "top-center",
+                    transition: "bounceIn",
+                });
             }
         } catch (error) {
             console.error('Error updating ticket:', error);
-            alert('An error occurred while updating the ticket');
+            showToast.error('An error occurred while updating the ticket', {
+                duration: 3000,
+                progress: true,
+                position: "top-center",
+                transition: "bounceIn",
+            });
         } finally {
             setUpdating(false);
         }
@@ -125,18 +141,33 @@ const AdminTicketsList = () => {
             });
 
             if (res.ok) {
-                alert('Ticket deleted successfully');
+                showToast.success('Ticket deleted successfully', {
+                    duration: 3000,
+                    progress: true,
+                    position: "top-center",
+                    transition: "bounceIn",
+                });
                 if (selectedTicket?.id === ticketId) {
                     setSelectedTicket(null);
                 }
                 fetchTickets(); // Refresh list
             } else {
                 const data = await res.json();
-                alert(data.error || 'Failed to delete ticket');
+                showToast.error(data.error || 'Failed to delete ticket', {
+                    duration: 3000,
+                    progress: true,
+                    position: "top-center",
+                    transition: "bounceIn",
+                });
             }
         } catch (error) {
             console.error('Error deleting ticket:', error);
-            alert('An error occurred while deleting the ticket');
+            showToast.error('An error occurred while deleting the ticket', {
+                duration: 3000,
+                progress: true,
+                position: "top-center",
+                transition: "bounceIn",
+            });
         }
     };
 

@@ -223,23 +223,23 @@ export default function DashboardPage() {
 
                 {/* Projects */}
                 <section>
-                    <div className="flex items-center justify-between mb-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                         <h2 className="text-2xl font-semibold text-foreground">
                             Your Projects
                         </h2>
-                        <div className="flex items-center gap-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                             <div className="flex items-center space-x-2">
-                                <div className="relative">
+                                <div className="relative flex-1 sm:flex-initial">
                                     <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                                     <input
                                         type="search"
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
                                         placeholder="Search projects..."
-                                        className="pl-9 pr-3 py-2 rounded-md border border-border bg-card/60 text-sm focus:outline-none"
+                                        className="w-full pl-9 pr-3 py-2 rounded-md border border-border bg-card/60 text-sm focus:outline-none"
                                     />
                                 </div>
-                                <div className="text-sm text-muted-foreground">
+                                <div className="text-sm text-muted-foreground whitespace-nowrap">
                                     {projects.length} project{projects.length !== 1 ? "s" : ""}
                                 </div>
                             </div>

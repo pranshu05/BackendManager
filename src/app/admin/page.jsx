@@ -8,7 +8,8 @@ import {
     Shield,
     Ticket,
     BarChart3,
-    RefreshCw
+    RefreshCw,
+    X
 } from 'lucide-react';
 import AdminTicketsList from '@/components/(admin)/AdminTicketsList';
 import AdminStatsDashboard from '@/components/(admin)/AdminStatsDashboard';
@@ -82,16 +83,22 @@ export default function AdminPage() {
                             </p>
                         </div>
                     </div>
+                    <button
+                        onClick={() => router.push('/help')}
+                        className="p-2 rounded-full cursor-pointer text-muted-foreground hover:bg-gray-500/10 transition-colors"
+                        aria-label="Close">
+                        <X className="w-6 h-6" />
+                    </button>
                 </div>
 
                 {/* Admin Tabs */}
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                     <TabsList className="grid w-full grid-cols-2 mb-8">
-                        <TabsTrigger value="overview" className="flex items-center gap-2">
+                        <TabsTrigger value="overview" className="flex items-center gap-2 cursor-pointer">
                             <BarChart3 className="w-4 h-4" />
                             Overview & Stats
                         </TabsTrigger>
-                        <TabsTrigger value="tickets" className="flex items-center gap-2">
+                        <TabsTrigger value="tickets" className="flex items-center gap-2 cursor-pointer">
                             <Ticket className="w-4 h-4" />
                             Support Tickets
                         </TabsTrigger>
