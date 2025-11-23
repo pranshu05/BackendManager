@@ -16,17 +16,17 @@ export default function PasswordUpdateSection({
   onTogglePasswordVisibility
 }) {
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-2xl font-bold text-[#1e4a8a] flex items-center gap-2">
-          <Key className="w-6 h-6" />
+    <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <h3 className="text-xl sm:text-2xl font-bold text-[#1e4a8a] flex items-center gap-2">
+          <Key className="w-5 h-5 sm:w-6 sm:h-6" />
           Change Password
         </h3>
         {passwordStep === 1 && (
           <button
             onClick={onRequestOTP}
             disabled={savingPassword}
-            className="flex items-center gap-2 bg-[#1e4a8a] hover:bg-[#1e3a6a] text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 cursor-pointer">
+            className="flex items-center justify-center gap-2 bg-[#1e4a8a] hover:bg-[#1e3a6a] text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 cursor-pointer w-full sm:w-auto">
             {savingPassword ? "Sending..." : "Send OTP"}
           </button>
         )}
@@ -34,7 +34,7 @@ export default function PasswordUpdateSection({
           <button
             onClick={onVerifyOTP}
             disabled={savingPassword || !passwordForm.otp}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 cursor-pointer">
+            className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 cursor-pointer w-full sm:w-auto">
             {savingPassword ? "Verifying..." : "Verify Your OTP"}
           </button>
         )}
@@ -42,7 +42,7 @@ export default function PasswordUpdateSection({
           <button
             onClick={onUpdatePassword}
             disabled={savingPassword}
-            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 cursor-pointer">
+            className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 cursor-pointer w-full sm:w-auto">
             <Save className="w-4 h-4" />
             {savingPassword ? "Updating..." : "Update Password"}
           </button>
@@ -50,26 +50,26 @@ export default function PasswordUpdateSection({
       </div>
 
       {/* Step Indicator */}
-      <div className="mb-6 flex items-center justify-center gap-4">
+      <div className="mb-6 flex items-center justify-center gap-2 sm:gap-4">
         <div className={`flex items-center gap-2 ${passwordStep >= 1 ? 'text-[#1e4a8a]' : 'text-gray-400'}`}>
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${passwordStep >= 1 ? 'bg-[#1e4a8a] text-white' : 'bg-gray-200'}`}>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm ${passwordStep >= 1 ? 'bg-[#1e4a8a] text-white' : 'bg-gray-200'}`}>
             1
           </div>
-          <span className="text-sm font-medium">Request OTP</span>
+          <span className="hidden md:inline text-sm font-medium">Request OTP</span>
         </div>
-        <div className="w-12 h-0.5 bg-gray-300"></div>
+        <div className="w-6 sm:w-12 h-0.5 bg-gray-300"></div>
         <div className={`flex items-center gap-2 ${passwordStep >= 2 ? 'text-[#1e4a8a]' : 'text-gray-400'}`}>
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${passwordStep >= 2 ? 'bg-[#1e4a8a] text-white' : 'bg-gray-200'}`}>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm ${passwordStep >= 2 ? 'bg-[#1e4a8a] text-white' : 'bg-gray-200'}`}>
             2
           </div>
-          <span className="text-sm font-medium">Verify OTP</span>
+          <span className="hidden md:inline text-sm font-medium">Verify OTP</span>
         </div>
-        <div className="w-12 h-0.5 bg-gray-300"></div>
+        <div className="w-6 sm:w-12 h-0.5 bg-gray-300"></div>
         <div className={`flex items-center gap-2 ${passwordStep >= 3 ? 'text-[#1e4a8a]' : 'text-gray-400'}`}>
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${passwordStep >= 3 ? 'bg-[#1e4a8a] text-white' : 'bg-gray-200'}`}>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm ${passwordStep >= 3 ? 'bg-[#1e4a8a] text-white' : 'bg-gray-200'}`}>
             3
           </div>
-          <span className="text-sm font-medium">New Password</span>
+          <span className="hidden md:inline text-sm font-medium">New Password</span>
         </div>
       </div>
       
