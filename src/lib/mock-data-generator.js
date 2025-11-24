@@ -1,301 +1,176 @@
 import { executeQuery, getDatabaseSchema } from './db.js';
+import { ChatGroq } from "@langchain/groq";
+import { StateGraph, END, START } from "@langchain/langgraph";
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { JsonOutputParser } from "@langchain/core/output_parsers";
+import { v4 as uuidv4 } from 'uuid'; //for generating uuids
 
-/**
- * Mock Data Generator for PostgreSQL databases
- * Generates realistic test data based on database schema
- */
+// Mock Data Generator using LangGraph Generates realistic test data based on database schema using LLM with hybrid post-processing
+ 
+// Initialize Groq Model
+const model = new ChatGroq({
+    apiKey: process.env.GROQ_API_KEY,
+    model: "llama-3.3-70b-versatile",
+    temperature: 0.6 // Slightly creative for text
+});
 
-// Data type generators with realistic patterns
-const dataGenerators = {
-    // String types
-    'character varying': (column, options = {}) => {
-        const { maxLength = 255, pattern } = options;
+const BATCH_SIZE = 10; // Process records in small chunks
+//  CORE GRAPH NODES
+// 1. GENERATE NODE: Creates raw JSON based on schema and hints
+const generateDataNode = async (state) => {
+    const { tableName, tableSchema, count, foreignKeyContext, retryCount } = state;
+    
+    // Parse schema to create helpful hints about context of database for the LLM
+    const schema = JSON.parse(tableSchema);
+    const hints = schema.map(col => {
+        const name = col.name.toLowerCase();
+      //adding manual hints for usual types
+        if (name.includes('status')) return `${col.name}: use realistic business statuses (e.g., active, pending, archived)`;
+        if (name.includes('email')) return `${col.name}: use unique realistic emails`;
+        if (name.includes('phone')) return `${col.name}: use realistic phone format`;
+        if (name.includes('amount') || name.includes('price')) return `${col.name}: positive decimal number`;
+        if (name.includes('description') || name.includes('bio')) return `${col.name}: 1-2 sentences of realistic text`;
+        return null;
+    }).filter(Boolean).join('\n');
+ //prompting the model
+    const prompt = `
+    ROLE: Database Data Generator.
+    CONTEXT: Generating mock data for table "${tableName}".
+    
+    SCHEMA STRUCTURE:
+    ${tableSchema}
+    
+    HINTS & CONSTRAINTS:
+    ${hints}
+    
+    FOREIGN KEYS (You MUST use one of these existing IDs for the respective column):
+    ${foreignKeyContext}
+    
+    INSTRUCTIONS:
+    1. Generate exactly ${count} records in a JSON Array.
+    2. For 'uuid' columns: Generate a placeholder string "UUID_PLACEHOLDER" (we will fix this in code).
+    3. For 'id' (integer): Generate unique integers.
+    4. For 'json'/'jsonb' columns: Generate valid stringified JSON objects.
+    5. Make text data realistic and varied. Avoid "Test Data 1", "Test Data 2".
+    
+    OUTPUT: Return ONLY the raw JSON array. No markdown, no explanations.`;
+
+    try {
+        const response = await model.invoke([
+            new SystemMessage("You are a strict JSON data factory. Output raw JSON only."),
+            new HumanMessage(prompt)
+        ]);
         
-        // Smart pattern detection based on column name
-        const columnName = column.name.toLowerCase();
-        
-        if (columnName.includes('email')) {
-            return generateEmail();
-        } else if (columnName.includes('phone')) {
-            return generatePhone();
-        } else if (columnName.includes('name') && columnName.includes('first')) {
-            return generateFirstName();
-        } else if (columnName.includes('name') && columnName.includes('last')) {
-            return generateLastName();
-        } else if (columnName.includes('name')) {
-            return generateFullName();
-        } else if (columnName.includes('address')) {
-            return generateAddress();
-        } else if (columnName.includes('city')) {
-            return generateCity();
-        } else if (columnName.includes('country')) {
-            return generateCountry();
-        } else if (columnName.includes('company')) {
-            return generateCompany();
-        } else if (columnName.includes('title') || columnName.includes('position')) {
-            return generateJobTitle();
-        } else if (columnName.includes('description')) {
-            return generateDescription();
-        } else if (columnName.includes('url') || columnName.includes('website')) {
-            return generateUrl();
-        } else if (pattern) {
-            return generateByPattern(pattern);
-        } else {
-            return generateRandomString(Math.min(maxLength, 50));
-        }
-    },
-    
-    'varchar': (column, options) => dataGenerators['character varying'](column, options),
-    'text': (column, options) => dataGenerators['character varying'](column, { ...options, maxLength: 500 }),
-    'char': (column, options) => dataGenerators['character varying'](column, { ...options, maxLength: 1 }),
-    
-    // Numeric types
-    'integer': (column, options = {}) => {
-        const { min = 1, max = 100000 } = options;
-        const columnName = column.name.toLowerCase();
-        
-        if (columnName.includes('age')) {
-            return Math.floor(Math.random() * 80) + 18;
-        } else if (columnName.includes('year')) {
-            return Math.floor(Math.random() * 30) + 1995;
-        } else if (columnName.includes('price') || columnName.includes('amount')) {
-            return Math.floor(Math.random() * 10000) + 1;
-        } else if (columnName.includes('quantity') || columnName.includes('count')) {
-            return Math.floor(Math.random() * 100) + 1;
-        }
-        
-        return Math.floor(Math.random() * (max - min + 1)) + min;
-    },
-    
-    'bigint': (column, options = {}) => {
-        const { min = 1, max = 1000000 } = options;
-        return Math.floor(Math.random() * (max - min + 1)) + min;
-    },
-    
-    'smallint': (column, options = {}) => {
-        const { min = 1, max = 32767 } = options;
-        return Math.floor(Math.random() * (max - min + 1)) + min;
-    },
-    
-    'decimal': (column, options = {}) => {
-        const { min = 0, max = 10000, precision = 2 } = options;
-        const value = Math.random() * (max - min) + min;
-        return parseFloat(value.toFixed(precision));
-    },
-    
-    'numeric': (column, options) => dataGenerators.decimal(column, options),
-    'real': (column, options) => dataGenerators.decimal(column, options),
-    'double precision': (column, options) => dataGenerators.decimal(column, options),
-    
-    // Date/Time types
-    'timestamp without time zone': (column, options = {}) => {
-        const { startDate = new Date(2020, 0, 1), endDate = new Date() } = options;
-        const start = startDate.getTime();
-        const end = endDate.getTime();
-        return new Date(start + Math.random() * (end - start)).toISOString();
-    },
-    
-    'timestamp with time zone': (column, options) => dataGenerators['timestamp without time zone'](column, options),
-    'timestamptz': (column, options) => dataGenerators['timestamp without time zone'](column, options),
-    
-    'date': (column, options = {}) => {
-        const { startDate = new Date(2020, 0, 1), endDate = new Date() } = options;
-        const start = startDate.getTime();
-        const end = endDate.getTime();
-        return new Date(start + Math.random() * (end - start)).toISOString().split('T')[0];
-    },
-    
-    'time without time zone': () => {
-        const hours = Math.floor(Math.random() * 24).toString().padStart(2, '0');
-        const minutes = Math.floor(Math.random() * 60).toString().padStart(2, '0');
-        const seconds = Math.floor(Math.random() * 60).toString().padStart(2, '0');
-        return `${hours}:${minutes}:${seconds}`;
-    },
-    
-    'time with time zone': (column, options) => dataGenerators['time without time zone'](column, options) + '+00:00',
-    
-    // Boolean type
-    'boolean': () => Math.random() < 0.5,
-    
-    // UUID type
-    'uuid': () => generateUUID(),
-    
-    // JSON types
-    'json': (column) => {
-        const columnName = column.name.toLowerCase();
-        if (columnName.includes('config') || columnName.includes('settings')) {
-            return JSON.stringify({
-                theme: ['light', 'dark'][Math.floor(Math.random() * 2)],
-                notifications: Math.random() < 0.7,
-                language: ['en', 'es', 'fr', 'de'][Math.floor(Math.random() * 4)]
-            });
-        } else if (columnName.includes('metadata')) {
-            return JSON.stringify({
-                created_by: 'system',
-                version: '1.0',
-                tags: generateTags()
-            });
-        }
-        return JSON.stringify({ data: generateRandomString(20) });
-    },
-    
-    'jsonb': (column, options) => dataGenerators.json(column, options),
-    
-    // Array types (simplified)
-    'ARRAY': (column) => {
-        const baseType = column.type.replace('ARRAY', '').replace('[]', '');
-        const arraySize = Math.floor(Math.random() * 5) + 1;
-        const items = [];
-        for (let i = 0; i < arraySize; i++) {
-            if (dataGenerators[baseType]) {
-                items.push(dataGenerators[baseType](column));
-            } else {
-                items.push(generateRandomString(10));
-            }
-        }
-        return `{${items.join(',')}}`;
+        return { 
+            rawOutput: response.content, 
+            retryCount: retryCount 
+        };
+    } catch (e) {
+        return { error: e.message, retryCount: retryCount + 1 };
     }
 };
 
-// Helper functions for realistic data generation
-function generateEmail() {
-    const domains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'company.com', 'example.org'];
-    const username = generateRandomString(8).toLowerCase();
-    const domain = domains[Math.floor(Math.random() * domains.length)];
-    return `${username}@${domain}`;
-}
+// Hybrid approach to ensure data validity
+const validateDataNode = async (state) => {
+    const { rawOutput, tableSchema } = state;
+    const parser = new JsonOutputParser();
+    const schema = JSON.parse(tableSchema);
 
-function generatePhone() {
-    const formats = [
-        '+1-XXX-XXX-XXXX',
-        '(XXX) XXX-XXXX',
-        'XXX-XXX-XXXX',
-        '+44-XXXX-XXXXXX'
-    ];
-    const format = formats[Math.floor(Math.random() * formats.length)];
-    return format.replace(/X/g, () => Math.floor(Math.random() * 10));
-}
-
-function generateFirstName() {
-    const names = [
-        'John', 'Jane', 'Michael', 'Sarah', 'David', 'Emily', 'Chris', 'Jessica',
-        'Daniel', 'Ashley', 'Matthew', 'Amanda', 'James', 'Melissa', 'Robert', 'Michelle',
-        'William', 'Kimberly', 'Richard', 'Amy', 'Joseph', 'Angela', 'Thomas', 'Helen'
-    ];
-    return names[Math.floor(Math.random() * names.length)];
-}
-
-function generateLastName() {
-    const names = [
-        'Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis',
-        'Rodriguez', 'Martinez', 'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas',
-        'Taylor', 'Moore', 'Jackson', 'Martin', 'Lee', 'Perez', 'Thompson', 'White'
-    ];
-    return names[Math.floor(Math.random() * names.length)];
-}
-
-function generateFullName() {
-    return `${generateFirstName()} ${generateLastName()}`;
-}
-
-function generateAddress() {
-    const streetNumbers = Math.floor(Math.random() * 9999) + 1;
-    const streetNames = [
-        'Main St', 'Oak Ave', 'Pine Rd', 'Maple Dr', 'Cedar Ln', 'Elm St',
-        'Park Ave', 'First St', 'Second St', 'Washington St', 'Lincoln Ave'
-    ];
-    const streetName = streetNames[Math.floor(Math.random() * streetNames.length)];
-    return `${streetNumbers} ${streetName}`;
-}
-
-function generateCity() {
-    const cities = [
-        'New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix', 'Philadelphia',
-        'San Antonio', 'San Diego', 'Dallas', 'San Jose', 'Austin', 'Jacksonville',
-        'Fort Worth', 'Columbus', 'Charlotte', 'San Francisco', 'Indianapolis', 'Seattle'
-    ];
-    return cities[Math.floor(Math.random() * cities.length)];
-}
-
-function generateCountry() {
-    const countries = [
-        'United States', 'Canada', 'United Kingdom', 'Germany', 'France', 'Italy',
-        'Spain', 'Australia', 'Japan', 'South Korea', 'Brazil', 'Mexico',
-        'India', 'China', 'Russia', 'Netherlands', 'Sweden', 'Norway'
-    ];
-    return countries[Math.floor(Math.random() * countries.length)];
-}
-
-function generateCompany() {
-    const prefixes = ['Tech', 'Global', 'Digital', 'Smart', 'Advanced', 'Modern', 'Future'];
-    const suffixes = ['Solutions', 'Systems', 'Corp', 'Inc', 'LLC', 'Group', 'Enterprises'];
-    const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
-    const suffix = suffixes[Math.floor(Math.random() * suffixes.length)];
-    return `${prefix} ${suffix}`;
-}
-
-function generateJobTitle() {
-    const titles = [
-        'Software Engineer', 'Product Manager', 'Data Analyst', 'Marketing Specialist',
-        'Sales Representative', 'Customer Success Manager', 'DevOps Engineer', 'UX Designer',
-        'Business Analyst', 'Project Manager', 'Quality Assurance Engineer', 'Technical Writer'
-    ];
-    return titles[Math.floor(Math.random() * titles.length)];
-}
-
-function generateDescription() {
-    const adjectives = ['innovative', 'efficient', 'reliable', 'scalable', 'user-friendly', 'robust'];
-    const nouns = ['solution', 'platform', 'system', 'application', 'service', 'tool'];
-    const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
-    const noun = nouns[Math.floor(Math.random() * nouns.length)];
-    return `An ${adj} ${noun} designed to improve productivity and efficiency.`;
-}
-
-function generateUrl() {
-    const domains = ['example.com', 'company.org', 'website.net', 'platform.io', 'service.co'];
-    const domain = domains[Math.floor(Math.random() * domains.length)];
-    return `https://www.${domain}`;
-}
-
-function generateRandomString(length) {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let result = '';
-    for (let i = 0; i < length; i++) {
-        result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-}
-
-function generateUUID() {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-        const r = Math.random() * 16 | 0;
-        const v = c === 'x' ? r : (r & 0x3 | 0x8);
-        return v.toString(16);
-    });
-}
-
-function generateTags() {
-    const tags = ['important', 'urgent', 'review', 'draft', 'published', 'archived'];
-    const numTags = Math.floor(Math.random() * 3) + 1;
-    const selectedTags = [];
-    for (let i = 0; i < numTags; i++) {
-        const tag = tags[Math.floor(Math.random() * tags.length)];
-        if (!selectedTags.includes(tag)) {
-            selectedTags.push(tag);
+    try {
+        let parsed;
+        try {
+            parsed = await parser.parse(rawOutput);
+        } catch (e) {
+            // Fallback: Try to clean markdown if parsing fails
+            const cleaned = rawOutput.replace(/```json/g, '').replace(/```/g, '').trim();
+            parsed = JSON.parse(cleaned);
         }
+
+        if (!Array.isArray(parsed)) throw new Error("Output is not an array");
+
+        // Overwrite bad LLM data (UUIDs, Dates) with hardcoded fixes
+        const cleanedData = parsed.map(row => {
+            const newRow = { ...row };
+            
+            schema.forEach(col => {
+                const colName = col.name;
+                const type = col.type.toLowerCase();
+
+                // Always overwrite UUIDs to ensure they are valid and unique since in last implementation this was being problematic
+                if (type === 'uuid' || type === 'guid') {
+                    // Check for placeholder or missing/invalid UUIDs
+                    if (col.constraint === 'PRIMARY KEY' || newRow[colName] === 'UUID_PLACEHOLDER' || !newRow[colName]) {
+                        newRow[colName] = uuidv4();
+                    }
+                }
+
+                // Ensuring dates are actual ISO strings
+                if (type.includes('timestamp') || type.includes('date')) {
+                    if (newRow[colName]) {
+                        const date = new Date(newRow[colName]);
+                        if (isNaN(date.getTime())) {
+                            newRow[colName] = new Date().toISOString(); // Fallback to now
+                        } else {
+                            newRow[colName] = date.toISOString();
+                        }
+                    }
+                }
+                
+                // Removing Hallucinated Columns
+
+                Object.keys(newRow).forEach(key => {
+                    if (!schema.find(c => c.name === key)) {
+                        delete newRow[key];
+                    }
+                });
+            });
+            return newRow;
+        });
+
+        return { finalData: cleanedData, isValid: true };
+    } catch (error) {
+        return { isValid: false, error: error.message, retryCount: state.retryCount + 1 };
     }
-    return selectedTags;
-}
+};
 
-function generateByPattern(pattern) {
-    // Simple pattern matching (can be extended)
-    return pattern.replace(/X/g, () => Math.floor(Math.random() * 10))
-                 .replace(/A/g, () => String.fromCharCode(65 + Math.floor(Math.random() * 26)));
-}
+// main workflow graph
+const workflow = new StateGraph({
+    channels: {
+        tableName: { value: (x, y) => x ?? y },
+        tableSchema: { value: (x, y) => x ?? y },
+        count: { value: (x, y) => x ?? y },
+        foreignKeyContext: { value: (x, y) => x ?? y },
+        rawOutput: { value: (x, y) => y },
+        finalData: { value: (x, y) => y },
+        isValid: { value: (x, y) => y },
+        retryCount: { value: (x, y) => y },
+        error: { value: (x, y) => y }
+    }
+});
 
-/**
- * Analyzes database schema and builds dependency graph for foreign keys
- */
+workflow.addNode("generate", generateDataNode);
+workflow.addNode("validate", validateDataNode);
+
+workflow.addEdge(START, "generate");
+workflow.addEdge("generate", "validate");
+
+// conditional edges based on validation result
+workflow.addConditionalEdges(
+    "validate",
+    (state) => {
+        if (state.isValid) return "end";
+        if (state.retryCount >= 3) return "end"; // trying 3 times max
+        return "retry";
+    },
+    {
+        end: END,
+        retry: "generate"
+    }
+);
+
+const generateTableDataGraph = workflow.compile();
+
+//api functions
 export async function analyzeSchemaForGeneration(connectionString) {
     const schema = await getDatabaseSchema(connectionString);
     
@@ -313,7 +188,7 @@ export async function analyzeSchemaForGeneration(connectionString) {
         dependencies[table.name] = [];
     });
     
-    // Build dependency graph
+   //dependency mapping
     Object.values(tables).forEach(table => {
         table.foreignKeys.forEach(fk => {
             if (fk.foreign_table && tables[fk.foreign_table]) {
@@ -330,92 +205,68 @@ export async function analyzeSchemaForGeneration(connectionString) {
     return { tables, dependencies };
 }
 
-/**
- * Generates mock data for a single table
- */
-export function generateTableData(table, count = 10, options = {}, foreignKeyData = {}) {
-    const records = [];
-    
-    for (let i = 0; i < count; i++) {
-        const record = {};
-        
-        table.columns.forEach(column => {
-            // Skip auto-increment primary keys
-            if (column.constraint === 'PRIMARY KEY' && 
-                (column.default?.includes('nextval') || column.type === 'serial')) {
-                return;
-            }
-            
-            // Handle foreign keys
-            if (column.constraint === 'FOREIGN KEY' && foreignKeyData[column.foreign_table]) {
-                const foreignRecords = foreignKeyData[column.foreign_table];
-                if (foreignRecords.length > 0) {
-                    const randomRecord = foreignRecords[Math.floor(Math.random() * foreignRecords.length)];
-                    record[column.name] = randomRecord[column.foreign_column];
-                    return;
-                }
-            }
-            
-            // Handle nullable columns
-            if (column.nullable && Math.random() < 0.1) {
-                record[column.name] = null;
-                return;
-            }
-            
-            // Generate data based on type
-            const generator = dataGenerators[column.type.toLowerCase()];
-            if (generator) {
-                record[column.name] = generator(column, options[column.name] || {});
-            } else {
-                // Fallback for unknown types
-                record[column.name] = generateRandomString(10);
-            }
-        });
-        
-        records.push(record);
-    }
-    
-    return records;
-}
-
-/**
- * Generates mock data for entire database respecting foreign key relationships
- */
+//generate mock data function
 export async function generateMockData(connectionString, config = {}) {
+    // read and analyze schema
     const { tables, dependencies } = await analyzeSchemaForGeneration(connectionString);
     
-    // Topological sort to determine generation order
+    // sorting tables on topological order to build foreign key dependencies 
     const sortedTables = topologicalSort(dependencies);
-    const generatedData = {};
+    
+    const generatedData = {};  //generated data stored
     const insertQueries = [];
     
+    //running langraph for each table 
     for (const tableName of sortedTables) {
         const table = tables[tableName];
         if (!table) continue;
         
         const tableConfig = config[tableName] || {};
-        const count = tableConfig.count || 10;
-        const options = tableConfig.options || {};
+        const totalCount = tableConfig.count || 5;
         
-        // Generate data for this table
-        const records = generateTableData(table, count, options, generatedData);
-        generatedData[tableName] = records;
-        
-        // Create INSERT queries
-        if (records.length > 0) {
-            const columns = Object.keys(records[0]);
-            const values = records.map(record => 
-                `(${columns.map(col => {
-                    const value = record[col];
-                    if (value === null) return 'NULL';
-                    if (typeof value === 'string') return `'${value.replace(/'/g, "''")}'`;
-                    if (typeof value === 'boolean') return value;
-                    return value;
-                }).join(', ')})`
-            );
+        console.log(`🤖 Processing ${tableName}: Target ${totalCount} records`);
+
+        // BATCH PROCESSING LOOP 
+        let recordsGenerated = 0;
+        const tableRecords = [];
+
+        while (recordsGenerated < totalCount) {
+            // Calculate remaining records for this batch
+            const currentBatchSize = Math.min(BATCH_SIZE, totalCount - recordsGenerated);
             
-            const query = `INSERT INTO "${tableName}" (${columns.map(col => `"${col}"`).join(', ')}) VALUES ${values.join(', ')};`;
-            insertQueries.push(query);
+            // taking smart foreign key context via sampling
+            const foreignKeyContext = getSmartForeignKeyContext(table, generatedData);
+
+            try {
+                // Invoke Graph for this batch
+                const result = await generateTableDataGraph.invoke({
+                    tableName: tableName,
+                    tableSchema: JSON.stringify(table.columns),
+                    count: currentBatchSize,
+                    foreignKeyContext: JSON.stringify(foreignKeyContext),
+                    retryCount: 0
+                });
+
+                if (result.finalData && result.finalData.length > 0) {
+                    tableRecords.push(...result.finalData);
+                    recordsGenerated += result.finalData.length;
+                    console.log(`   ↳ Batch complete: ${recordsGenerated}/${totalCount}`);
+                } else {
+                    console.warn(`   ⚠️ Batch yielded no data for ${tableName}`);
+                    break; //exit loop to avoid infinite running loops in case of failure 
+                }
+            } catch (err) {
+                console.error(`   ❌ Batch failed for ${tableName}:`, err.message);
+                break;
+            }
+        }
+
+        generatedData[tableName] = tableRecords;
+        
+        // insertion queries for generated data
+        if (tableRecords.length > 0) {
+            const query = buildInsertQuery(tableName, tableRecords);
+            if (query) insertQueries.push(query);
         }
     }
     
@@ -429,9 +280,7 @@ export async function generateMockData(connectionString, config = {}) {
     };
 }
 
-/**
- * Executes mock data generation and inserts into database
- */
+//inserts generated entries in project
 export async function executeMockDataGeneration(connectionString, config = {}) {
     try {
         const result = await generateMockData(connectionString, config);
@@ -440,10 +289,8 @@ export async function executeMockDataGeneration(connectionString, config = {}) {
         const failedTables = [];
         let totalRecordsInserted = 0;
         
-        // Execute queries per table (each table in its own transaction)
         for (let i = 0; i < result.queries.length; i++) {
             const query = result.queries[i];
-            // Extract table name from INSERT query
             const tableNameMatch = query.match(/INSERT INTO "([^"]+)"/);
             const tableName = tableNameMatch ? tableNameMatch[1] : `Table ${i + 1}`;
             const recordCount = result.data[tableName]?.length || 0;
@@ -453,18 +300,11 @@ export async function executeMockDataGeneration(connectionString, config = {}) {
                 await executeQuery(connectionString, query);
                 await executeQuery(connectionString, 'COMMIT;');
                 
-                successfulTables.push({
-                    table: tableName,
-                    records: recordCount
-                });
+                successfulTables.push({ table: tableName, records: recordCount });
                 totalRecordsInserted += recordCount;
             } catch (error) {
                 await executeQuery(connectionString, 'ROLLBACK;').catch(() => {});
-                failedTables.push({
-                    table: tableName,
-                    error: error.message,
-                    records: recordCount
-                });
+                failedTables.push({ table: tableName, error: error.message, records: recordCount });
                 console.error(`Failed to insert data into ${tableName}:`, error.message);
             }
         }
@@ -505,102 +345,82 @@ export async function executeMockDataGeneration(connectionString, config = {}) {
     }
 }
 
-/**
- * Topological sort for dependency resolution
- */
+//helper functions 
 function topologicalSort(dependencies) {
     const visited = new Set();
     const visiting = new Set();
     const result = [];
     
     function visit(node) {
-        if (visiting.has(node)) {
-            // Circular dependency - skip for now
-            return;
-        }
-        if (visited.has(node)) {
-            return;
-        }
+        if (visiting.has(node)) return;
+        if (visited.has(node)) return;
         
         visiting.add(node);
-        
         const deps = dependencies[node] || [];
         deps.forEach(dep => visit(dep));
-        
         visiting.delete(node);
         visited.add(node);
         result.push(node);
     }
     
     Object.keys(dependencies).forEach(node => visit(node));
-    
     return result;
 }
 
-/**
- * Predefined templates for common use cases
- */
+//random sampling of foreign key values for context
+function getSmartForeignKeyContext(table, allGeneratedData) {
+    const context = {};
+    if (!table.dependencies || table.dependencies.length === 0) return "No foreign keys.";
+
+    table.dependencies.forEach(dep => {
+        const sourceData = allGeneratedData[dep.table];
+        if (sourceData && sourceData.length > 0) {
+           
+            const shuffled = [...sourceData].sort(() => 0.5 - Math.random());
+            const sampleSize = Math.min(sourceData.length, 20); // Keep context small
+            
+            context[dep.table] = shuffled
+                .slice(0, sampleSize)
+                .map(d => d[dep.foreignColumn]); 
+        }
+    });
+    return JSON.stringify(context);
+}
+
+function buildInsertQuery(tableName, records) {
+    if (!records || records.length === 0) return null;
+    
+    const columns = Object.keys(records[0]);
+    const values = records.map(record => {
+        return `(${columns.map(col => {
+            const val = record[col];
+            if (val === null || val === undefined) return 'NULL';
+            if (typeof val === 'string') return `'${val.replace(/'/g, "''")}'`;
+            if (typeof val === 'object') return `'${JSON.stringify(val)}'`;
+            return val;
+        }).join(', ')})`;
+    });
+    
+    return `INSERT INTO "${tableName}" (${columns.map(c => `"${c}"`).join(', ')}) VALUES ${values.join(', ')};`;
+}
+
+// Predefined mock data templates for common scenarios which are provided as examples 
 export const mockDataTemplates = {
     ecommerce: {
-        categories: {
-            count: 5,
-            options: {
-                name: { pattern: 'Category-X' },
-                description: { maxLength: 100 }
-            }
-        },
-        products: {
-            count: 50,
-            options: {
-                price: { min: 10, max: 1000, precision: 2 },
-                stock_quantity: { min: 0, max: 100 }
-            }
-        },
-        customers: {
-            count: 100,
-            options: {}
-        },
-        orders: {
-            count: 200,
-            options: {
-                total_amount: { min: 20, max: 500, precision: 2 }
-            }
-        }
+        categories: { count: 5 },
+        products: { count: 20 },
+        customers: { count: 20 },
+        orders: { count: 50 }
     },
-    
     blog: {
-        authors: {
-            count: 10,
-            options: {}
-        },
-        categories: {
-            count: 8,
-            options: {}
-        },
-        posts: {
-            count: 100,
-            options: {}
-        },
-        comments: {
-            count: 500,
-            options: {}
-        }
+        authors: { count: 5 },
+        categories: { count: 5 },
+        posts: { count: 20 },
+        comments: { count: 50 }
     },
-    
     user_management: {
-        roles: {
-            count: 5,
-            options: {}
-        },
-        users: {
-            count: 100,
-            options: {
-                age: { min: 18, max: 65 }
-            }
-        },
-        permissions: {
-            count: 20,
-            options: {}
-        }
+        roles: { count: 3 },
+        users: { count: 25 },
+        permissions: { count: 10 }
     }
 };
