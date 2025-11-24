@@ -176,7 +176,7 @@ export default function SignupForm() {
                         {!loading && !canResend && `Resend in ${resendCooldown}s`}
                     </Button>
                 ) : (
-                    <Button type="submit" className="w-full" disabled={loading || oauthLoading}>
+                    <Button type="submit" className="w-full cursor-pointer" disabled={loading || oauthLoading}>
                         {loading ? "Creating account..." : "Create Account"}
                     </Button>
                 )}
@@ -199,7 +199,7 @@ export default function SignupForm() {
                     variant="outline"
                     onClick={() => handleOAuthSignIn("google")}
                     disabled={loading || oauthLoading}
-                    className="w-full"
+                    className="w-full cursor-pointer"
                 >
                     {oauthLoading === "google" ? (
                         "Loading..."
@@ -215,7 +215,7 @@ export default function SignupForm() {
                     variant="outline"
                     onClick={() => handleOAuthSignIn("github")}
                     disabled={loading || oauthLoading}
-                    className="w-full"
+                    className="w-full cursor-pointer"
                 >
                     {oauthLoading === "github" ? (
                         "Loading..."

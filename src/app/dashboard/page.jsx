@@ -89,7 +89,7 @@ export default function DashboardPage() {
 
                         return;
                     }
-                    showToast.error(data.error || 'Failed to create project', {
+                    showToast.error('Failed to create project', {
                         duration: 2000,
                         progress: true,
                         position: "top-center",
@@ -99,7 +99,7 @@ export default function DashboardPage() {
                 }
 
                 // Success — provide feedback and refresh the page (or re-fetch projects)
-                showToast.success(data.message || 'Project created successfully', {
+                showToast.success('Project created successfully', {
                     duration: 2000,
                     progress: true,
                     position: "top-center",

@@ -93,7 +93,7 @@ export default function forgotpwd() {
                             onChange={(e) => setForm({ ...form, email: e.target.value })}
                         />
                     </div>
-                    <Button type="submit" className="w-full" disabled={loading}>
+                    <Button type="submit" className="w-full cursor-pointer" disabled={loading}>
                         {loading ? "Verifying..." : "Verify"}
                     </Button>
                 </form> : afterverify == false ? <form onSubmit={handleotpSubmit} className="space-y-4">
@@ -107,7 +107,7 @@ export default function forgotpwd() {
                             onChange={(e) => setForm2({ ...form2, otp: e.target.value })}
                         />
                     </div>
-                    <Button type="submit" className="w-full" disabled={loading}>
+                    <Button type="submit" className="w-full cursor-pointer" disabled={loading}>
                         {loading ? "Verifying..." : "Verify"}
                     </Button>
                 </form> :
@@ -151,7 +151,7 @@ export default function forgotpwd() {
                                 </button>
                             </div>
                         </div>
-                        <Button type="submit" className="w-full" disabled={loading}>
+                        <Button type="submit" className="w-full cursor-pointer" disabled={loading}>
                             {loading ? "Resetting..." : "Reset Password"}
                         </Button>
                     </form>

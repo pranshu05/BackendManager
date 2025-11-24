@@ -88,7 +88,7 @@ export default function ProfilePage() {
         });
 
         setPasswordForm({
-          email: data.profile?.email || "",
+          email: data.profile.email,
           otp: "",
           newpwd: "",
           confirmPassword: ""
@@ -142,7 +142,7 @@ export default function ProfilePage() {
         await fetchProfile();
       } else {
         const error = await res.json();
-        showToast.error(`Error: ${error.error || "Failed to update"}`, {
+        showToast.error("Failed to update contact information", {
           duration: 3000,
           progress: true,
           position: "top-center",
@@ -182,7 +182,7 @@ export default function ProfilePage() {
         await fetchProfile();
       } else {
         const error = await res.json();
-        showToast.error(`Error: ${error.error || "Failed to update"}`, {
+        showToast.error("Failed to update general information", {
           duration: 3000,
           progress: true,
           position: "top-center",
@@ -211,8 +211,6 @@ export default function ProfilePage() {
         body: JSON.stringify({ email: passwordForm.email })
       });
 
-      const data = await res.json();
-
       if (res.ok) {
         showToast.success("OTP sent to your email!", {
           duration: 3000,
@@ -223,7 +221,7 @@ export default function ProfilePage() {
         setOtpSent(true);
         setPasswordStep(2);
       } else {
-        showToast.error(`Error: ${data.error || "Failed to send OTP"}`, {
+        showToast.error("Failed to send OTP", {
           duration: 3000,
           progress: true,
           position: "top-center",
@@ -265,8 +263,6 @@ export default function ProfilePage() {
         })
       });
 
-      const data = await res.json();
-
       if (res.ok) {
         showToast.success("OTP verified successfully!", {
           duration: 3000,
@@ -277,7 +273,7 @@ export default function ProfilePage() {
         setOtpVerified(true);
         setPasswordStep(3);
       } else {
-        showToast.error(`Error: ${data.error || "Invalid OTP"}`, {
+        showToast.error("Invalid OTP", {
           duration: 3000,
           progress: true,
           position: "top-center",
@@ -330,8 +326,6 @@ export default function ProfilePage() {
         })
       });
 
-      const data = await res.json();
-
       if (res.ok) {
         showToast.success("Password updated successfully!", {
           duration: 3000,
@@ -350,7 +344,7 @@ export default function ProfilePage() {
         setOtpSent(false);
         setOtpVerified(false);
       } else {
-        showToast.error(`Error: ${data.error || "Failed to update password"}`, {
+        showToast.error("Failed to update password", {
           duration: 3000,
           progress: true,
           position: "top-center",

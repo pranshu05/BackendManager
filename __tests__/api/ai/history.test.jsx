@@ -1,7 +1,7 @@
 // __tests__/history.test.jsx
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import History, { convertToCSV } from "../src/components/(projects)/history.jsx";
+import History, { convertToCSV } from "../../../src/components/(projects)/history.jsx";
 
 
 // Mock next/navigation useParams
