@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import Optimization from '@/components/(projects)/optimization';
+import { act } from '@testing-library/react';
 
 // Increase timeout for all tests in this suite
 jest.setTimeout(30000); // 30 seconds timeout
@@ -494,6 +495,30 @@ describe('Optimization Component', () => {
       });
     });
 
+    test('should display low priority for schema improvements and default when absent', async () => {
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          totalSuggestions: 2,
+          queryPerformance: [],
+          missingIndexes: [],
+          schemaImprovements: [
+            { tableName: 'users', issue: 'Index', priority: 'LOW', suggestion: 'ALTER TABLE users ADD ...' },
+            { tableName: 'products', issue: 'No priority', suggestion: 'ALTER TABLE products ADD ...' }
+          ],
+          potentialIssues: []
+        })
+      });
+
+      render(<Optimization />);
+
+      await waitFor(() => {
+        expect(screen.getByText('LOW')).toBeInTheDocument();
+        // When priority absent, should default to MEDIUM
+        expect(screen.getAllByText('MEDIUM').length).toBeGreaterThan(0);
+      });
+    });
+
     test('should display priority badge with correct color', async () => {
       global.fetch.mockResolvedValueOnce({
         ok: true,
@@ -545,6 +570,33 @@ describe('Optimization Component', () => {
       await waitFor(() => {
         const dismissButtons = screen.getAllByRole('button', { name: /Dismiss/i });
         expect(dismissButtons.length).toBeGreaterThan(0);
+      });
+    });
+
+    test('should not render Apply for schema improvement when suggestion is not ALTER', async () => {
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          totalSuggestions: 1,
+          queryPerformance: [],
+          missingIndexes: [],
+          schemaImprovements: [
+            {
+              tableName: 'users',
+              issue: 'Consider renaming',
+              priority: 'MEDIUM',
+              suggestion: 'RENAME TABLE users TO app_users;'
+            }
+          ],
+          potentialIssues: []
+        })
+      });
+
+      render(<Optimization />);
+
+      await waitFor(() => {
+        // 'Apply' button should not be present because suggestion doesn't start with ALTER
+        expect(screen.queryByRole('button', { name: /Apply/i })).not.toBeInTheDocument();
       });
     });
 
@@ -800,6 +852,29 @@ describe('Optimization Component', () => {
 
       await waitFor(() => {
         expect(screen.getByText('HIGH')).toBeInTheDocument();
+      });
+
+      test('should show MEDIUM when severity missing and show LOW correctly', async () => {
+        global.fetch.mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            totalSuggestions: 2,
+            queryPerformance: [],
+            missingIndexes: [],
+            schemaImprovements: [],
+            potentialIssues: [
+              { tableName: 'users', issue: 'No severity', recommendation: 'Check', severity: undefined },
+              { tableName: 'logs', issue: 'Low severity', recommendation: 'Archive old logs', severity: 'LOW' }
+            ]
+          })
+        });
+
+        render(<Optimization />);
+
+        await waitFor(() => {
+          expect(screen.getByText('MEDIUM')).toBeInTheDocument();
+          expect(screen.getByText('LOW')).toBeInTheDocument();
+        });
       });
     });
   });
@@ -1222,6 +1297,113 @@ describe('Optimization Component', () => {
       await waitFor(() => {
         expect(screen.getByText(new RegExp(longSuggestion))).toBeInTheDocument();
       });
+    });
+
+      test('should not render Apply Index for empty suggestion (no sql)', async () => {
+        global.fetch.mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            totalSuggestions: 1,
+            queryPerformance: [],
+            missingIndexes: [
+              {
+                tableName: 'users',
+                columnName: 'email',
+                severity: 'HIGH',
+                suggestion: ''
+              }
+            ],
+            schemaImprovements: [],
+            potentialIssues: []
+          })
+        });
+
+        render(<Optimization />);
+
+        await waitFor(() => {
+          expect(screen.queryByRole('button', { name: /Apply Index/i })).not.toBeInTheDocument();
+        });
+      });
+
+    test('should not call fetch when project id is missing', async () => {
+      const nav = require('next/navigation');
+      const spy = jest.spyOn(nav, 'useParams').mockImplementation(() => ({}));
+
+      // ensure fetch spy
+      global.fetch = jest.fn();
+
+      render(require('@/components/(projects)/optimization').default);
+
+      await waitFor(() => {
+        expect(global.fetch).not.toHaveBeenCalled();
+      });
+
+      spy.mockRestore();
+    });
+
+    test('handleApplyOptimization returns early for empty sql (apply hidden for empty suggestion)', async () => {
+      // normal slug present
+      global.fetch.mockResolvedValueOnce({ ok: true, json: async () => ({
+        totalSuggestions: 1,
+        queryPerformance: [],
+        missingIndexes: [],
+        schemaImprovements: [
+          { tableName: 'tbl', issue: 'i', priority: 'HIGH', suggestion: '', impact: 'impact' }
+        ],
+        potentialIssues: []
+      }) });
+
+      // Apply response
+      global.fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ success: true, message: 'ok' }) });
+
+      render(<Optimization />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Schema Improvements')).toBeInTheDocument();
+      });
+
+      // Internals are not required; the UI does not render Apply when suggestion is empty
+      await waitFor(() => {
+        expect(screen.queryByRole('button', { name: /Apply/i })).not.toBeInTheDocument();
+      });
+    });
+
+    test('compute helper functions and removeSuggestion utility', async () => {
+      const utils = require('@/components/(projects)/optimization');
+
+      // computeMaxTime handles empty list and numbers
+      expect(utils.computeMaxTime([])).toBe(1);
+      expect(utils.computeMaxTime([{ time: 0 }])).toBe(1);
+      expect(utils.computeMaxTime([{ time: 100 }])).toBe(100);
+
+      // computeFillWidth returns the expected percentage
+      expect(utils.computeFillWidth(50, 200)).toBe(25);
+      expect(utils.computeFillWidth(200, 100)).toBe(100); // capped to 100
+
+      // removeSuggestion returns early for null prev
+      expect(utils.removeSuggestion(null, 'missingIndexes', 0)).toBe(null);
+
+      // remove from missingIndexes
+      const prev1 = { totalSuggestions: 1, missingIndexes: [{ tableName: 'users' }] };
+      const next1 = utils.removeSuggestion(prev1, 'missingIndexes', 0);
+      expect(next1.missingIndexes.length).toBe(0);
+      expect(next1.totalSuggestions).toBe(0);
+
+      // remove from schemaImprovements
+      const prev2 = { totalSuggestions: 1, schemaImprovements: [{ issue: 'i' }] };
+      const next2 = utils.removeSuggestion(prev2, 'schemaImprovements', 0);
+      expect(next2.schemaImprovements.length).toBe(0);
+      expect(next2.totalSuggestions).toBe(0);
+
+      // remove from potentialIssues
+      const prev3 = { totalSuggestions: 1, potentialIssues: [{ issue: 'i' }] };
+      const next3 = utils.removeSuggestion(prev3, 'potentialIssues', 0);
+      expect(next3.potentialIssues.length).toBe(0);
+      expect(next3.totalSuggestions).toBe(0);
+
+      // Test shouldShowApplyButton for ALTer case with whitespace
+      expect(utils.shouldShowApplyButton('   ALTER TABLE x ADD COLUMN')).toBe(true);
+      expect(utils.shouldShowApplyButton('DO NOTHING')).toBe(false);
     });
   });
 });

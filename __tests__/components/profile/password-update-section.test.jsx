@@ -92,6 +92,14 @@ describe('PasswordUpdateSection Component', () => {
       const { container } = render(<PasswordUpdateSection {...defaultProps} passwordStep={3} />);
       expect(container.textContent).toContain('3');
     });
+
+    test('should show inactive step indicator when passwordStep is below 1', () => {
+      const { container } = render(<PasswordUpdateSection {...defaultProps} passwordStep={0} />);
+
+      // 'Request OTP' should be inactive: text-gray-400 and circle should be bg-gray-200
+      expect(container.querySelector('.text-gray-400')).toBeInTheDocument();
+      expect(container.querySelector('.bg-gray-200')).toBeInTheDocument();
+    });
   });
 
   describe('Step 1 - Request OTP', () => {

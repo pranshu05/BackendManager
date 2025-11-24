@@ -93,6 +93,60 @@ describe('TokenModal Component', () => {
     });
   });
 
+  describe('Generate Token Error Handling', () => {
+    test('should alert with API error message', async () => {
+      global.fetch.mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: 'Token generation failed' })
+      });
+
+      global.alert = jest.fn();
+
+      render(<TokenModal onClose={mockOnClose} />);
+      const generateButton = screen.getByRole('button', { name: /Generate Token/i });
+
+      fireEvent.click(generateButton);
+
+      await waitFor(() => {
+        expect(global.fetch).toHaveBeenCalledWith('/api/auth/get-token', expect.objectContaining({ method: 'POST' }));
+        expect(global.alert).toHaveBeenCalledWith('Error: Token generation failed');
+      });
+    });
+
+    test('should alert with default message when API error has no message', async () => {
+      global.fetch.mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({})
+      });
+
+      global.alert = jest.fn();
+
+      render(<TokenModal onClose={mockOnClose} />);
+      const generateButton = screen.getByRole('button', { name: /Generate Token/i });
+
+      fireEvent.click(generateButton);
+
+      await waitFor(() => {
+        expect(global.alert).toHaveBeenCalledWith('Error: Failed to generate token');
+      });
+    });
+
+    test('should alert with network error message', async () => {
+      global.fetch.mockRejectedValueOnce(new Error('Network error'));
+
+      global.alert = jest.fn();
+
+      render(<TokenModal onClose={mockOnClose} />);
+      const generateButton = screen.getByRole('button', { name: /Generate Token/i });
+
+      fireEvent.click(generateButton);
+
+      await waitFor(() => {
+        expect(global.alert).toHaveBeenCalledWith('Failed to generate token. Please try again.');
+      });
+    });
+  });
+
   describe('Generate Token Button', () => {
     test('should render generate button', () => {
       render(<TokenModal onClose={mockOnClose} />);
@@ -298,7 +352,8 @@ describe('TokenModal Component', () => {
     });
 
     test('should copy token to clipboard', async () => {
-      render(<TokenModal onClose={mockOnClose} />);
+      const mockShowToast = jest.fn();
+      render(<TokenModal onClose={mockOnClose} showToast={mockShowToast} />);
       const generateButton = screen.getByRole('button', { name: /Generate Token/i });
       
       fireEvent.click(generateButton);
@@ -310,6 +365,7 @@ describe('TokenModal Component', () => {
 
       await waitFor(() => {
         expect(navigator.clipboard.writeText).toHaveBeenCalledWith('test-token-123');
+        expect(mockShowToast).toHaveBeenCalledWith('Token copied to clipboard!', 'success');
       });
     });
 
@@ -740,7 +796,8 @@ describe('TokenModal Component', () => {
         }
       });
 
-      render(<TokenModal onClose={mockOnClose} />);
+      const mockShowToast = jest.fn();
+      render(<TokenModal onClose={mockOnClose} showToast={mockShowToast} />);
       const generateButton = screen.getByRole('button', { name: /Generate Token/i });
       
       fireEvent.click(generateButton);
@@ -752,6 +809,35 @@ describe('TokenModal Component', () => {
 
       // The component attempts to copy but fails and shows error through toast
       await waitFor(() => {
+        expect(navigator.clipboard.writeText).toHaveBeenCalled();
+        expect(mockShowToast).toHaveBeenCalledWith('Failed to copy token to clipboard', 'error');
+      });
+    });
+
+    test('should handle clipboard write failure without showToast gracefully', async () => {
+      // No showToast prop passed
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ token: 'test-token-123' })
+      });
+
+      Object.assign(navigator, {
+        clipboard: {
+          writeText: jest.fn().mockRejectedValueOnce(new Error('Clipboard error'))
+        }
+      });
+
+      render(<TokenModal onClose={mockOnClose} />);
+      const generateButton = screen.getByRole('button', { name: /Generate Token/i });
+      fireEvent.click(generateButton);
+
+      await waitFor(() => {
+        const copyButton = screen.getAllByRole('button').find(btn => btn.title === 'Copy');
+        fireEvent.click(copyButton);
+      });
+
+      await waitFor(() => {
+        // Should not throw; and no showToast is called as it is not passed
         expect(navigator.clipboard.writeText).toHaveBeenCalled();
       });
     });
