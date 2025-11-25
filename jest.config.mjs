@@ -24,6 +24,9 @@ export default {
           },
         }],
       },
+      transformIgnorePatterns: [
+        'node_modules/(?!(@langchain|p-retry|is-network-error|langchain|uuid)/)',
+      ],
     },
     {
       displayName: 'components',

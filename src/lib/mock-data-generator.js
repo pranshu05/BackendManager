@@ -80,7 +80,7 @@ const validateDataNode = async (state) => {
         let parsed;
         try {
             parsed = await parser.parse(rawOutput);
-        } catch (e) {
+        } catch {
             // Fallback: Try to clean markdown if parsing fails
             const cleaned = rawOutput.replace(/```json/g, '').replace(/```/g, '').trim();
             parsed = JSON.parse(cleaned);
