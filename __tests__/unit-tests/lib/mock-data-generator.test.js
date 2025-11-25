@@ -5,6 +5,8 @@ import {
     mockDataTemplates
 } from '@/lib/mock-data-generator';
 import * as db from '@/lib/db';
+import { ChatGroq } from "@langchain/groq";
+import { StateGraph } from "@langchain/langgraph";
 
 // Mock dependencies
 jest.mock('@/lib/db');
@@ -14,9 +16,41 @@ jest.mock('uuid', () => ({
     v4: jest.fn(() => 'test-uuid-1234')
 }));
 
+// Mock implementations
+let mockInvokeResponse = null;
+let mockCompileInvoke = null;
+
+beforeAll(() => {
+    // Mock ChatGroq
+    ChatGroq.mockImplementation(() => ({
+        invoke: jest.fn(async () => mockInvokeResponse || { content: '[]' })
+    }));
+
+    // Mock StateGraph
+    StateGraph.mockImplementation(() => ({
+        addNode: jest.fn(),
+        addEdge: jest.fn(),
+        addConditionalEdges: jest.fn(),
+        compile: jest.fn(() => ({
+            invoke: jest.fn(async (...args) => {
+                // Dynamically reference mockCompileInvoke to allow test-specific overrides
+                if (mockCompileInvoke) {
+                    return mockCompileInvoke(...args);
+                }
+                return {
+                    finalData: [{ id: 1, email: 'test@example.com' }],
+                    isValid: true
+                };
+            })
+        }))
+    }));
+});
+
 describe('mock-data-generator', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        // Reset mockCompileInvoke to default behavior before each test
+        mockCompileInvoke = null;
     });
 
     describe('analyzeSchemaForGeneration', () => {
@@ -118,6 +152,16 @@ describe('mock-data-generator', () => {
     });
 
     describe('generateMockData', () => {
+        beforeEach(() => {
+            mockCompileInvoke = jest.fn(async () => ({
+                finalData: [
+                    { id: 1, email: 'user1@example.com' },
+                    { id: 2, email: 'user2@example.com' }
+                ],
+                isValid: true
+            }));
+        });
+
         it('should generate mock data for simple schema', async () => {
             const mockSchema = [
                 {
@@ -131,34 +175,197 @@ describe('mock-data-generator', () => {
 
             db.getDatabaseSchema.mockResolvedValue(mockSchema);
 
-            // We can't fully test this without mocking LangGraph internals
-            // So we'll just verify the function structure            
-            // This test would require significant mocking of LangGraph
-            // For now, verify the function exists and accepts correct params
-            expect(generateMockData).toBeDefined();
-            expect(typeof generateMockData).toBe('function');
+            const result = await generateMockData('connection-string', { users: { count: 2 } });
+
+            expect(result).toBeDefined();
+            expect(result.data).toBeDefined();
+            expect(result.queries).toBeDefined();
+            expect(result.summary).toBeDefined();
+            expect(result.summary.tablesProcessed).toBeGreaterThan(0);
         });
 
-        it('should accept configuration object', async () => {
+        it('should accept configuration object with custom counts', async () => {
+            const mockSchema = [
+                {
+                    name: 'users',
+                    columns: [
+                        { name: 'id', type: 'integer', constraint: 'PRIMARY KEY' },
+                        { name: 'email', type: 'varchar', constraint: null }
+                    ]
+                }
+            ];
+
+            db.getDatabaseSchema.mockResolvedValue(mockSchema);
+
             const config = {
-                users: { count: 10 },
-                posts: { count: 20 }
+                users: { count: 10 }
             };
 
-            expect(typeof config).toBe('object');
-            expect(config.users.count).toBe(10);
+            const result = await generateMockData('connection-string', config);
+            
+            expect(result).toBeDefined();
+            expect(result.data).toBeDefined();
         });
 
         it('should handle default configuration', async () => {
-            expect(generateMockData).toBeDefined();
-            // Function should accept empty config
-            const config = {};
-            expect(typeof config).toBe('object');
+            const mockSchema = [
+                {
+                    name: 'users',
+                    columns: [
+                        { name: 'id', type: 'integer', constraint: 'PRIMARY KEY' },
+                        { name: 'email', type: 'varchar', constraint: null }
+                    ]
+                }
+            ];
+
+            db.getDatabaseSchema.mockResolvedValue(mockSchema);
+
+            const result = await generateMockData('connection-string');
+            
+            expect(result).toBeDefined();
+            expect(result.data).toBeDefined();
+        });
+
+        it('should handle tables with foreign keys', async () => {
+            const mockSchema = [
+                {
+                    name: 'users',
+                    columns: [
+                        { name: 'id', type: 'integer', constraint: 'PRIMARY KEY' },
+                        { name: 'email', type: 'varchar', constraint: null }
+                    ]
+                },
+                {
+                    name: 'posts',
+                    columns: [
+                        { name: 'id', type: 'integer', constraint: 'PRIMARY KEY' },
+                        { name: 'user_id', type: 'integer', constraint: 'FOREIGN KEY', foreign_table: 'users', foreign_column: 'id' },
+                        { name: 'title', type: 'varchar', constraint: null }
+                    ]
+                }
+            ];
+
+            db.getDatabaseSchema.mockResolvedValue(mockSchema);
+            
+            mockCompileInvoke = jest.fn()
+                .mockResolvedValueOnce({
+                    finalData: [{ id: 1, email: 'user@example.com' }],
+                    isValid: true
+                })
+                .mockResolvedValueOnce({
+                    finalData: [{ id: 1, user_id: 1, title: 'Test Post' }],
+                    isValid: true
+                });
+
+            const result = await generateMockData('connection-string');
+            
+            expect(result.data).toBeDefined();
+            expect(result.data.users).toBeDefined();
+            expect(result.data.posts).toBeDefined();
+        });
+
+        it('should generate insert queries for valid data', async () => {
+            const mockSchema = [
+                {
+                    name: 'users',
+                    columns: [
+                        { name: 'id', type: 'integer', constraint: 'PRIMARY KEY' },
+                        { name: 'email', type: 'varchar', constraint: null }
+                    ]
+                }
+            ];
+
+            db.getDatabaseSchema.mockResolvedValue(mockSchema);
+
+            const result = await generateMockData('connection-string');
+            
+            expect(result.queries).toBeDefined();
+            expect(result.queries.length).toBeGreaterThan(0);
+        });
+
+        it('should handle batch processing for large counts', async () => {
+            const mockSchema = [
+                {
+                    name: 'users',
+                    columns: [
+                        { name: 'id', type: 'integer', constraint: 'PRIMARY KEY' },
+                        { name: 'email', type: 'varchar', constraint: null }
+                    ]
+                }
+            ];
+
+            db.getDatabaseSchema.mockResolvedValue(mockSchema);
+
+            // Mock multiple batch responses
+            mockCompileInvoke = jest.fn()
+                .mockResolvedValueOnce({
+                    finalData: Array(10).fill(null).map((_, i) => ({ id: i + 1, email: `user${i}@example.com` })),
+                    isValid: true
+                })
+                .mockResolvedValueOnce({
+                    finalData: Array(5).fill(null).map((_, i) => ({ id: i + 11, email: `user${i + 10}@example.com` })),
+                    isValid: true
+                });
+
+            const result = await generateMockData('connection-string', { users: { count: 15 } });
+            
+            expect(result.data.users.length).toBeGreaterThan(0);
+        });
+
+        it('should handle generation errors gracefully', async () => {
+            const mockSchema = [
+                {
+                    name: 'users',
+                    columns: [
+                        { name: 'id', type: 'integer', constraint: 'PRIMARY KEY' }
+                    ]
+                }
+            ];
+
+            db.getDatabaseSchema.mockResolvedValue(mockSchema);
+            
+            mockCompileInvoke = jest.fn().mockResolvedValue({
+                error: 'Generation failed',
+                isValid: false
+            });
+
+            const result = await generateMockData('connection-string');
+            
+            expect(result).toBeDefined();
+        });
+
+        it('should stop batch processing on repeated failures', async () => {
+            const mockSchema = [
+                {
+                    name: 'users',
+                    columns: [
+                        { name: 'id', type: 'integer', constraint: 'PRIMARY KEY' }
+                    ]
+                }
+            ];
+
+            db.getDatabaseSchema.mockResolvedValue(mockSchema);
+            
+            mockCompileInvoke = jest.fn().mockResolvedValue({
+                finalData: [],
+                isValid: true
+            });
+
+            const result = await generateMockData('connection-string', { users: { count: 20 } });
+            
+            expect(result.data.users).toBeDefined();
         });
     });
 
     describe('executeMockDataGeneration', () => {
         beforeEach(() => {
+            mockCompileInvoke = jest.fn(async () => ({
+                finalData: [
+                    { id: 1, email: 'user@example.com' }
+                ],
+                isValid: true
+            }));
+
             db.getDatabaseSchema.mockResolvedValue([
                 {
                     name: 'users',
@@ -168,76 +375,104 @@ describe('mock-data-generator', () => {
                     ]
                 }
             ]);
-        });
 
-        it('should return success object structure', async () => {
             db.executeQuery.mockResolvedValue({ rows: [] });
-
-            // Test the expected return structure
-            const expectedStructure = {
-                success: expect.any(Boolean),
-                summary: expect.objectContaining({
-                    tablesProcessed: expect.any(Number),
-                    totalRecords: expect.any(Number),
-                    successfulTables: expect.any(Number),
-                    failedTables: expect.any(Number)
-                }),
-                successfulTables: expect.any(Array),
-                failedTables: expect.any(Array),
-                message: expect.any(String)
-            };
-
-            // Verify structure exists
-            expect(expectedStructure).toBeDefined();
         });
 
-        it('should handle database execution errors gracefully', async () => {
-            db.executeQuery.mockRejectedValue(new Error('Insert failed'));
+        it('should return success object structure on successful execution', async () => {
+            const result = await executeMockDataGeneration('connection-string');
 
-            // The function should catch errors and return failure structure
-            expect(executeMockDataGeneration).toBeDefined();
+            expect(result).toBeDefined();
+            expect(result).toHaveProperty('success');
+            expect(result).toHaveProperty('summary');
+            expect(result.summary).toHaveProperty('tablesProcessed');
+            expect(result.summary).toHaveProperty('totalRecords');
+            expect(result.summary).toHaveProperty('successfulTables');
+            expect(result.summary).toHaveProperty('failedTables');
+            expect(result).toHaveProperty('successfulTables');
+            expect(result).toHaveProperty('failedTables');
+            expect(result).toHaveProperty('message');
         });
 
-        it('should execute BEGIN and COMMIT for transactions', async () => {
-            db.executeQuery.mockResolvedValue({ rows: [] });
+        it('should execute transactions with BEGIN and COMMIT', async () => {
+            await executeMockDataGeneration('connection-string');
 
-            // Verify transaction commands would be called
-            expect(db.executeQuery).toBeDefined();
+            const calls = db.executeQuery.mock.calls;
+            const beginCalls = calls.filter(call => call[1] === 'BEGIN;');
+            const commitCalls = calls.filter(call => call[1] === 'COMMIT;');
+
+            expect(beginCalls.length).toBeGreaterThan(0);
+            expect(commitCalls.length).toBeGreaterThan(0);
         });
 
-        it('should rollback on error', async () => {
+        it('should rollback on insert error', async () => {
             db.executeQuery
                 .mockResolvedValueOnce({ rows: [] }) // BEGIN
-                .mockRejectedValueOnce(new Error('Insert failed')); // INSERT fails
+                .mockRejectedValueOnce(new Error('Insert failed')) // INSERT fails
+                .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
 
-            // Verify rollback mechanism exists
-            expect(db.executeQuery).toBeDefined();
+            const result = await executeMockDataGeneration('connection-string');
+
+            expect(result.failedTables.length).toBeGreaterThan(0);
+            
+            const calls = db.executeQuery.mock.calls;
+            const rollbackCalls = calls.filter(call => call[1] === 'ROLLBACK;');
+            expect(rollbackCalls.length).toBeGreaterThan(0);
         });
 
         it('should return partial success when some tables fail', async () => {
-            // Test structure for partial success
-            const partialResult = {
-                success: true,
-                summary: {
-                    successfulTables: 2,
-                    failedTables: 1
+            db.getDatabaseSchema.mockResolvedValue([
+                {
+                    name: 'users',
+                    columns: [{ name: 'id', type: 'integer', constraint: 'PRIMARY KEY' }]
                 },
-                message: expect.stringContaining('Partially completed')
-            };
+                {
+                    name: 'posts',
+                    columns: [{ name: 'id', type: 'integer', constraint: 'PRIMARY KEY' }]
+                }
+            ]);
 
-            expect(partialResult.success).toBe(true);
-            expect(partialResult.summary.successfulTables).toBeGreaterThan(0);
-            expect(partialResult.summary.failedTables).toBeGreaterThan(0);
+            mockCompileInvoke = jest.fn()
+                .mockResolvedValueOnce({
+                    finalData: [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }, { id: 5 }],
+                    isValid: true
+                })
+                .mockResolvedValueOnce({
+                    finalData: [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }, { id: 5 }],
+                    isValid: true
+                })
+                // Add default for any subsequent calls
+                .mockResolvedValue({
+                    finalData: [],
+                    isValid: true
+                });
+
+            db.executeQuery
+                .mockResolvedValueOnce({ rows: [] }) // BEGIN users
+                .mockResolvedValueOnce({ rows: [] }) // INSERT users
+                .mockResolvedValueOnce({ rows: [] }) // COMMIT users
+                .mockResolvedValueOnce({ rows: [] }) // BEGIN posts
+                .mockRejectedValueOnce(new Error('Insert failed')) // INSERT posts fails
+                .mockResolvedValueOnce({ rows: [] }); // ROLLBACK posts
+
+            const result = await executeMockDataGeneration('connection-string');
+
+            expect(result.success).toBe(true);
+            expect(result.summary.successfulTables).toBe(1);
+            expect(result.summary.failedTables).toBe(1);
+            expect(result.message).toContain('Partially completed');
         });
 
         it('should handle empty schema gracefully', async () => {
             db.getDatabaseSchema.mockResolvedValue([]);
 
-            // Should not throw error with empty schema
-            expect(executeMockDataGeneration).toBeDefined();
+            const result = await executeMockDataGeneration('connection-string');
+
+            expect(result).toBeDefined();
+            expect(result.success).toBe(false);
         });
 
-        it('should process multiple tables in order', async () => {
+        it('should process multiple tables in dependency order', async () => {
             db.getDatabaseSchema.mockResolvedValue([
                 {
                     name: 'users',
@@ -252,32 +487,104 @@ describe('mock-data-generator', () => {
                 }
             ]);
 
-            // Verify function handles multiple tables
-            expect(executeMockDataGeneration).toBeDefined();
+            mockCompileInvoke = jest.fn()
+                .mockResolvedValueOnce({
+                    finalData: [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }, { id: 5 }],
+                    isValid: true
+                })
+                .mockResolvedValueOnce({
+                    finalData: [{ id: 1, user_id: 1 }, { id: 2, user_id: 1 }, { id: 3, user_id: 1 }, { id: 4, user_id: 1 }, { id: 5, user_id: 1 }],
+                    isValid: true
+                })
+                // Add default for any subsequent calls
+                .mockResolvedValue({
+                    finalData: [],
+                    isValid: true
+                });
+
+            db.executeQuery.mockResolvedValue({ rows: [] });
+
+            const result = await executeMockDataGeneration('connection-string');
+
+            expect(result.success).toBe(true);
+            expect(result.successfulTables.length).toBe(2);
         });
 
-        it('should include table names in success results', async () => {
-            const successResult = {
-                successfulTables: [
-                    { table: 'users', records: 5 },
-                    { table: 'posts', records: 10 }
-                ]
-            };
+        it('should include table names and record counts in success results', async () => {
+            const result = await executeMockDataGeneration('connection-string');
 
-            expect(successResult.successfulTables[0]).toHaveProperty('table');
-            expect(successResult.successfulTables[0]).toHaveProperty('records');
+            if (result.successfulTables.length > 0) {
+                expect(result.successfulTables[0]).toHaveProperty('table');
+                expect(result.successfulTables[0]).toHaveProperty('records');
+            }
         });
 
         it('should include error details in failed results', async () => {
-            const failureResult = {
-                failedTables: [
-                    { table: 'users', error: 'Constraint violation', records: 5 }
-                ]
-            };
+            db.executeQuery
+                .mockResolvedValueOnce({ rows: [] }) // BEGIN
+                .mockRejectedValueOnce(new Error('Constraint violation')); // INSERT fails
 
-            expect(failureResult.failedTables[0]).toHaveProperty('table');
-            expect(failureResult.failedTables[0]).toHaveProperty('error');
-            expect(failureResult.failedTables[0]).toHaveProperty('records');
+            const result = await executeMockDataGeneration('connection-string');
+
+            if (result.failedTables.length > 0) {
+                expect(result.failedTables[0]).toHaveProperty('table');
+                expect(result.failedTables[0]).toHaveProperty('error');
+                expect(result.failedTables[0]).toHaveProperty('records');
+            }
+        });
+
+        it('should handle complete failure gracefully', async () => {
+            db.getDatabaseSchema.mockRejectedValue(new Error('Connection failed'));
+
+            const result = await executeMockDataGeneration('connection-string');
+
+            expect(result.success).toBe(false);
+            expect(result).toHaveProperty('error');
+            expect(result.message).toContain('Failed to generate mock data');
+        });
+
+        it('should return appropriate message for all successful tables', async () => {
+            db.getDatabaseSchema.mockResolvedValue([
+                {
+                    name: 'users',
+                    columns: [{ name: 'id', type: 'integer', constraint: 'PRIMARY KEY' }]
+                }
+            ]);
+
+            mockCompileInvoke = jest.fn().mockResolvedValue({
+                finalData: [{ id: 1 }],
+                isValid: true
+            });
+
+            db.executeQuery.mockResolvedValue({ rows: [] });
+
+            const result = await executeMockDataGeneration('connection-string');
+
+            expect(result.success).toBe(true);
+            expect(result.failedTables.length).toBe(0);
+            expect(result.message).toContain('Successfully generated');
+        });
+
+        it('should handle database execution errors gracefully', async () => {
+            db.executeQuery.mockRejectedValue(new Error('Database error'));
+
+            const result = await executeMockDataGeneration('connection-string');
+
+            expect(result).toBeDefined();
+            expect(result.success).toBeDefined();
+        });
+
+        it('should handle ROLLBACK errors gracefully', async () => {
+            db.executeQuery
+                .mockResolvedValueOnce({ rows: [] }) // BEGIN
+                .mockRejectedValueOnce(new Error('Insert failed')) // INSERT fails
+                .mockRejectedValueOnce(new Error('ROLLBACK failed')); // ROLLBACK also fails
+
+            const result = await executeMockDataGeneration('connection-string');
+
+            expect(result).toBeDefined();
+            expect(result.success).toBe(false);
+            expect(result.failedTables.length).toBe(1);
         });
     });
 
@@ -571,6 +878,208 @@ describe('mock-data-generator', () => {
 
             expect(dependencies.orders).toContain('products');
             expect(dependencies.products).toContain('categories');
+        });
+
+        it('should handle complex schema with multiple dependencies', async () => {
+            const mockSchema = [
+                {
+                    name: 'categories',
+                    columns: [{ name: 'id', type: 'integer', constraint: 'PRIMARY KEY' }]
+                },
+                {
+                    name: 'products',
+                    columns: [
+                        { name: 'id', type: 'integer', constraint: 'PRIMARY KEY' },
+                        { name: 'category_id', type: 'integer', constraint: 'FOREIGN KEY', foreign_table: 'categories', foreign_column: 'id' }
+                    ]
+                },
+                {
+                    name: 'customers',
+                    columns: [{ name: 'id', type: 'integer', constraint: 'PRIMARY KEY' }]
+                },
+                {
+                    name: 'orders',
+                    columns: [
+                        { name: 'id', type: 'integer', constraint: 'PRIMARY KEY' },
+                        { name: 'customer_id', type: 'integer', constraint: 'FOREIGN KEY', foreign_table: 'customers', foreign_column: 'id' },
+                        { name: 'product_id', type: 'integer', constraint: 'FOREIGN KEY', foreign_table: 'products', foreign_column: 'id' }
+                    ]
+                }
+            ];
+
+            db.getDatabaseSchema.mockResolvedValue(mockSchema);
+
+            const result = await analyzeSchemaForGeneration('connection-string');
+
+            expect(result.tables.orders.foreignKeys).toHaveLength(2);
+            expect(result.dependencies.orders).toContain('customers');
+            expect(result.dependencies.orders).toContain('products');
+            expect(result.dependencies.products).toContain('categories');
+        });
+
+        it('should generate and insert data for complex schema', async () => {
+            const mockSchema = [
+                {
+                    name: 'users',
+                    columns: [
+                        { name: 'id', type: 'uuid', constraint: 'PRIMARY KEY' },
+                        { name: 'email', type: 'varchar', constraint: null },
+                        { name: 'created_at', type: 'timestamp', constraint: null }
+                    ]
+                },
+                {
+                    name: 'posts',
+                    columns: [
+                        { name: 'id', type: 'uuid', constraint: 'PRIMARY KEY' },
+                        { name: 'user_id', type: 'uuid', constraint: 'FOREIGN KEY', foreign_table: 'users', foreign_column: 'id' },
+                        { name: 'title', type: 'varchar', constraint: null },
+                        { name: 'metadata', type: 'jsonb', constraint: null }
+                    ]
+                }
+            ];
+
+            db.getDatabaseSchema.mockResolvedValue(mockSchema);
+            
+            mockCompileInvoke = jest.fn()
+                .mockResolvedValueOnce({
+                    finalData: [{
+                        id: 'test-uuid-1234',
+                        email: 'user@example.com',
+                        created_at: new Date().toISOString()
+                    }],
+                    isValid: true
+                })
+                .mockResolvedValueOnce({
+                    finalData: [{
+                        id: 'test-uuid-5678',
+                        user_id: 'test-uuid-1234',
+                        title: 'Test Post',
+                        metadata: { views: 100 }
+                    }],
+                    isValid: true
+                });
+
+            db.executeQuery.mockResolvedValue({ rows: [] });
+
+            const result = await executeMockDataGeneration('connection-string');
+
+            expect(result.success).toBe(true);
+            expect(result.summary.tablesProcessed).toBe(2);
+        });
+
+        it('should handle schema with circular dependencies', async () => {
+            const mockSchema = [
+                {
+                    name: 'table_a',
+                    columns: [
+                        { name: 'id', type: 'integer', constraint: 'PRIMARY KEY' },
+                        { name: 'b_id', type: 'integer', constraint: 'FOREIGN KEY', foreign_table: 'table_b', foreign_column: 'id' }
+                    ]
+                },
+                {
+                    name: 'table_b',
+                    columns: [
+                        { name: 'id', type: 'integer', constraint: 'PRIMARY KEY' },
+                        { name: 'a_id', type: 'integer', constraint: 'FOREIGN KEY', foreign_table: 'table_a', foreign_column: 'id' }
+                    ]
+                }
+            ];
+
+            db.getDatabaseSchema.mockResolvedValue(mockSchema);
+
+            // Should not throw error
+            const result = await analyzeSchemaForGeneration('connection-string');
+            expect(result).toBeDefined();
+        });
+
+        it('should handle NULL values in data', async () => {
+            const mockSchema = [
+                {
+                    name: 'users',
+                    columns: [
+                        { name: 'id', type: 'integer', constraint: 'PRIMARY KEY' },
+                        { name: 'email', type: 'varchar', constraint: null },
+                        { name: 'phone', type: 'varchar', constraint: null }
+                    ]
+                }
+            ];
+
+            db.getDatabaseSchema.mockResolvedValue(mockSchema);
+
+            mockCompileInvoke = jest.fn().mockResolvedValue({
+                finalData: [{
+                    id: 1,
+                    email: 'user@example.com',
+                    phone: null
+                }],
+                isValid: true
+            });
+
+            db.executeQuery.mockResolvedValue({ rows: [] });
+
+            const result = await executeMockDataGeneration('connection-string');
+
+            expect(result.success).toBe(true);
+        });
+
+        it('should handle special characters in string values', async () => {
+            const mockSchema = [
+                {
+                    name: 'users',
+                    columns: [
+                        { name: 'id', type: 'integer', constraint: 'PRIMARY KEY' },
+                        { name: 'name', type: 'varchar', constraint: null }
+                    ]
+                }
+            ];
+
+            db.getDatabaseSchema.mockResolvedValue(mockSchema);
+
+            mockCompileInvoke = jest.fn()
+                .mockResolvedValue({
+                    finalData: [{
+                        id: 1,
+                        name: "O'Connor"
+                    }],
+                    isValid: true
+                });
+
+            db.executeQuery.mockResolvedValue({ rows: [] });
+
+            const result = await executeMockDataGeneration('connection-string');
+
+            expect(result.success).toBe(true);
+            // Check the generated data or queries
+            const generatedData = await generateMockData('connection-string');
+            expect(generatedData.queries[0]).toContain("O''Connor");
+        });
+
+        it('should handle JSON/JSONB columns', async () => {
+            const mockSchema = [
+                {
+                    name: 'settings',
+                    columns: [
+                        { name: 'id', type: 'integer', constraint: 'PRIMARY KEY' },
+                        { name: 'config', type: 'jsonb', constraint: null }
+                    ]
+                }
+            ];
+
+            db.getDatabaseSchema.mockResolvedValue(mockSchema);
+
+            mockCompileInvoke = jest.fn().mockResolvedValue({
+                finalData: [{
+                    id: 1,
+                    config: { theme: 'dark', notifications: true }
+                }],
+                isValid: true
+            });
+
+            db.executeQuery.mockResolvedValue({ rows: [] });
+
+            const result = await executeMockDataGeneration('connection-string');
+
+            expect(result.success).toBe(true);
         });
     });
 });

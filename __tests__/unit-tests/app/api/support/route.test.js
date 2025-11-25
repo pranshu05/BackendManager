@@ -159,11 +159,133 @@ describe('Support API Route', () => {
       };
 
       const response = await POST(request, {}, mockUser);
+      const data = await response.json();
 
-      if (response.status === 400) {
-        const data = await response.json();
-        expect(data.error).toContain('required');
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('Message is required');
+    });
+
+    it('should return 400 when subject is empty after trim', async () => {
+      const request = {
+        json: async () => ({ subject: '   ', message: 'Test' }),
+      };
+
+      const response = await POST(request, {}, mockUser);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('Subject is required');
+    });
+
+    it('should return 400 when message is empty after trim', async () => {
+      const request = {
+        json: async () => ({ subject: 'Test', message: '   ' }),
+      };
+
+      const response = await POST(request, {}, mockUser);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('Message is required');
+    });
+
+    it('should return 400 when subject exceeds 255 characters', async () => {
+      const longSubject = 'a'.repeat(256);
+      const request = {
+        json: async () => ({ subject: longSubject, message: 'Test' }),
+      };
+
+      const response = await POST(request, {}, mockUser);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('Subject must be less than 255 characters');
+    });
+
+    it('should return 400 for invalid category', async () => {
+      const request = {
+        json: async () => ({ 
+          subject: 'Test', 
+          message: 'Test', 
+          category: 'invalid_category' 
+        }),
+      };
+
+      const response = await POST(request, {}, mockUser);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('Invalid category');
+    });
+
+    it('should return 400 for invalid priority', async () => {
+      const request = {
+        json: async () => ({ 
+          subject: 'Test', 
+          message: 'Test', 
+          priority: 'super_urgent' 
+        }),
+      };
+
+      const response = await POST(request, {}, mockUser);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('Invalid priority');
+    });
+
+    it('should accept all valid categories', async () => {
+      const validCategories = ['general', 'technical', 'billing', 'feature_request', 'bug_report', 'other'];
+      
+      for (const category of validCategories) {
+        mockQuery.mockResolvedValue({
+          rows: [{ id: 1, subject: 'Test', message: 'Test', category }],
+        });
+
+        const request = {
+          json: async () => ({ subject: 'Test', message: 'Test', category }),
+        };
+
+        const response = await POST(request, {}, mockUser);
+        expect(response.status).toBe(201);
       }
+    });
+
+    it('should accept all valid priorities', async () => {
+      const validPriorities = ['low', 'medium', 'high', 'urgent'];
+      
+      for (const priority of validPriorities) {
+        mockQuery.mockResolvedValue({
+          rows: [{ id: 1, subject: 'Test', message: 'Test', priority }],
+        });
+
+        const request = {
+          json: async () => ({ subject: 'Test', message: 'Test', priority }),
+        };
+
+        const response = await POST(request, {}, mockUser);
+        expect(response.status).toBe(201);
+      }
+    });
+
+    it('should trim whitespace from subject and message', async () => {
+      mockQuery.mockResolvedValue({
+        rows: [{ id: 1, subject: 'Test', message: 'Test message' }],
+      });
+
+      const request = {
+        json: async () => ({ 
+          subject: '  Test  ', 
+          message: '  Test message  ' 
+        }),
+      };
+
+      await POST(request, {}, mockUser);
+
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.arrayContaining(['Test', 'Test message'])
+      );
     });
 
     it('should handle database errors', async () => {
@@ -177,7 +299,7 @@ describe('Support API Route', () => {
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.error).toBeDefined();
+      expect(data.error).toBe('Failed to create support ticket');
     });
   });
 });

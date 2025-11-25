@@ -183,5 +183,63 @@ describe('Profile API Route', () => {
       // The actual implementation doesn't have error handling, so it will throw
       await expect(PUT(request, {}, mockUser)).rejects.toThrow('Database error');
     });
+
+    it('should return 500 when upsert returns no rows', async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [] });
+
+      const request = {
+        json: async () => ({ phone_number: '1234567890' }),
+      };
+
+      const response = await PUT(request, {}, mockUser);
+      const data = await response.json();
+
+      expect(response.status).toBe(500);
+      expect(data.error).toBe('Failed to save profile');
+    });
+
+    it('should handle all profile fields', async () => {
+      const fullProfile = {
+        phone_number: '1234567890',
+        address: '123 Test St',
+        city: 'Test City',
+        pincode: '12345',
+        nationality: 'Test Nation',
+        birth_date: '1990-01-01',
+        organization_name: 'Test Org',
+        organization_type: 'Company',
+        joining_date: '2020-01-01',
+        role: 'Developer'
+      };
+
+      mockQuery.mockResolvedValueOnce({ 
+        rows: [{ ...fullProfile, id: 1, user_id: mockUser.id }] 
+      });
+
+      const request = {
+        json: async () => fullProfile,
+      };
+
+      const response = await PUT(request, {}, mockUser);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.profile).toBeDefined();
+      expect(data.profile.phone_number).toBe(fullProfile.phone_number);
+    });
+
+    it('should handle null body gracefully', async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [{ id: 1, user_id: mockUser.id }] });
+
+      const request = {
+        json: async () => null,
+      };
+
+      const response = await PUT(request, {}, mockUser);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.profile).toBeDefined();
+    });
   });
 });

@@ -133,42 +133,49 @@ const validateDataNode = async (state) => {
     }
 };
 
-// main workflow graph
-const workflow = new StateGraph({
-    channels: {
-        tableName: { value: (x, y) => x ?? y },
-        tableSchema: { value: (x, y) => x ?? y },
-        count: { value: (x, y) => x ?? y },
-        foreignKeyContext: { value: (x, y) => x ?? y },
-        rawOutput: { value: (x, y) => y },
-        finalData: { value: (x, y) => y },
-        isValid: { value: (x, y) => y },
-        retryCount: { value: (x, y) => y },
-        error: { value: (x, y) => y }
+// main workflow graph - compiled lazily to support testing
+let generateTableDataGraph = null;
+
+function getGenerateTableDataGraph() {
+    if (!generateTableDataGraph) {
+        const workflow = new StateGraph({
+            channels: {
+                tableName: { value: (x, y) => x ?? y },
+                tableSchema: { value: (x, y) => x ?? y },
+                count: { value: (x, y) => x ?? y },
+                foreignKeyContext: { value: (x, y) => x ?? y },
+                rawOutput: { value: (x, y) => y },
+                finalData: { value: (x, y) => y },
+                isValid: { value: (x, y) => y },
+                retryCount: { value: (x, y) => y },
+                error: { value: (x, y) => y }
+            }
+        });
+
+        workflow.addNode("generate", generateDataNode);
+        workflow.addNode("validate", validateDataNode);
+
+        workflow.addEdge(START, "generate");
+        workflow.addEdge("generate", "validate");
+
+        // conditional edges based on validation result
+        workflow.addConditionalEdges(
+            "validate",
+            (state) => {
+                if (state.isValid) return "end";
+                if (state.retryCount >= 3) return "end"; // trying 3 times max
+                return "retry";
+            },
+            {
+                end: END,
+                retry: "generate"
+            }
+        );
+
+        generateTableDataGraph = workflow.compile();
     }
-});
-
-workflow.addNode("generate", generateDataNode);
-workflow.addNode("validate", validateDataNode);
-
-workflow.addEdge(START, "generate");
-workflow.addEdge("generate", "validate");
-
-// conditional edges based on validation result
-workflow.addConditionalEdges(
-    "validate",
-    (state) => {
-        if (state.isValid) return "end";
-        if (state.retryCount >= 3) return "end"; // trying 3 times max
-        return "retry";
-    },
-    {
-        end: END,
-        retry: "generate"
-    }
-);
-
-const generateTableDataGraph = workflow.compile();
+    return generateTableDataGraph;
+}
 
 //api functions
 export async function analyzeSchemaForGeneration(connectionString) {
@@ -239,7 +246,8 @@ export async function generateMockData(connectionString, config = {}) {
 
             try {
                 // Invoke Graph for this batch
-                const result = await generateTableDataGraph.invoke({
+                const graph = getGenerateTableDataGraph();
+                const result = await graph.invoke({
                     tableName: tableName,
                     tableSchema: JSON.stringify(table.columns),
                     count: currentBatchSize,

@@ -129,16 +129,60 @@ describe('Support Ticket Detail API Route', () => {
 
     it('should prevent deletion of resolved tickets', async () => {
       mockQuery.mockResolvedValue({
-        rows: [{ id: 1, status: 'resolved', user_id: mockUser.id }],
+        rows: [{ id: 1, status: 'solved', user_id: mockUser.id }],
       });
 
       const context = { params: Promise.resolve({ ticketId: '1' }) };
       const response = await DELETE({}, context, mockUser);
+      const data = await response.json();
 
-      if (response.status === 400) {
-        const data = await response.json();
-        expect(data.error).toBeDefined();
-      }
+      expect(response.status).toBe(403);
+      expect(data.error).toBe('Cannot delete solved tickets');
+    });
+
+    it('should allow deletion of active tickets', async () => {
+      mockQuery
+        .mockResolvedValueOnce({
+          rows: [{ id: 1, status: 'active', user_id: mockUser.id }],
+        })
+        .mockResolvedValueOnce({ rows: [] });
+
+      const context = { params: Promise.resolve({ ticketId: '1' }) };
+      const response = await DELETE({}, context, mockUser);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.message).toBe('Support ticket deleted successfully');
+    });
+
+    it('should allow deletion of inactive tickets', async () => {
+      mockQuery
+        .mockResolvedValueOnce({
+          rows: [{ id: 1, status: 'inactive', user_id: mockUser.id }],
+        })
+        .mockResolvedValueOnce({ rows: [] });
+
+      const context = { params: Promise.resolve({ ticketId: '1' }) };
+      const response = await DELETE({}, context, mockUser);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.message).toBe('Support ticket deleted successfully');
+    });
+
+    it('should allow deletion of in_progress tickets', async () => {
+      mockQuery
+        .mockResolvedValueOnce({
+          rows: [{ id: 1, status: 'in_progress', user_id: mockUser.id }],
+        })
+        .mockResolvedValueOnce({ rows: [] });
+
+      const context = { params: Promise.resolve({ ticketId: '1' }) };
+      const response = await DELETE({}, context, mockUser);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.message).toBe('Support ticket deleted successfully');
     });
 
     it('should handle database errors', async () => {
@@ -149,7 +193,7 @@ describe('Support Ticket Detail API Route', () => {
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.error).toBeDefined();
+      expect(data.error).toBe('Failed to delete support ticket');
     });
   });
 });
