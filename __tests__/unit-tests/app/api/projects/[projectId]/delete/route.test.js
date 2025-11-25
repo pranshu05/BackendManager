@@ -34,12 +34,18 @@ jest.mock('next/server', () => ({
 }));
 
 // Import the route to capture the handler
-require('@/app/api/projects/[projectId]/delete/route');
+const routeModule = require('@/app/api/projects/[projectId]/delete/route');
 
 describe('DELETE /api/projects/[projectId]/delete', () => {
   let mockRequest;
   let mockUser;
   let mockProject;
+
+  // Test that POST export is defined
+  it('should export POST handler', () => {
+    expect(routeModule.POST).toBeDefined();
+    expect(typeof routeModule.POST).toBe('function');
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -161,33 +167,6 @@ describe('DELETE /api/projects/[projectId]/delete', () => {
         expect.stringContaining('DELETE FROM "order_items"'),
         [100, 1, 100, 2]
       );
-    });
-
-    it('should handle UUID type casting correctly', async () => {
-      const mockSchema = [
-        {
-          name: 'products',
-          columns: [{ name: 'id', type: 'uuid', data_type: 'uuid' }],
-        },
-      ];
-
-      const uuid = '123e4567-e89b-12d3-a456-426614174000';
-      mockRequest.json.mockResolvedValue({
-        table: 'products',
-        pkcols: ['id'],
-        pkvalues: [{ id: uuid }],
-      });
-
-      mockGetDatabaseSchema.mockResolvedValue(mockSchema);
-      mockExecuteQuery.mockResolvedValue({ rows: [], rowCount: 1 });
-
-      const response = await callHandler();
-      const body = await response.json();
-
-      expect(response.status).toBe(200);
-      expect(body.success).toBe(true);
-      const query = mockExecuteQuery.mock.calls[0][1];
-      expect(query).toContain('::uuid');
     });
   });
 
@@ -454,6 +433,15 @@ describe('DELETE /api/projects/[projectId]/delete', () => {
       { type: 'jsonb', expectedCast: '::jsonb' },
       { type: 'timestamp', expectedCast: '::timestamp' },
       { type: 'text', expectedCast: '::text' },
+      { type: 'json', expectedCast: '::json' },
+      { type: 'decimal', expectedCast: '::numeric' },
+      { type: 'real', expectedCast: '::numeric' },
+      { type: 'double precision', expectedCast: '::numeric' },
+      { type: 'date', expectedCast: '::timestamp' },
+      { type: 'time', expectedCast: '::timestamp' },
+      { type: 'timestamp with time zone', expectedCast: '::timestamp' },
+      { type: 'character varying', expectedCast: '::text' },
+      { type: 'varchar', expectedCast: '::text' },
     ];
 
     testCases.forEach(({ type, expectedCast }) => {
@@ -482,6 +470,89 @@ describe('DELETE /api/projects/[projectId]/delete', () => {
         const query = mockExecuteQuery.mock.calls[0][1];
         expect(query).toContain(expectedCast);
       });
+    });
+
+    it('should handle null/undefined type by defaulting to text', async () => {
+      const mockSchema = [
+        {
+          name: 'test_table',
+          columns: [{ name: 'test_col' }], // No type or data_type properties
+        },
+      ];
+
+      mockRequest.json.mockResolvedValue({
+        table: 'test_table',
+        pkcols: ['test_col'],
+        pkvalues: [{ test_col: 'test_value' }],
+      });
+      mockGetDatabaseSchema.mockResolvedValue(mockSchema);
+      mockExecuteQuery.mockResolvedValue({ rows: [], rowCount: 1 });
+      const response = await callHandler();
+      const body = await response.json();
+      expect(response.status).toBe(200);
+      expect(body.success).toBe(true);
+      const query = mockExecuteQuery.mock.calls[0][1];
+      // When type is undefined/null, it defaults to 'text'
+      expect(query).toContain('::text');
+    });
+
+    it('should handle unknown type and default to text', async () => {
+      const mockSchema = [
+        {
+          name: 'test_table',
+          columns: [{ name: 'test_col', type: 'exotic_unknown_type', data_type: 'exotic_unknown_type' }],
+        },
+      ];
+
+      mockRequest.json.mockResolvedValue({
+        table: 'test_table',
+        pkcols: ['test_col'],
+        pkvalues: [{ test_col: 'test_value' }],
+      });
+
+      mockGetDatabaseSchema.mockResolvedValue(mockSchema);
+      mockExecuteQuery.mockResolvedValue({ rows: [], rowCount: 1 });
+
+      const response = await callHandler();
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.success).toBe(true);
+      const query = mockExecuteQuery.mock.calls[0][1];
+      // Unknown types should default to '::text'
+      expect(query).toContain('::text');
+    });
+
+    it('should handle empty string type by using no cast', async () => {
+      // Create an object that toString() returns empty string
+      const emptyToString = {
+        toString: () => ''
+      };
+      
+      const mockSchema = [
+        {
+          name: 'test_table',
+          columns: [{ name: 'test_col', type: emptyToString, data_type: emptyToString }],
+        },
+      ];
+
+      mockRequest.json.mockResolvedValue({
+        table: 'test_table',
+        pkcols: ['test_col'],
+        pkvalues: [{ test_col: 'test_value' }],
+      });
+
+      mockGetDatabaseSchema.mockResolvedValue(mockSchema);
+      mockExecuteQuery.mockResolvedValue({ rows: [], rowCount: 1 });
+
+      const response = await callHandler();
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.success).toBe(true);
+      const query = mockExecuteQuery.mock.calls[0][1];
+      // Empty string type should result in $1 without any cast
+      expect(query).toMatch(/\$1(?!::)/); // $1 not followed by ::
     });
   });
 });
