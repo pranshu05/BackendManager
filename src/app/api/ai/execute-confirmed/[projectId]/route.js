@@ -34,7 +34,7 @@ export const POST = withRateLimit(
                 queryText: sql,
                 queryType: detectedQueryType,
                 naturalLanguageInput: naturalLanguageInput || null,
-                executionTimeMs: executionTime,
+                executionTime: executionTime,
                 success: true
             });
 
@@ -57,7 +57,7 @@ export const POST = withRateLimit(
                 queryText: sql,
                 queryType: detectedQueryType,
                 naturalLanguageInput: naturalLanguageInput || null,
-                executionTimeMs: executionTime,
+                executionTime: executionTime,
                 success: false,
                 errorMessage: queryError.message
             });

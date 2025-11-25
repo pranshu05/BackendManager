@@ -300,7 +300,7 @@ describe('POST /api/ai/execute-batch/[projectId]', () => {
                 queryText: 'SELECT * FROM users',
                 queryType: 'SELECT',
                 naturalLanguageInput: 'Show me all users',
-                executionTimeMs: expect.any(Number),
+                executionTime: expect.any(Number),
                 success: true
             });
         });
@@ -573,7 +573,7 @@ describe('POST /api/ai/execute-batch/[projectId]', () => {
                 queryText: 'INVALID SQL',
                 queryType: 'OTHER',
                 naturalLanguageInput: 'Do something invalid',
-                executionTimeMs: expect.any(Number),
+                executionTime: expect.any(Number),
                 success: false,
                 errorMessage: 'Syntax error'
             });

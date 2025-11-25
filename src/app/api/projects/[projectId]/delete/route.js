@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server';
-import {executeQuery, getDatabaseSchema } from '@/lib/db';
-import { withProjectAuth } from '@/lib/api-helpers';
+import { executeQuery, getDatabaseSchema } from '@/lib/db';
+import { withProjectAuth, logQueryHistory, detectQueryType, createTimer } from '@/lib/api-helpers';
 
 //Delete records
 
-export const POST=withProjectAuth(async (request,_context,user,project)=> {
-     try {
-        const body=await request.json();
-        const {table,pkcols,pkvalues } = body;
-          if (!project || !project.connection_string) {
+export const POST = withProjectAuth(async (request, _context, user, project) => {
+    const timer = createTimer();
+    try {
+        const body = await request.json();
+        const { table, pkcols, pkvalues } = body;
+        if (!project || !project.connection_string) {
             return NextResponse.json({ error: 'Project information is missing' }, { status: 400 });
         }
 
@@ -19,21 +20,18 @@ export const POST=withProjectAuth(async (request,_context,user,project)=> {
             );
         }
 
-   const connectionString = project.connection_string;
+        const connectionString = project.connection_string;
 
-if (!Array.isArray(pkvalues) || pkvalues.length === 0 || typeof pkvalues[0] !== 'object' || Array.isArray(pkvalues[0]))
-     {
-        return NextResponse.json({ error: 'pkvalues must be a non-empty array of objects' }, { status: 400 });
-     }
+        if (!Array.isArray(pkvalues) || pkvalues.length === 0 || typeof pkvalues[0] !== 'object' || Array.isArray(pkvalues[0])) {
+            return NextResponse.json({ error: 'pkvalues must be a non-empty array of objects' }, { status: 400 });
+        }
 
-        if (!Array.isArray(pkcols) || pkcols.length === 0)
-        {
+        if (!Array.isArray(pkcols) || pkcols.length === 0) {
             return NextResponse.json({ error: 'pkcols required when sending pkvalues as objects' }, { status: 400 });
         }
 
         let schema;
-        try 
-        {
+        try {
             schema = await getDatabaseSchema(connectionString);
         } catch (e) {
             console.error('Failed to load schema for delete operation:', e);
@@ -74,8 +72,7 @@ if (!Array.isArray(pkvalues) || pkvalues.length === 0 || typeof pkvalues[0] !== 
             return '::text';
         };
 
-        for (const rowObj of pkvalues) 
-        {
+        for (const rowObj of pkvalues) {
             const valuesForRow = pkcols.map(c => rowObj[c]);
             if (valuesForRow.some(v => typeof v === 'undefined')) {
                 return NextResponse.json({ error: 'Missing pk value for one of the rows' }, { status: 400 });
@@ -92,11 +89,41 @@ if (!Array.isArray(pkvalues) || pkvalues.length === 0 || typeof pkvalues[0] !== 
 
         const deletequery = `DELETE FROM "${table}" WHERE (${colsList}) IN (VALUES ${valuesTuples.join(', ')})`;
         await executeQuery(connectionString, deletequery, params);
+        const executionTime = timer.elapsed();
+
+        // Log successful delete
+        await logQueryHistory({
+            projectId: project.id,
+            userId: user.id,
+            queryText: deletequery,
+            queryType: detectQueryType(deletequery),
+            executionTime,
+            success: true
+        });
 
         return NextResponse.json({ success: true, message: `record(s) deleted successfully` }, { status: 200 });
-     
+
     } catch (error) {
+        const executionTime = timer.elapsed();
         console.error('Error deleting records:', error);
+
+        // Log failed delete
+        try {
+            const body = await request.json();
+            const { table } = body;
+            await logQueryHistory({
+                projectId: project.id,
+                userId: user.id,
+                queryText: `DELETE FROM "${table}"`,
+                queryType: 'DELETE',
+                executionTime,
+                success: false,
+                errorMessage: error.message
+            });
+        } catch (logErr) {
+            console.error('Failed to log delete error:', logErr);
+        }
+
         return NextResponse.json(
             { error: 'Internal server error' },
             { status: 500 }

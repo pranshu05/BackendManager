@@ -424,7 +424,7 @@ describe('POST /api/ai/execute-confirmed/[projectId]', () => {
                 queryText: 'SELECT * FROM users',
                 queryType: 'SELECT',
                 naturalLanguageInput: 'Show me all users',
-                executionTimeMs: 100,
+                executionTime: 100,
                 success: true
             });
         });
@@ -476,7 +476,7 @@ describe('POST /api/ai/execute-confirmed/[projectId]', () => {
 
             expect(mockLogQueryHistory).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    executionTimeMs: 350
+                    executionTime: 350
                 })
             );
         });
@@ -585,7 +585,7 @@ describe('POST /api/ai/execute-confirmed/[projectId]', () => {
                 queryText: 'INVALID SQL',
                 queryType: 'OTHER',
                 naturalLanguageInput: 'Do something invalid',
-                executionTimeMs: 100,
+                executionTime: 100,
                 success: false,
                 errorMessage: 'Syntax error'
             });

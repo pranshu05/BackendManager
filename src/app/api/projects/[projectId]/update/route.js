@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { pool, executeQuery, getDatabaseSchema } from '@/lib/db';
-import { withProjectAuth } from '@/lib/api-helpers';
+import { executeQuery, getDatabaseSchema } from '@/lib/db';
+import { withProjectAuth, logQueryHistory, detectQueryType, createTimer } from '@/lib/api-helpers';
 
 function escapeIdentifier(name) {
     return '"' + String(name).replace(/"/g, '""') + '"';
@@ -64,6 +64,7 @@ function handledatatype(value, dataType, nullable) {
 }
 
 export const POST = withProjectAuth(async (request, _context, user, project) => {
+    const timer = createTimer();
     try {
         const body = await request.json();
         const { table, pkColumn, pkValue, column, newValue, oldValue } = body || {};
@@ -131,8 +132,32 @@ export const POST = withProjectAuth(async (request, _context, user, project) => 
         let updateRes;
         try {
             updateRes = await executeQuery(connectionString, queryText, params);
+            const executionTime = timer.elapsed();
+
+            // Log successful update
+            await logQueryHistory({
+                projectId: project.id,
+                userId: user.id,
+                queryText,
+                queryType: detectQueryType(queryText),
+                executionTime,
+                success: true
+            });
         } catch (err) {
+            const executionTime = timer.elapsed();
             console.error('User DB update error:', err);
+
+            // Log failed update
+            await logQueryHistory({
+                projectId: project.id,
+                userId: user.id,
+                queryText,
+                queryType: detectQueryType(queryText),
+                executionTime,
+                success: false,
+                errorMessage: err.message
+            });
+
             return NextResponse.json({ error: 'Failed to execute update on project database', detail: err.message }, { status: 400 });
         }
 
@@ -141,15 +166,6 @@ export const POST = withProjectAuth(async (request, _context, user, project) => 
         }
 
         const updatedRow = updateRes.rows[0];
-
-        try {
-            await pool.query(
-                'INSERT INTO query_history (project_id, user_id, query_text, query_type, success) VALUES ($1,$2,$3,$4,$5)',
-                [project.id, user.id, queryText, 'UPDATE', true]
-            );
-        } catch (logErr) {
-            console.error('Failed to log update:', logErr);
-        }
 
         return NextResponse.json({ message: 'Update successful', row: updatedRow });
 

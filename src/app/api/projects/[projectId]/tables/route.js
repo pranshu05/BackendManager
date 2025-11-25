@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
-import { withProjectAuth, logQueryHistory, detectQueryType } from '@/lib/api-helpers';
+import { withProjectAuth, logQueryHistory, detectQueryType, createTimer } from '@/lib/api-helpers';
 import { executeQuery, getDatabaseSchema } from '@/lib/db';
 
 // Create table
 export const POST = withProjectAuth(async (request, _context, user, project) => {
+    const timer = createTimer();
     const { tableName, columns } = await request.json();
 
     if (!tableName || !columns || !Array.isArray(columns)) {
@@ -38,6 +39,7 @@ export const POST = withProjectAuth(async (request, _context, user, project) => 
     try {
         // Execute CREATE TABLE
         await executeQuery(project.connection_string, createTableQuery);
+        const executionTime = timer.elapsed();
 
         // Log the operation
         await logQueryHistory({
@@ -45,6 +47,7 @@ export const POST = withProjectAuth(async (request, _context, user, project) => 
             userId: user.id,
             queryText: createTableQuery,
             queryType: detectQueryType(createTableQuery),
+            executionTime,
             success: true
         });
 
