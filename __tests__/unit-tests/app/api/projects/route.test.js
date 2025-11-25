@@ -1,0 +1,216 @@
+/**
+ * @jest-environment node
+ */
+
+// Mock dependencies
+const mockQuery = jest.fn();
+const mockCreateUserDatabase = jest.fn();
+const mockGetDatabaseSchema = jest.fn();
+
+jest.mock('@/lib/db', () => ({
+  pool: {
+    query: (...args) => mockQuery(...args),
+  },
+  createUserDatabase: (...args) => mockCreateUserDatabase(...args),
+  getDatabaseSchema: (...args) => mockGetDatabaseSchema(...args),
+}));
+
+jest.mock('@/lib/api-helpers', () => ({
+  withAuth: (handler) => async (request, context, user) => {
+    try {
+      return await handler(request, context, user);
+    } catch (error) {
+      return {
+        json: async () => ({
+          success: false,
+          error: error.message || 'An error occurred',
+          timestamp: new Date().toISOString()
+        }),
+        status: 500
+      };
+    }
+  },
+}));
+
+jest.mock('next/server', () => ({
+  NextResponse: {
+    json: (data, options = {}) => ({
+      json: async () => data,
+      status: options.status || 200,
+      ...options,
+    }),
+  },
+}));
+
+describe('Projects API Route', () => {
+  let GET, POST;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    const route = require('@/app/api/projects/route');
+    GET = route.GET;
+    POST = route.POST;
+  });
+
+  describe('GET /api/projects', () => {
+    const mockUser = { id: 'user-123' };
+
+    it('should return all active projects for user', async () => {
+      const mockProjects = [
+        {
+          id: 1,
+          project_name: 'Test Project',
+          database_name: 'test_db',
+          description: 'A test project',
+          is_active: true,
+          created_at: new Date(),
+          updated_at: new Date(),
+          connection_string: 'postgres://localhost/test_db',
+          table_count: 0,
+        },
+      ];
+
+      mockQuery.mockResolvedValue({ rows: mockProjects });
+      mockGetDatabaseSchema.mockResolvedValue([
+        { table_name: 'users' },
+        { table_name: 'posts' },
+      ]);
+
+      const response = await GET({}, {}, mockUser);
+      const data = await response.json();
+
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringContaining('SELECT'),
+        [mockUser.id]
+      );
+      expect(data.projects).toBeDefined();
+      expect(data.projects.length).toBe(1);
+      expect(data.projects[0].table_count).toBe(2);
+      expect(data.projects[0].connection_string).toBeUndefined();
+    });
+
+    it('should return empty array when user has no projects', async () => {
+      mockQuery.mockResolvedValue({ rows: [] });
+
+      const response = await GET({}, {}, mockUser);
+      const data = await response.json();
+
+      expect(data.projects).toEqual([]);
+    });
+
+    it('should handle schema fetch errors gracefully', async () => {
+      const mockProjects = [
+        {
+          id: 1,
+          project_name: 'Test Project',
+          connection_string: 'postgres://localhost/test_db',
+          table_count: 0,
+        },
+      ];
+
+      mockQuery.mockResolvedValue({ rows: mockProjects });
+      mockGetDatabaseSchema.mockRejectedValue(new Error('Schema error'));
+
+      const response = await GET({}, {}, mockUser);
+      const data = await response.json();
+
+      expect(data.projects[0].table_count).toBe(0);
+    });
+
+    it('should handle database errors', async () => {
+      mockQuery.mockRejectedValue(new Error('Database error'));
+
+      const response = await GET({}, {}, mockUser);
+      const data = await response.json();
+
+      expect(response.status).toBe(500);
+      expect(data.error).toBeDefined();
+    });
+  });
+
+  describe('POST /api/projects', () => {
+    const mockUser = { id: 'user-123', email: 'test@example.com' };
+
+    it('should create a new project', async () => {
+      const projectData = {
+        projectName: 'New Project',
+        description: 'A new project',
+      };
+
+      const mockConnectionString = 'postgres://localhost/new_project_123';
+      mockCreateUserDatabase.mockResolvedValue({
+        databaseName: 'new_project_123',
+        connectionString: mockConnectionString
+      });
+      // First query: check for existing project (should return empty)
+      // Second query: insert new project
+      mockQuery
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              id: 1,
+              project_name: projectData.projectName,
+              database_name: 'new_project_123',
+              description: projectData.description,
+              created_at: new Date(),
+            },
+          ],
+        });
+
+      const request = {
+        json: async () => projectData,
+      };
+
+      const response = await POST(request, {}, mockUser);
+      const data = await response.json();
+
+      expect(mockCreateUserDatabase).toHaveBeenCalled();
+      expect(mockQuery).toHaveBeenCalled();
+      expect(data.project).toBeDefined();
+      expect(data.project.project_name).toBe(projectData.projectName);
+    });
+
+    it('should return 400 when project name is missing', async () => {
+      const request = {
+        json: async () => ({ description: 'No name' }),
+      };
+
+      const response = await POST(request, {}, mockUser);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBeDefined();
+    });
+
+    it('should handle database creation errors', async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [] }); // No existing project
+      mockCreateUserDatabase.mockRejectedValue(new Error('Creation failed'));
+
+      const request = {
+        json: async () => ({ projectName: 'Test' }),
+      };
+
+      const response = await POST(request, {}, mockUser);
+      const data = await response.json();
+
+      expect(response.status).toBe(500);
+      expect(data.error).toBeDefined();
+    });
+
+    it('should handle duplicate project names', async () => {
+      // Mock finding an existing project with the same name
+      mockQuery.mockResolvedValueOnce({
+        rows: [{ id: 1 }]
+      });
+
+      const request = {
+        json: async () => ({ projectName: 'Duplicate' }),
+      };
+
+      const response = await POST(request, {}, mockUser);
+
+      expect(response.status).toBe(409);
+    });
+  });
+});
