@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import plantumlEncoder from 'plantuml-encoder';
 import SchemaPage from '@/components/(projects)/schema';
 
 // Mock next/navigation
@@ -12,14 +13,19 @@ jest.mock('@lottiefiles/dotlottie-react', () => ({
   DotLottieReact: () => <div data-testid="loading-animation">Loading Animation</div>
 }));
 
+// Zoom control mocks — define outside jest.mock so they can be asserted
+const zoomInMock = jest.fn();
+const zoomOutMock = jest.fn();
+const resetTransformMock = jest.fn();
+
 // Mock react-zoom-pan-pinch
 jest.mock('react-zoom-pan-pinch', () => ({
   TransformWrapper: ({ children, initialScale, minScale, maxScale }) => (
     <div data-testid="transform-wrapper">
       {children({
-        zoomIn: jest.fn(),
-        zoomOut: jest.fn(),
-        resetTransform: jest.fn()
+        zoomIn: zoomInMock,
+        zoomOut: zoomOutMock,
+        resetTransform: resetTransformMock
       })}
     </div>
   ),
@@ -234,6 +240,16 @@ describe('SchemaPage Component', () => {
       });
     });
 
+    test('should show fallback error message when fetch rejects with non-error', async () => {
+      global.fetch.mockRejectedValueOnce('Server down');
+
+      render(<SchemaPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Server down/)).toBeInTheDocument();
+      });
+    });
+
     test('should display retry button on error', async () => {
       global.fetch.mockRejectedValueOnce(new Error('Network error'));
 
@@ -376,6 +392,29 @@ describe('SchemaPage Component', () => {
       });
     });
 
+    test('should call zoom functions when zoom buttons clicked', async () => {
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ plantuml: '@startuml\n@enduml' })
+      });
+
+      render(<SchemaPage />);
+
+      await waitFor(() => {
+        const zoomInBtn = screen.getByRole('button', { name: /Zoom In/ });
+        const zoomOutBtn = screen.getByRole('button', { name: /Zoom Out/ });
+        const resetBtn = screen.getByRole('button', { name: /Reset/ });
+
+        fireEvent.click(zoomInBtn);
+        fireEvent.click(zoomOutBtn);
+        fireEvent.click(resetBtn);
+
+        expect(zoomInMock).toHaveBeenCalled();
+        expect(zoomOutMock).toHaveBeenCalled();
+        expect(resetTransformMock).toHaveBeenCalled();
+      });
+    });
+
     test('should render zoom out button', async () => {
       global.fetch.mockResolvedValueOnce({
         ok: true,
@@ -461,6 +500,12 @@ describe('SchemaPage Component', () => {
       await waitFor(() => {
         expect(screen.getByAltText('Schema Diagram')).toBeInTheDocument();
       });
+        // Wait for encoding to be called and for the image src to update
+        await waitFor(() => expect(plantumlEncoder.encode).toHaveBeenCalledWith(testUML));
+        await waitFor(() => {
+          const img = screen.getByAltText('Schema Diagram');
+          expect(img.src).toContain('encoded-uml-string');
+        });
     });
   });
 

@@ -345,6 +345,23 @@ describe('ProfilePage Component', () => {
       // Page should still render even with fetch error
       expect(screen.getByTestId('contact-section')).toBeInTheDocument();
     });
+
+    test('should handle profile fetch network error', async () => {
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      global.fetch.mockRejectedValueOnce(new Error('Network error'));
+
+      render(<ProfilePage />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+      });
+
+      // Page should still render even with network error
+      expect(screen.getByTestId('contact-section')).toBeInTheDocument();
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Error fetching profile:', expect.any(Error));
+
+      consoleErrorSpy.mockRestore();
+    });
   });
 
   describe('Contact Information Updates', () => {
@@ -461,7 +478,8 @@ describe('ProfilePage Component', () => {
       });
     });
 
-    test('should handle contact save network error', async () => {
+    test('should handle contact save network error catch block', async () => {
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
       render(<ProfilePage />);
 
       await waitFor(() => {
@@ -478,11 +496,10 @@ describe('ProfilePage Component', () => {
       fireEvent.click(saveBtn);
 
       await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
-          '/api/profile',
-          expect.objectContaining({ method: 'PUT' })
-        );
+        expect(consoleErrorSpy).toHaveBeenCalledWith('Error updating contact:', expect.any(Error));
       });
+
+      consoleErrorSpy.mockRestore();
     });
 
     test('should handle contact save error', async () => {
@@ -624,7 +641,8 @@ describe('ProfilePage Component', () => {
       });
     });
 
-    test('should handle general information save network error', async () => {
+    test('should handle general information save network error catch block', async () => {
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
       render(<ProfilePage />);
 
       await waitFor(() => {
@@ -641,11 +659,10 @@ describe('ProfilePage Component', () => {
       fireEvent.click(saveBtn);
 
       await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
-          '/api/profile',
-          expect.objectContaining({ method: 'PUT' })
-        );
+        expect(consoleErrorSpy).toHaveBeenCalledWith('Error updating general info:', expect.any(Error));
       });
+
+      consoleErrorSpy.mockRestore();
     });
   });
 
@@ -726,7 +743,8 @@ describe('ProfilePage Component', () => {
       });
     });
 
-    test('should handle OTP request network error', async () => {
+    test('should handle OTP request network error catch block', async () => {
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
       render(<ProfilePage />);
 
       await waitFor(() => {
@@ -739,11 +757,10 @@ describe('ProfilePage Component', () => {
       fireEvent.click(requestOTPBtn);
 
       await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
-          '/api/auth/emailcheck',
-          expect.objectContaining({ method: 'POST' })
-        );
+        expect(consoleErrorSpy).toHaveBeenCalledWith('Error requesting OTP:', expect.any(Error));
       });
+
+      consoleErrorSpy.mockRestore();
     });
 
     test('should verify OTP successfully', async () => {
@@ -833,7 +850,8 @@ describe('ProfilePage Component', () => {
       });
     });
 
-    test('should handle OTP verify network error', async () => {
+    test('should handle OTP verify network error catch block', async () => {
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
       render(<ProfilePage />);
 
       await waitFor(() => {
@@ -863,11 +881,10 @@ describe('ProfilePage Component', () => {
       fireEvent.click(verifyOTPBtn);
 
       await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
-          '/api/auth/otpcheck',
-          expect.objectContaining({ method: 'POST' })
-        );
+        expect(consoleErrorSpy).toHaveBeenCalledWith('Error verifying OTP:', expect.any(Error));
       });
+
+      consoleErrorSpy.mockRestore();
     });
 
     test('should reject invalid OTP format', async () => {
@@ -1029,7 +1046,8 @@ describe('ProfilePage Component', () => {
       });
     });
 
-    test('should handle password update network error', async () => {
+    test('should handle password update network error catch block', async () => {
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
       render(<ProfilePage />);
 
       await waitFor(() => {
@@ -1074,13 +1092,10 @@ describe('ProfilePage Component', () => {
       fireEvent.click(screen.getByTestId('update-password-btn'));
 
       await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
-          '/api/auth/updatepwd',
-          expect.objectContaining({
-            method: 'POST'
-          })
-        );
+        expect(consoleErrorSpy).toHaveBeenCalledWith('Error updating password:', expect.any(Error));
       });
+
+      consoleErrorSpy.mockRestore();
     });
 
     test('should reject mismatched passwords', async () => {
@@ -1438,7 +1453,8 @@ describe('ProfilePage Component', () => {
       });
     });
 
-    test('should handle logout error gracefully', async () => {
+    test('should handle logout error catch block', async () => {
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
       render(<ProfilePage />);
 
       await waitFor(() => {
@@ -1450,14 +1466,10 @@ describe('ProfilePage Component', () => {
       fireEvent.click(screen.getByTestId('logout-btn'));
 
       await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
-          '/api/auth/logout',
-          expect.objectContaining({
-            method: 'POST',
-            credentials: 'include'
-          })
-        );
+        expect(consoleErrorSpy).toHaveBeenCalledWith('Logout error:', expect.any(Error));
       });
+
+      consoleErrorSpy.mockRestore();
     });
   });
 
@@ -1654,6 +1666,190 @@ describe('ProfilePage Component', () => {
 
       // Should have made 5 API calls: initial fetch, contact save, contact refetch, general save, general refetch
       expect(global.fetch).toHaveBeenCalledTimes(5);
+    });
+  });
+
+  describe('Complete Function Coverage', () => {
+    beforeEach(() => {
+      const mockProfile = {
+        username: 'testuser',
+        email: 'test@example.com',
+        phone_number: '1234567890',
+        address: '123 Main St',
+        city: 'Test City',
+        pincode: '12345',
+        nationality: 'Indian',
+        birth_date: '2000-01-01T00:00:00Z',
+        organization_name: 'Tech Corp',
+        organization_type: 'IT',
+        joining_date: '2020-01-01T00:00:00Z',
+        role: 'Engineer'
+      };
+
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ profile: mockProfile })
+      });
+    });
+
+    test('should cover handlePasswordChange with email field', async () => {
+      render(<ProfilePage />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+      });
+
+      const passwordEmailInput = screen.getByTestId('password-email-input');
+      await userEvent.clear(passwordEmailInput);
+      await userEvent.type(passwordEmailInput, 'test@example.com');
+
+      expect(passwordEmailInput.value).toBe('test@example.com');
+      // Email field should NOT trigger passwordChanged flag
+      expect(screen.queryByTestId('password-changed')).not.toBeInTheDocument();
+    });
+
+    test('should cover togglePasswordVisibility function for new password field', async () => {
+      render(<ProfilePage />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+      });
+
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true })
+      });
+
+      fireEvent.click(screen.getByTestId('request-otp-btn'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('otp-input')).toBeInTheDocument();
+      });
+
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true })
+      });
+
+      const otpInput = screen.getByTestId('otp-input');
+      await userEvent.type(otpInput, '123456');
+      fireEvent.click(screen.getByTestId('verify-otp-btn'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('new-password-input')).toBeInTheDocument();
+      });
+
+      const newPwdInput = screen.getByTestId('new-password-input');
+      expect(newPwdInput.type).toBe('password');
+
+      fireEvent.click(screen.getByTestId('toggle-new-pwd-btn'));
+      expect(newPwdInput.type).toBe('text');
+
+      fireEvent.click(screen.getByTestId('toggle-new-pwd-btn'));
+      expect(newPwdInput.type).toBe('password');
+    });
+
+    test('should cover togglePasswordVisibility function for confirm password field', async () => {
+      render(<ProfilePage />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+      });
+
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true })
+      });
+
+      fireEvent.click(screen.getByTestId('request-otp-btn'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('otp-input')).toBeInTheDocument();
+      });
+
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true })
+      });
+
+      const otpInput = screen.getByTestId('otp-input');
+      await userEvent.type(otpInput, '123456');
+      fireEvent.click(screen.getByTestId('verify-otp-btn'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('confirm-password-input')).toBeInTheDocument();
+      });
+
+      const confirmPwdInput = screen.getByTestId('confirm-password-input');
+      expect(confirmPwdInput.type).toBe('password');
+
+      fireEvent.click(screen.getByTestId('toggle-confirm-pwd-btn'));
+      expect(confirmPwdInput.type).toBe('text');
+
+      fireEvent.click(screen.getByTestId('toggle-confirm-pwd-btn'));
+      expect(confirmPwdInput.type).toBe('password');
+    });
+
+    test('should cover resetPasswordFlow function completely', async () => {
+      render(<ProfilePage />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+      });
+
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true })
+      });
+
+      fireEvent.click(screen.getByTestId('request-otp-btn'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('otp-input')).toBeInTheDocument();
+      });
+
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true })
+      });
+
+      const otpInput = screen.getByTestId('otp-input');
+      await userEvent.type(otpInput, '123456');
+      fireEvent.click(screen.getByTestId('verify-otp-btn'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('new-password-input')).toBeInTheDocument();
+      });
+
+      const newPwdInput = screen.getByTestId('new-password-input');
+      await userEvent.type(newPwdInput, 'TestPass123');
+
+      expect(screen.getByTestId('password-changed')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId('reset-password-flow-btn'));
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('otp-input')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('new-password-input')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('password-changed')).not.toBeInTheDocument();
+      });
+    });
+
+    test('should verify all components render without modal', async () => {
+      render(<ProfilePage />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('profile-header')).toBeInTheDocument();
+      expect(screen.getByTestId('profile-avatar')).toBeInTheDocument();
+      expect(screen.getByTestId('contact-section')).toBeInTheDocument();
+      expect(screen.getByTestId('general-section')).toBeInTheDocument();
+      expect(screen.getByTestId('password-section')).toBeInTheDocument();
+      expect(screen.getByTestId('generate-token-btn')).toBeInTheDocument();
+      expect(screen.getByTestId('logout-btn')).toBeInTheDocument();
+      expect(screen.queryByTestId('token-modal')).not.toBeInTheDocument();
     });
   });
 });

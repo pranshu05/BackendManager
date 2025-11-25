@@ -84,7 +84,7 @@ export default function LoginForm() {
                     </div>
                     <a href="/reset" className="text-sm flex justify-end">Forgot Password?</a>
                 </div>
-                <Button type="submit" className="w-full" disabled={loading || oauthLoading}>
+                <Button type="submit" className="w-full cursor-pointer" disabled={loading || oauthLoading}>
                     {loading ? "Signing in..." : "Sign In"}
                 </Button>
             </form>
@@ -106,7 +106,7 @@ export default function LoginForm() {
                     variant="outline"
                     onClick={() => handleOAuthSignIn("google")}
                     disabled={loading || oauthLoading}
-                    className="w-full"
+                    className="w-full cursor-pointer"
                 >
                     {oauthLoading === "google" ? (
                         "Loading..."
@@ -122,7 +122,7 @@ export default function LoginForm() {
                     variant="outline"
                     onClick={() => handleOAuthSignIn("github")}
                     disabled={loading || oauthLoading}
-                    className="w-full"
+                    className="w-full cursor-pointer"
                 >
                     {oauthLoading === "github" ? (
                         "Loading..."
