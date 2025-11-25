@@ -1,3 +1,8 @@
+jest.mock("next-auth/providers/credentials", () => {
+  return (config) => config;
+});
+jest.mock("next-auth/providers/google", () => () => ({}));
+jest.mock("next-auth/providers/github", () => () => ({}));
 // Mocks must be set up before importing the module under test
 const mockPoolQuery = jest.fn();
 
@@ -188,6 +193,29 @@ describe("auth library", () => {
       expect(res.user).toBeDefined();
       expect(res.user.id).toBe("na1");
     });
+    it("returns error when verifyNextAuthSession throws an exception (lines 105-106)", async () => {
+      // 1. Setup request with no Bearer token
+      const req = { headers: { get: () => null } };
+
+      // 2. Force NextAuth failure (this ensures lines 105-106 run)
+      mockGetToken.mockRejectedValueOnce(new Error("Simulated NextAuth failure"));
+
+      // 3. Spy on console.error to verify the catch block was actually hit
+      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+
+      const res = await requireAuth(req);
+
+      // 4. Verification
+      // The catch block runs, but requireAuth swallows the inner error and returns the default
+      expect(res.error).toBe("No authentication provided"); 
+      expect(res.status).toBe(401);
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining("NextAuth verification error"),
+        expect.any(Error)
+      );
+      
+      consoleSpy.mockRestore();
+    });
 
     it("returns user from session cookie when valid", async () => {
       const headers = require("next/headers");
@@ -224,6 +252,13 @@ describe("auth library", () => {
       const res = await requireAuth(null);
       expect(res).toBeDefined();
       expect(res.error).toBeDefined();
+      expect(res.status).toBe(401);
+    });
+     it("handles undefined request by using default parameter (Line 111)", async () => {
+      // Call without arguments to trigger 'request = null' default value
+      const res = await requireAuth(); 
+      
+      expect(res.error).toBe("No request provided");
       expect(res.status).toBe(401);
     });
 
@@ -372,6 +407,30 @@ describe("auth library", () => {
       const okE = await signIn({ user: userE, account: accountE, profile: {} });
       expect(okE).toBe(false);
     });
+    it("signIn callback uses profile data when user data is missing (Branch Coverage)", async () => {
+      const signIn = authOptions.callbacks.signIn;
+
+      // Mock DB for new user creation
+      mockPoolQuery.mockResolvedValueOnce({ rows: [] }); // No existing oauth
+      mockPoolQuery.mockResolvedValueOnce({ rows: [] }); // No existing email
+      mockPoolQuery.mockResolvedValueOnce({ rows: [{ id: "new-user" }] }); // Insert return
+
+      // Scenario: User has no name/image, Profile has no avatar_url, but has picture
+      await signIn({
+        user: { email: "fallback@test.com", name: null, image: null },
+        account: { provider: "google", providerAccountId: "123" },
+        profile: {
+          name: "Profile Name",
+          avatar_url: null, 
+          picture: "fallback_image.jpg"
+        }
+      });
+
+      expect(mockPoolQuery).toHaveBeenCalledWith(
+        expect.stringContaining("INSERT INTO users"),
+        expect.arrayContaining(["Profile Name", "fallback_image.jpg"])
+      );
+    });
 
     it("jwt and session callbacks map fields correctly", async () => {
       const jwtCb = authOptions.callbacks.jwt;
@@ -402,7 +461,92 @@ describe("auth library", () => {
       expect(sess.user.email).toBe("x@x");
       expect(sess.user.provider).toBe("github");
     });
+    it("jwt and session callbacks handle missing data (Else Paths coverage)", async () => {
+      const jwtCb = authOptions.callbacks.jwt;
+      const sessionCb = authOptions.callbacks.session;
+
+      // 1. Test jwt callback WITHOUT user or account 
+      const existingToken = { id: "123", name: "Existing" };
+      const jwtRes = await jwtCb({
+        token: existingToken,
+        user: undefined,
+        account: undefined
+      });
+      
+      expect(jwtRes).toBe(existingToken);
+      expect(jwtRes.email).toBeUndefined();
+
+      // 2. Test session callback WITHOUT token 
+      const initialSession = { user: { name: "Guest" } };
+      const sessionRes = await sessionCb({
+        session: initialSession,
+        token: null 
+      });
+
+      expect(sessionRes).toBe(initialSession);
+      expect(sessionRes.user.email).toBeUndefined();
+    });
   });
+  it("signIn callback uses profile picture for account linking when user image is missing (Branch Coverage line 244)", async () => {
+      const signIn = authOptions.callbacks.signIn;
+
+      // 1. Check OAuth existence -> Empty (User doesn't have this provider linked yet)
+      mockPoolQuery.mockResolvedValueOnce({ rows: [] }); 
+      
+      // 2. Check Email existence -> Found (User has an account with this email)
+      mockPoolQuery.mockResolvedValueOnce({ 
+        rows: [{ id: "existing-u-id", oauth_provider: null }] 
+      }); 
+
+      // 3. Update query (The one with the yellow line) -> Success
+      mockPoolQuery.mockResolvedValueOnce({}); 
+
+      // Scenario: Linking account. user.image is null. Should fall back to profile.picture.
+      await signIn({
+        user: { email: "link-me@test.com", name: "User", image: null },
+        account: { provider: "github", providerAccountId: "gh-123" },
+        profile: { picture: "profile-fallback.jpg" }
+      });
+
+      // Verify the UPDATE query used the fallback image from the profile
+      expect(mockPoolQuery).toHaveBeenCalledWith(
+        expect.stringContaining("UPDATE users"),
+        expect.arrayContaining(["github", "gh-123", "profile-fallback.jpg", "existing-u-id"])
+      );
+    });
+  it("CredentialsProvider.authorize returns null when DB query throws error (lines 189-192)", async () => {
+      // Logic to find the provider now works because of the mocks in Step 1
+      const credsProvider =
+        authOptions.providers.find((p) => typeof p?.authorize === "function") ||
+        authOptions.providers[authOptions.providers.length - 1];
+
+      // Force DB error
+      mockPoolQuery.mockRejectedValueOnce(new Error("DB Error"));
+      
+      // Spy on console.error to suppress output during test
+      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+
+      const res = await credsProvider.authorize({
+        email: "test@example.com",
+        password: "password",
+      });
+      
+      expect(res).toBeNull();
+      consoleSpy.mockRestore();
+    });
+
+    it("signIn callback returns true for unknown providers (line 266)", async () => {
+      const signIn = authOptions.callbacks.signIn;
+      
+      // Use a provider that isn't google or github to hit the final 'return true'
+      const res = await signIn({ 
+        user: { id: "1" }, 
+        account: { provider: "twitter" }, 
+        profile: {} 
+      });
+      
+      expect(res).toBe(true);
+    });
 
   describe("verifyJWTToken edge cases", () => {
     it("returns null for invalid token format", () => {

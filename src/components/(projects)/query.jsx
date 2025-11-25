@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import ExportDropdown from "@/components/ui/ExportDropdown";
 import { showToast } from "nextjs-toast-notify";
-export default function Query() {
+export default function Query({ initialQuery, onQueryMounted }) {
     const params = useParams();
     const projectid = params.slug;
     const [query, setQuery] = useState("");
@@ -21,6 +21,15 @@ export default function Query() {
     const [showError, setShowError] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
     const [exportOptions, setExportOptions] = useState(["XLSX", "CSV", "JSON"]);
+    useEffect(() => {
+        if (initialQuery) {
+            setQuery(initialQuery);
+            // Notify parent that the query has been loaded so it can be cleared from state
+            if (onQueryMounted) {
+                onQueryMounted();
+            }
+        }
+    }, [initialQuery, onQueryMounted]);
 
   useEffect(()=>{
     console.log("Query Result Updated: ", queryResult);
