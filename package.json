@@ -13,7 +13,7 @@
     "dependencies": {
         "@ai-sdk/groq": "^2.0.24",
         "@foliojs-fork/pdfkit": "^0.15.3",
-        "@langchain/core": "^1.0.6",
+        "@langchain/core": "^1.1.0",
         "@langchain/groq": "^1.0.1",
         "@langchain/langgraph": "^1.0.2",
         "@lottiefiles/dotlottie-react": "^0.17.7",
@@ -28,6 +28,7 @@
         "jspdf": "^3.0.3",
         "jszip": "^3.10.1",
         "jzip": "^1.0.0",
+        "langchain": "^1.1.1",
         "lucide-react": "^0.544.0",
         "luxon": "^3.7.2",
         "next": "^15.5.3",
