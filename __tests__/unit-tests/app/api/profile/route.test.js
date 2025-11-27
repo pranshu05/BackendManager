@@ -241,5 +241,195 @@ describe('Profile API Route', () => {
       expect(response.status).toBe(200);
       expect(data.profile).toBeDefined();
     });
+
+    it('should use empty object when body is undefined', async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [{ id: 1, user_id: mockUser.id }] });
+
+      const request = {
+        json: async () => undefined,
+      };
+
+      const response = await PUT(request, {}, mockUser);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.profile).toBeDefined();
+      // Verify all parameters are null (default values)
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.any(String),
+        [mockUser.id, null, null, null, null, null, null, null, null, null, null]
+      );
+    });
+  });
+
+  describe('Query Construction and Parameter Passing', () => {
+    const mockUser = { id: 'user-123' };
+
+    it('should not execute user query when profile exists', async () => {
+      const mockProfile = {
+        id: 1,
+        user_id: 'user-123',
+        email: 'test@example.com',
+        username: 'Test User',
+      };
+
+      mockQuery.mockResolvedValue({ rows: [mockProfile] });
+
+      await GET({}, {}, mockUser);
+
+      // Should only call query once (for profile), not twice
+      expect(mockQuery).toHaveBeenCalledTimes(1);
+      expect(mockQuery).not.toHaveBeenCalledWith(
+        expect.stringContaining('SELECT id as user_id, email, name as username FROM users'),
+        expect.any(Array)
+      );
+    });
+
+    it('should execute exact user query with user ID when no profile exists', async () => {
+      mockQuery
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({
+          rows: [{ user_id: 'user-123', email: 'test@example.com', username: 'Test' }],
+        });
+
+      await GET({}, {}, mockUser);
+
+      expect(mockQuery).toHaveBeenCalledTimes(2);
+      expect(mockQuery).toHaveBeenNthCalledWith(
+        2,
+        'SELECT id as user_id, email, name as username FROM users WHERE id = $1',
+        [mockUser.id]
+      );
+    });
+
+    it('should verify user ID parameter is not empty array', async () => {
+      mockQuery
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ user_id: 'user-123', email: 'test@example.com', username: 'Test' }] });
+
+      await GET({}, {}, mockUser);
+
+      const secondCall = mockQuery.mock.calls[1];
+      expect(secondCall[1]).toEqual([mockUser.id]);
+      expect(secondCall[1]).not.toEqual([]);
+      expect(secondCall[1].length).toBe(1);
+    });
+
+    it('should execute upsert query with all 11 parameters', async () => {
+      const fullData = {
+        phone_number: '1234567890',
+        address: '123 Test St',
+        city: 'Test City',
+        pincode: '12345',
+        nationality: 'US',
+        birth_date: '1990-01-01',
+        organization_name: 'Test Org',
+        organization_type: 'Company',
+        joining_date: '2020-01-01',
+        role: 'Developer'
+      };
+
+      mockQuery.mockResolvedValueOnce({ rows: [{ ...fullData, id: 1, user_id: mockUser.id }] });
+
+      const request = {
+        json: async () => fullData,
+      };
+
+      await PUT(request, {}, mockUser);
+
+      // Verify exact parameter array with 11 elements
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.any(String),
+        [
+          mockUser.id,
+          fullData.phone_number,
+          fullData.address,
+          fullData.city,
+          fullData.pincode,
+          fullData.nationality,
+          fullData.birth_date,
+          fullData.organization_name,
+          fullData.organization_type,
+          fullData.joining_date,
+          fullData.role
+        ]
+      );
+      
+      const callParams = mockQuery.mock.calls[0][1];
+      expect(callParams.length).toBe(11);
+      expect(callParams).not.toEqual([]);
+    });
+
+    it('should include INSERT INTO in upsert query', async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [{ id: 1, user_id: mockUser.id }] });
+
+      const request = {
+        json: async () => ({ phone_number: '1234567890' }),
+      };
+
+      await PUT(request, {}, mockUser);
+
+      const query = mockQuery.mock.calls[0][0];
+      expect(query).toContain('INSERT INTO user_profiles');
+      expect(query).toContain('ON CONFLICT (user_id) DO UPDATE SET');
+      expect(query).toContain('RETURNING');
+      expect(query.length).toBeGreaterThan(100);
+    });
+
+    it('should verify all field names in upsert query', async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [{ id: 1, user_id: mockUser.id }] });
+
+      const request = {
+        json: async () => ({}),
+      };
+
+      await PUT(request, {}, mockUser);
+
+      const query = mockQuery.mock.calls[0][0];
+      expect(query).toContain('phone_number');
+      expect(query).toContain('address');
+      expect(query).toContain('city');
+      expect(query).toContain('pincode');
+      expect(query).toContain('nationality');
+      expect(query).toContain('birth_date');
+      expect(query).toContain('organization_name');
+      expect(query).toContain('organization_type');
+      expect(query).toContain('joining_date');
+      expect(query).toContain('role');
+      expect(query).toContain('COALESCE');
+    });
+
+    it('should handle partial data updates with correct parameter order', async () => {
+      const partialData = {
+        phone_number: '9876543210',
+        city: 'New City',
+      };
+
+      mockQuery.mockResolvedValueOnce({ rows: [{ ...partialData, id: 1, user_id: mockUser.id }] });
+
+      const request = {
+        json: async () => partialData,
+      };
+
+      await PUT(request, {}, mockUser);
+
+      // Verify user_id is first, specified fields are in correct positions, others are null
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.any(String),
+        [
+          mockUser.id,           // $1
+          '9876543210',          // $2 - phone_number
+          null,                  // $3 - address
+          'New City',            // $4 - city
+          null,                  // $5 - pincode
+          null,                  // $6 - nationality
+          null,                  // $7 - birth_date
+          null,                  // $8 - organization_name
+          null,                  // $9 - organization_type
+          null,                  // $10 - joining_date
+          null                   // $11 - role
+        ]
+      );
+    });
   });
 });

@@ -105,6 +105,63 @@ describe('POST /api/ai/update-project/[projectId]', () => {
         mockAnalyzeProjectUpdateRequest.mockResolvedValue(mockAnalysisResult);
     });
 
+    it('wraps the handler with rate limiter using isAI: true', () => {
+        // Re-import route to observe wrapper call
+        jest.resetModules();
+        mockWithRateLimit.mockClear();
+
+        // eslint-disable-next-line global-require
+        require('@/app/api/ai/update-project/[projectId]/route');
+
+        expect(mockWithRateLimit).toHaveBeenCalled();
+        const [wrappedHandler, options] = mockWithRateLimit.mock.calls[0];
+        expect(typeof wrappedHandler).toBe('function');
+        expect(options).toBeDefined();
+        expect(options.isAI).toBe(true);
+    });
+
+    it('logs a non-empty message when getDatabaseSchema fails (mutation killer)', async () => {
+        const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        mockGetDatabaseSchema.mockRejectedValueOnce(new Error('Connection failed'));
+
+        const request = mockRequest({ naturalLanguageInput: 'Add comments table' });
+        const response = await POST(request, mockContext, mockUser, mockProject);
+        const data = await response.json();
+
+        expect(response.status).toBe(500);
+        expect(data.error).toBe('Failed to fetch current database schema');
+
+        // Ensure console.error received at least one non-empty string argument
+        expect(spy).toHaveBeenCalled();
+        const found = spy.mock.calls.some(callArgs =>
+            callArgs.some(arg => typeof arg === 'string' && arg.trim().length > 0)
+        );
+        expect(found).toBe(true);
+
+        spy.mockRestore();
+    });
+
+    it('logs a non-empty message when AI analysis fails (mutation killer)', async () => {
+        const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        mockAnalyzeProjectUpdateRequest.mockRejectedValueOnce(new Error('AI service down'));
+
+        const request = mockRequest({ naturalLanguageInput: 'Add comments table' });
+        const response = await POST(request, mockContext, mockUser, mockProject);
+        const data = await response.json();
+
+        expect(response.status).toBe(400);
+        expect(data.error).toBe('Failed to analyze update request');
+
+        // Ensure console.error received at least one non-empty string argument
+        expect(spy).toHaveBeenCalled();
+        const found = spy.mock.calls.some(callArgs =>
+            callArgs.some(arg => typeof arg === 'string' && arg.trim().length > 0)
+        );
+        expect(found).toBe(true);
+
+        spy.mockRestore();
+    });
+
     describe('Input Validation', () => {
         it('should reject missing naturalLanguageInput', async () => {
             const request = mockRequest({});

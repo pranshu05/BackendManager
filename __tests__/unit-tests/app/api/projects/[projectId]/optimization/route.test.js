@@ -171,5 +171,364 @@ describe('Project Optimization API Route', () => {
       expect(data.details).toBe('Index already exists');
       expect(mockLogQueryHistory).toHaveBeenCalled();
     });
+
+    it('should log query history with description', async () => {
+      mockExecuteQuery.mockResolvedValue({ rows: [] });
+
+      const request = {
+        json: async () => ({
+          action: 'create_index',
+          sql: 'CREATE INDEX idx_users_email ON users(email)',
+          description: 'Custom description',
+        }),
+      };
+
+      await POST(request, mockContext, mockUser, mockProject);
+
+      expect(mockLogQueryHistory).toHaveBeenCalledWith(
+        expect.objectContaining({
+          naturalLanguageInput: 'Custom description',
+          success: true,
+        })
+      );
+    });
+
+    it('should log query history with default description when not provided', async () => {
+      mockExecuteQuery.mockResolvedValue({ rows: [] });
+
+      const request = {
+        json: async () => ({
+          action: 'create_index',
+          sql: 'CREATE INDEX idx_users_email ON users(email)',
+        }),
+      };
+
+      await POST(request, mockContext, mockUser, mockProject);
+
+      expect(mockLogQueryHistory).toHaveBeenCalledWith(
+        expect.objectContaining({
+          naturalLanguageInput: 'Database optimization suggestion',
+        })
+      );
+    });
+
+    it('should log error query history with description', async () => {
+      mockExecuteQuery.mockRejectedValue(new Error('SQL error'));
+
+      const request = {
+        json: async () => ({
+          action: 'create_index',
+          sql: 'CREATE INDEX idx_test ON test(id)',
+          description: 'Test description',
+        }),
+      };
+
+      await POST(request, mockContext, mockUser, mockProject);
+
+      expect(mockLogQueryHistory).toHaveBeenCalledWith(
+        expect.objectContaining({
+          naturalLanguageInput: 'Test description',
+          success: false,
+        })
+      );
+    });
+
+    it('should log error query history with default description when not provided', async () => {
+      mockExecuteQuery.mockRejectedValue(new Error('SQL error'));
+
+      const request = {
+        json: async () => ({
+          action: 'create_index',
+          sql: 'CREATE INDEX idx_test ON test(id)',
+        }),
+      };
+
+      await POST(request, mockContext, mockUser, mockProject);
+
+      expect(mockLogQueryHistory).toHaveBeenCalledWith(
+        expect.objectContaining({
+          naturalLanguageInput: 'Database optimization suggestion',
+          success: false,
+        })
+      );
+    });
+
+    it('should handle logQueryHistory failure on error', async () => {
+      mockExecuteQuery.mockRejectedValue(new Error('SQL error'));
+      mockLogQueryHistory.mockRejectedValue(new Error('Log failed'));
+
+      const request = {
+        json: async () => ({
+          action: 'create_index',
+          sql: 'CREATE INDEX idx_test ON test(id)',
+        }),
+      };
+
+      const response = await POST(request, mockContext, mockUser, mockProject);
+      const data = await response.json();
+
+      expect(response.status).toBe(500);
+      expect(data.error).toBe('Failed to apply optimization');
+    });
+  });
+
+  describe('GET - Empty database array variations', () => {
+    it('should return empty arrays for all suggestion types when DB is empty', async () => {
+      mockGetDatabaseSchema.mockResolvedValue([]);
+
+      const request = {};
+
+      const response = await GET(request, mockContext, mockUser, mockProject);
+      const data = await response.json();
+
+      expect(data.queryPerformance).toEqual([]);
+      expect(data.missingIndexes).toEqual([]);
+      expect(data.schemaImprovements).toEqual([]);
+      expect(data.potentialIssues).toEqual([]);
+    });
+
+    it('should return empty arrays when schema is null', async () => {
+      mockGetDatabaseSchema.mockResolvedValue(null);
+
+      const request = {};
+
+      const response = await GET(request, mockContext, mockUser, mockProject);
+      const data = await response.json();
+
+      expect(data.queryPerformance).toEqual([]);
+      expect(data.missingIndexes).toEqual([]);
+      expect(data.schemaImprovements).toEqual([]);
+      expect(data.potentialIssues).toEqual([]);
+    });
+  });
+
+  describe('POST - Log query history validation', () => {
+    it('should log query history with all required fields on success', async () => {
+      mockExecuteQuery.mockResolvedValue({ rows: [] });
+
+      const request = {
+        json: async () => ({
+          action: 'create_index',
+          sql: 'CREATE INDEX idx_test ON test(id)',
+          description: 'Test',
+        }),
+      };
+
+      await POST(request, mockContext, mockUser, mockProject);
+
+      expect(mockLogQueryHistory).toHaveBeenCalledWith({
+        projectId: 'proj-123',
+        userId: 'user-123',
+        queryText: 'CREATE INDEX idx_test ON test(id)',
+        queryType: 'CREATE INDEX',
+        naturalLanguageInput: 'Test',
+        executionTime: 100,
+        success: true,
+        errorMessage: null,
+      });
+    });
+
+    it('should log query history with all required fields on error', async () => {
+      mockExecuteQuery.mockRejectedValue(new Error('Test error'));
+
+      const request = {
+        json: async () => ({
+          action: 'create_index',
+          sql: 'CREATE INDEX idx_test ON test(id)',
+          description: 'Test',
+        }),
+      };
+
+      await POST(request, mockContext, mockUser, mockProject);
+
+      expect(mockLogQueryHistory).toHaveBeenCalledWith({
+        projectId: 'proj-123',
+        userId: 'user-123',
+        queryText: 'CREATE INDEX idx_test ON test(id)',
+        queryType: 'CREATE INDEX',
+        naturalLanguageInput: 'Test',
+        executionTime: 100,
+        success: false,
+        errorMessage: 'Test error',
+      });
+    });
+  });
+
+  describe('POST - Result row handling', () => {
+    it('should handle result with rows array', async () => {
+      const mockRows = [{ id: 1 }, { id: 2 }];
+      mockExecuteQuery.mockResolvedValue({ rows: mockRows });
+      mockLogQueryHistory.mockResolvedValue();
+
+      const request = {
+        json: async () => ({
+          action: 'create_index',
+          sql: 'CREATE INDEX idx_test ON test(id)',
+        }),
+      };
+
+      await POST(request, mockContext, mockUser, mockProject);
+
+      const { NextResponse } = require('next/server');
+      expect(NextResponse.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          result: mockRows,
+        })
+      );
+    });
+
+    it('should handle result without rows property', async () => {
+      mockExecuteQuery.mockResolvedValue({});
+      mockLogQueryHistory.mockResolvedValue();
+
+      const request = {
+        json: async () => ({
+          action: 'create_index',
+          sql: 'CREATE INDEX idx_test ON test(id)',
+        }),
+      };
+
+      await POST(request, mockContext, mockUser, mockProject);
+
+      const { NextResponse } = require('next/server');
+      expect(NextResponse.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          result: [],
+        })
+      );
+    });
+
+    it('should handle null result', async () => {
+      mockExecuteQuery.mockResolvedValue(null);
+      mockLogQueryHistory.mockResolvedValue();
+
+      const request = {
+        json: async () => ({
+          action: 'create_index',
+          sql: 'CREATE INDEX idx_test ON test(id)',
+        }),
+      };
+
+      await POST(request, mockContext, mockUser, mockProject);
+
+      const { NextResponse } = require('next/server');
+      expect(NextResponse.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          result: [],
+        })
+      );
+    });
+
+    it('should handle undefined result', async () => {
+      mockExecuteQuery.mockResolvedValue(undefined);
+      mockLogQueryHistory.mockResolvedValue();
+
+      const request = {
+        json: async () => ({
+          action: 'create_index',
+          sql: 'CREATE INDEX idx_test ON test(id)',
+        }),
+      };
+
+      await POST(request, mockContext, mockUser, mockProject);
+
+      const { NextResponse } = require('next/server');
+      expect(NextResponse.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          result: [],
+        })
+      );
+    });
+
+    it('should handle result.rows being falsy', async () => {
+      mockExecuteQuery.mockResolvedValue({ rows: null });
+      mockLogQueryHistory.mockResolvedValue();
+
+      const request = {
+        json: async () => ({
+          action: 'create_index',
+          sql: 'CREATE INDEX idx_test ON test(id)',
+        }),
+      };
+
+      await POST(request, mockContext, mockUser, mockProject);
+
+      const { NextResponse } = require('next/server');
+      expect(NextResponse.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          result: [],
+        })
+      );
+    });
+
+    it('should handle result with empty rows array', async () => {
+      mockExecuteQuery.mockResolvedValue({ rows: [] });
+      mockLogQueryHistory.mockResolvedValue();
+
+      const request = {
+        json: async () => ({
+          action: 'create_index',
+          sql: 'CREATE INDEX idx_test ON test(id)',
+        }),
+      };
+
+      await POST(request, mockContext, mockUser, mockProject);
+
+      const { NextResponse } = require('next/server');
+      expect(NextResponse.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          result: [],
+        })
+      );
+    });
+  });
+
+  describe('Error logging edge cases', () => {
+    it('should log optimization fetch error with message', async () => {
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      mockGetDatabaseSchema.mockRejectedValue(new Error('Database error'));
+
+      const request = {};
+
+      await GET(request, mockContext, mockUser, mockProject);
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Optimization fetch error:', expect.any(Error));
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('should log optimization action error with message', async () => {
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      mockExecuteQuery.mockRejectedValue(new Error('Query error'));
+
+      const request = {
+        json: async () => ({
+          action: 'create_index',
+          sql: 'CREATE INDEX idx_test ON test(id)',
+        }),
+      };
+
+      await POST(request, mockContext, mockUser, mockProject);
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Optimization action error:', expect.any(Error));
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('should log history logging failure with message', async () => {
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      mockExecuteQuery.mockRejectedValue(new Error('Query error'));
+      mockLogQueryHistory.mockRejectedValue(new Error('Log error'));
+
+      const request = {
+        json: async () => ({
+          action: 'create_index',
+          sql: 'CREATE INDEX idx_test ON test(id)',
+        }),
+      };
+
+      await POST(request, mockContext, mockUser, mockProject);
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to log error to history:', expect.any(Error));
+      consoleErrorSpy.mockRestore();
+    });
   });
 });

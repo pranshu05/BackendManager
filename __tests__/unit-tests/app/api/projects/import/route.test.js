@@ -585,4 +585,194 @@ describe("Import Database API Routes", () => {
             );
         });
     });
+
+    describe('Error Logging and Console Output', () => {
+        it('should log connection test failure with error message', async () => {
+            const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+            const mockRequest = {
+                json: jest.fn().mockResolvedValue({
+                    host: 'localhost',
+                    username: 'admin',
+                    database: 'mydb',
+                }),
+            };
+
+            mockGetUserDatabaseConnection.mockRejectedValue(new Error('Connection failed'));
+
+            await POST(mockRequest);
+
+            expect(consoleSpy).toHaveBeenCalledWith(
+                'Connection test failed',
+                expect.any(Error)
+            );
+            expect(consoleSpy.mock.calls[0][0]).not.toBe('');
+            consoleSpy.mockRestore();
+        });
+
+        it('should log schema fetch failure with error message', async () => {
+            const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+            const mockRequest = {
+                json: jest.fn().mockResolvedValue({
+                    host: 'localhost',
+                    username: 'admin',
+                    database: 'mydb',
+                }),
+            };
+
+            const mockConnectionPool = {
+                query: jest.fn().mockResolvedValue({ rows: [] }),
+                end: jest.fn().mockResolvedValue(undefined),
+            };
+            mockGetUserDatabaseConnection.mockResolvedValue(mockConnectionPool);
+            mockGetDatabaseSchema.mockRejectedValue(new Error('Schema error'));
+
+            await POST(mockRequest);
+
+            expect(consoleSpy).toHaveBeenCalledWith(
+                'Schema fetch failed',
+                expect.any(Error)
+            );
+            expect(consoleSpy.mock.calls[0][0]).not.toBe('');
+            consoleSpy.mockRestore();
+        });
+
+        it('should log pool creation failure with error message', async () => {
+            const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+            const mockRequest = {
+                json: jest.fn().mockResolvedValue({
+                    host: 'localhost',
+                    username: 'admin',
+                    database: 'mydb',
+                }),
+            };
+
+            const mockConnectionPool = {
+                query: jest.fn().mockResolvedValue({ rows: [] }),
+                end: jest.fn().mockResolvedValue(undefined),
+            };
+            mockGetUserDatabaseConnection.mockResolvedValue(mockConnectionPool);
+            mockGetDatabaseSchema.mockResolvedValue({ tables: [] });
+            mockPoolQuery.mockResolvedValue({ rows: [{ id: 1 }] });
+            mockCreatePool.mockImplementation(() => {
+                throw new Error('Pool creation failed');
+            });
+
+            await POST(mockRequest);
+
+            expect(consoleSpy).toHaveBeenCalledWith(
+                'Failed to create pool for imported project',
+                expect.any(Error)
+            );
+            expect(consoleSpy.mock.calls[0][0]).not.toBe('');
+            consoleSpy.mockRestore();
+        });
+
+        it('should handle pool creation failure gracefully without throwing', async () => {
+            const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+            const mockRequest = {
+                json: jest.fn().mockResolvedValue({
+                    host: 'localhost',
+                    username: 'admin',
+                    database: 'mydb',
+                }),
+            };
+
+            const mockConnectionPool = {
+                query: jest.fn().mockResolvedValue({ rows: [] }),
+                end: jest.fn().mockResolvedValue(undefined),
+            };
+            mockGetUserDatabaseConnection.mockResolvedValue(mockConnectionPool);
+            mockGetDatabaseSchema.mockResolvedValue({ tables: [] });
+            mockPoolQuery.mockResolvedValue({ rows: [{ id: 1 }] });
+            mockCreatePool.mockImplementation(() => {
+                throw new Error('Pool error');
+            });
+
+            const response = await POST(mockRequest);
+            const data = await response.json();
+
+            expect(data.message).toBe('Database imported');
+            expect(response.status).toBe(200);
+            consoleSpy.mockRestore();
+        });
+
+        it('should use host in description for imported project', async () => {
+            const mockRequest = {
+                json: jest.fn().mockResolvedValue({
+                    host: 'production.example.com',
+                    username: 'admin',
+                    database: 'mydb',
+                }),
+            };
+
+            const mockConnectionPool = {
+                query: jest.fn().mockResolvedValue({ rows: [] }),
+                end: jest.fn().mockResolvedValue(undefined),
+            };
+            mockGetUserDatabaseConnection.mockResolvedValue(mockConnectionPool);
+            mockGetDatabaseSchema.mockResolvedValue({ tables: [] });
+            mockPoolQuery.mockResolvedValue({ rows: [{ id: 1 }] });
+
+            await POST(mockRequest);
+
+            expect(mockPoolQuery).toHaveBeenCalledWith(
+                expect.any(String),
+                expect.arrayContaining([
+                    expect.any(String),
+                    expect.any(String),
+                    expect.any(String),
+                    'Imported from production.example.com',
+                    expect.any(String)
+                ])
+            );
+        });
+
+        it('should verify description is not empty string', async () => {
+            const mockRequest = {
+                json: jest.fn().mockResolvedValue({
+                    host: 'localhost',
+                    username: 'admin',
+                    database: 'mydb',
+                }),
+            };
+
+            const mockConnectionPool = {
+                query: jest.fn().mockResolvedValue({ rows: [] }),
+                end: jest.fn().mockResolvedValue(undefined),
+            };
+            mockGetUserDatabaseConnection.mockResolvedValue(mockConnectionPool);
+            mockGetDatabaseSchema.mockResolvedValue({ tables: [] });
+            mockPoolQuery.mockResolvedValue({ rows: [{ id: 1 }] });
+
+            await POST(mockRequest);
+
+            const description = mockPoolQuery.mock.calls[0][1][3];
+            expect(description).toContain('Imported from');
+            expect(description).not.toBe('');
+            expect(description.length).toBeGreaterThan(0);
+        });
+
+        it('should execute SELECT 1 test query', async () => {
+            const mockRequest = {
+                json: jest.fn().mockResolvedValue({
+                    host: 'localhost',
+                    username: 'admin',
+                    database: 'mydb',
+                }),
+            };
+
+            const mockConnectionPool = {
+                query: jest.fn().mockResolvedValue({ rows: [] }),
+                end: jest.fn().mockResolvedValue(undefined),
+            };
+            mockGetUserDatabaseConnection.mockResolvedValue(mockConnectionPool);
+            mockGetDatabaseSchema.mockResolvedValue({ tables: [] });
+            mockPoolQuery.mockResolvedValue({ rows: [{ id: 1 }] });
+
+            await POST(mockRequest);
+
+            expect(mockConnectionPool.query).toHaveBeenCalledWith('SELECT 1');
+            expect(mockConnectionPool.query).not.toHaveBeenCalledWith('');
+        });
+    });
 });

@@ -81,6 +81,26 @@ describe('GET /api/ai/query-suggestions/[projectId]', () => {
         mockGenerateQuerySuggestions.mockResolvedValue(mockSuggestions);
     });
 
+    it('logs a non-empty message on failure (mutation killer)', async () => {
+        const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        mockGetDatabaseSchema.mockRejectedValueOnce(new Error('Schema error'));
+
+        const response = await GET(mockRequest, mockContext, mockUser, mockProject);
+        const data = await response.json();
+
+        expect(response.status).toBe(500);
+        expect(data.error).toBe('Failed to generate suggestions');
+
+        // Ensure console.error received at least one non-empty string argument
+        expect(spy).toHaveBeenCalled();
+        const found = spy.mock.calls.some(callArgs =>
+            callArgs.some(arg => typeof arg === 'string' && arg.trim().length > 0)
+        );
+        expect(found).toBe(true);
+
+        spy.mockRestore();
+    });
+
     describe('Successful Suggestion Generation', () => {
         it('should generate suggestions successfully', async () => {
             const response = await GET(mockRequest, mockContext, mockUser, mockProject);

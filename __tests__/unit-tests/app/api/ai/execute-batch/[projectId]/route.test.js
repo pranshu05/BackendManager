@@ -92,6 +92,22 @@ describe('POST /api/ai/execute-batch/[projectId]', () => {
         mockLogQueryHistory.mockResolvedValue(undefined);
     });
 
+    it('wraps the handler with rate limiter using isAI: true', () => {
+        // Ensure wrapper invocation is observable after clearing mocks
+        jest.resetModules();
+        mockWithRateLimit.mockClear();
+
+        // Re-require the route (mocks remain active)
+        // eslint-disable-next-line global-require
+        require('@/app/api/ai/execute-batch/[projectId]/route');
+
+        expect(mockWithRateLimit).toHaveBeenCalled();
+        const [wrappedHandler, options] = mockWithRateLimit.mock.calls[0];
+        expect(typeof wrappedHandler).toBe('function');
+        expect(options).toBeDefined();
+        expect(options.isAI).toBe(true);
+    });
+
     describe('Input Validation', () => {
         it('should reject missing operations', async () => {
             const request = mockRequest({});

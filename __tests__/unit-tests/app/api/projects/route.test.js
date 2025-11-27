@@ -213,4 +213,186 @@ describe('Projects API Route', () => {
       expect(response.status).toBe(409);
     });
   });
+
+  describe('Query Construction and Parameter Validation', () => {
+    const mockUser = { id: 'user-123' };
+
+    it('should include error message text in 400 response', async () => {
+      const request = {
+        json: async () => ({}),
+      };
+
+      const response = await POST(request, {}, mockUser);
+      const data = await response.json();
+
+      expect(data.error).toBe('Project name is required');
+      expect(data.error.length).toBeGreaterThan(0);
+      expect(data.error).not.toBe('');
+    });
+
+    it('should execute duplicate check query with user ID and project name', async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [] });
+      mockCreateUserDatabase.mockResolvedValue({
+        databaseName: 'test_db',
+        connectionString: 'postgres://localhost/test_db'
+      });
+      mockQuery.mockResolvedValueOnce({ rows: [{ id: 1 }] });
+
+      const request = {
+        json: async () => ({ projectName: 'Test' }),
+      };
+
+      await POST(request, {}, mockUser);
+
+      expect(mockQuery).toHaveBeenNthCalledWith(
+        1,
+        'SELECT id FROM user_projects WHERE user_id = $1 AND project_name = $2',
+        [mockUser.id, 'Test']
+      );
+    });
+
+    it('should not pass empty array for duplicate check', async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [] });
+      mockCreateUserDatabase.mockResolvedValue({
+        databaseName: 'test_db',
+        connectionString: 'postgres://localhost/test_db'
+      });
+      mockQuery.mockResolvedValueOnce({ rows: [{ id: 1 }] });
+
+      const request = {
+        json: async () => ({ projectName: 'Test' }),
+      };
+
+      await POST(request, {}, mockUser);
+
+      const firstCallParams = mockQuery.mock.calls[0][1];
+      expect(firstCallParams).not.toEqual([]);
+      expect(firstCallParams.length).toBe(2);
+    });
+
+    it('should include error object in duplicate response', async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [{ id: 1 }] });
+
+      const request = {
+        json: async () => ({ projectName: 'Duplicate' }),
+      };
+
+      const response = await POST(request, {}, mockUser);
+      const data = await response.json();
+
+      expect(data).toHaveProperty('error');
+      expect(data.error).toBe('Project with this name already exists');
+      expect(data.error).not.toBe('');
+    });
+
+    it('should execute INSERT query with all parameters', async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [] });
+      mockCreateUserDatabase.mockResolvedValue({
+        databaseName: 'new_db',
+        connectionString: 'postgres://localhost/new_db'
+      });
+      mockQuery.mockResolvedValueOnce({
+        rows: [{
+          id: 1,
+          project_name: 'Test',
+          database_name: 'new_db',
+          description: 'Description',
+          created_at: new Date()
+        }]
+      });
+
+      const request = {
+        json: async () => ({ projectName: 'Test', description: 'Description' }),
+      };
+
+      await POST(request, {}, mockUser);
+
+      expect(mockQuery).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining('INSERT INTO user_projects'),
+        [mockUser.id, 'Test', 'new_db', 'Description', 'postgres://localhost/new_db']
+      );
+    });
+
+    it('should not pass empty array to INSERT query', async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [] });
+      mockCreateUserDatabase.mockResolvedValue({
+        databaseName: 'new_db',
+        connectionString: 'postgres://localhost/new_db'
+      });
+      mockQuery.mockResolvedValueOnce({ rows: [{ id: 1 }] });
+
+      const request = {
+        json: async () => ({ projectName: 'Test' }),
+      };
+
+      await POST(request, {}, mockUser);
+
+      const insertCallParams = mockQuery.mock.calls[1][1];
+      expect(insertCallParams).not.toEqual([]);
+      expect(insertCallParams.length).toBe(5);
+    });
+
+    it('should use empty string for missing description', async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [] });
+      mockCreateUserDatabase.mockResolvedValue({
+        databaseName: 'new_db',
+        connectionString: 'postgres://localhost/new_db'
+      });
+      mockQuery.mockResolvedValueOnce({ rows: [{ id: 1 }] });
+
+      const request = {
+        json: async () => ({ projectName: 'Test' }),
+      };
+
+      await POST(request, {}, mockUser);
+
+      const insertCallParams = mockQuery.mock.calls[1][1];
+      expect(insertCallParams[3]).toBe('');
+      expect(insertCallParams[3]).not.toBe('Stryker was here!');
+    });
+
+    it('should include success message in response', async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [] });
+      mockCreateUserDatabase.mockResolvedValue({
+        databaseName: 'new_db',
+        connectionString: 'postgres://localhost/new_db'
+      });
+      mockQuery.mockResolvedValueOnce({
+        rows: [{ id: 1, project_name: 'Test' }]
+      });
+
+      const request = {
+        json: async () => ({ projectName: 'Test' }),
+      };
+
+      const response = await POST(request, {}, mockUser);
+      const data = await response.json();
+
+      expect(data.message).toBe('Project created successfully');
+      expect(data.message).not.toBe('');
+      expect(data.message.length).toBeGreaterThan(0);
+    });
+
+    it('should log error message when schema fetch fails', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const mockProjects = [{
+        id: 1,
+        connection_string: 'postgres://localhost/test',
+        table_count: 0
+      }];
+
+      mockQuery.mockResolvedValue({ rows: mockProjects });
+      mockGetDatabaseSchema.mockRejectedValue(new Error('Schema error'));
+
+      await GET({}, {}, mockUser);
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Error fetching schema for project'),
+        expect.any(Error)
+      );
+      expect(consoleSpy.mock.calls[0][0]).not.toBe('');
+      consoleSpy.mockRestore();
+    });
+  });
 });

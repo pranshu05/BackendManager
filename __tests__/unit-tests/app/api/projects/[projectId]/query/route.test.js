@@ -231,5 +231,300 @@ describe('Project Query API Route', () => {
 
       expect(data.success).toBe(true);
     });
+
+    it('should use request.body.query fallback when error logging occurs', async () => {
+      const request = {
+        json: async () => ({
+          query: 'SELECT * FROM test',
+        }),
+        body: {
+          query: 'SELECT * FROM test',
+          naturalLanguageInput: 'test input',
+        },
+      };
+
+      mockExecuteQuery.mockRejectedValue(new Error('Execution failed'));
+
+      await POST(request, mockContext, mockUser, mockProject);
+
+      expect(mockLogQueryHistory).toHaveBeenCalledWith(
+        expect.objectContaining({
+          queryText: 'SELECT * FROM test',
+          success: false,
+        })
+      );
+    });
+
+    it('should handle missing request.body gracefully in error logging', async () => {
+      const request = {
+        json: async () => ({
+          query: 'SELECT 1',
+        }),
+        body: undefined,
+      };
+
+      mockExecuteQuery.mockRejectedValue(new Error('Error'));
+
+      await POST(request, mockContext, mockUser, mockProject);
+
+      expect(mockLogQueryHistory).toHaveBeenCalledWith(
+        expect.objectContaining({
+          queryText: '',
+          success: false,
+        })
+      );
+    });
+
+    it('should pass naturalLanguageInput from request.body in error case', async () => {
+      const request = {
+        json: async () => ({
+          query: 'SELECT test',
+        }),
+        body: {
+          query: 'SELECT test',
+          naturalLanguageInput: 'find test data',
+        },
+      };
+
+      mockExecuteQuery.mockRejectedValue(new Error('Failed'));
+
+      await POST(request, mockContext, mockUser, mockProject);
+
+      expect(mockLogQueryHistory).toHaveBeenCalledWith(
+        expect.objectContaining({
+          naturalLanguageInput: 'find test data',
+        })
+      );
+    });
+
+    it('should call detectQueryType with request.body.query when logging errors', async () => {
+      const request = {
+        json: async () => ({
+          query: 'INSERT INTO users VALUES (1)',
+        }),
+        body: {
+          query: 'INSERT INTO users VALUES (1)',
+        },
+      };
+
+      mockExecuteQuery.mockRejectedValue(new Error('Insert failed'));
+      mockDetectQueryType.mockReturnValue('INSERT');
+
+      await POST(request, mockContext, mockUser, mockProject);
+
+      expect(mockDetectQueryType).toHaveBeenCalledWith('INSERT INTO users VALUES (1)');
+      expect(mockLogQueryHistory).toHaveBeenCalledWith(
+        expect.objectContaining({
+          queryType: 'INSERT',
+        })
+      );
+    });
+
+    it('should call detectQueryType with empty string when request.body.query is missing', async () => {
+      const request = {
+        json: async () => ({
+          query: 'SELECT 1',
+        }),
+        body: {},
+      };
+
+      mockExecuteQuery.mockRejectedValue(new Error('Error'));
+      mockDetectQueryType.mockClear();
+
+      await POST(request, mockContext, mockUser, mockProject);
+
+      expect(mockDetectQueryType).toHaveBeenCalledWith('');
+    });
+
+    it('should verify queryText uses empty string fallback when body.query is undefined', async () => {
+      const request = {
+        json: async () => ({
+          query: 'SELECT COUNT(*)',
+        }),
+        body: {
+          naturalLanguageInput: 'count records',
+        },
+      };
+
+      mockExecuteQuery.mockRejectedValue(new Error('Failed'));
+
+      await POST(request, mockContext, mockUser, mockProject);
+
+      expect(mockLogQueryHistory).toHaveBeenCalledWith(
+        expect.objectContaining({
+          queryText: '',
+        })
+      );
+    });
+
+    it('should use actual request.body.query value when present in error logging', async () => {
+      const queryText = 'SELECT * FROM logs WHERE date < NOW()';
+      const request = {
+        json: async () => ({
+          query: queryText,
+        }),
+        body: {
+          query: queryText,
+        },
+      };
+
+      mockExecuteQuery.mockRejectedValue(new Error('Permission denied'));
+
+      await POST(request, mockContext, mockUser, mockProject);
+
+      expect(mockLogQueryHistory).toHaveBeenCalledWith(
+        expect.objectContaining({
+          queryText: queryText,
+        })
+      );
+    });
+
+    it('should include query text in successful response data', async () => {
+      const testQuery = 'SELECT id, email FROM users LIMIT 5';
+      mockExecuteQuery.mockResolvedValue({ rows: [{ id: 1 }] });
+
+      const request = {
+        json: async () => ({
+          query: testQuery,
+        }),
+      };
+
+      const response = await POST(request, mockContext, mockUser, mockProject);
+      const data = await response.json();
+
+      expect(data.query).toBe(testQuery);
+      expect(data.success).toBe(true);
+    });
+
+    it('should execute INSERT statement successfully', async () => {
+      mockDetectQueryType.mockReturnValue('INSERT');
+      mockExecuteQuery.mockResolvedValue({ rows: [{ id: 5 }] });
+
+      const request = {
+        json: async () => ({
+          query: "INSERT INTO products (name, price) VALUES ('Widget', 9.99) RETURNING *",
+        }),
+      };
+
+      const response = await POST(request, mockContext, mockUser, mockProject);
+      const data = await response.json();
+
+      expect(data.success).toBe(true);
+      expect(data.data).toEqual([{ id: 5 }]);
+    });
+
+    it('should execute UPDATE statement with RETURNING clause', async () => {
+      mockDetectQueryType.mockReturnValue('UPDATE');
+      mockExecuteQuery.mockResolvedValue({ rows: [{ id: 1, status: 'active' }] });
+
+      const request = {
+        json: async () => ({
+          query: "UPDATE users SET status = 'active' WHERE id = 1 RETURNING *",
+        }),
+      };
+
+      const response = await POST(request, mockContext, mockUser, mockProject);
+      const data = await response.json();
+
+      expect(data.success).toBe(true);
+      expect(data.query).toContain('UPDATE');
+    });
+
+    it('should allow CREATE TABLE statement to execute', async () => {
+      mockExecuteQuery.mockResolvedValue({ rows: [] });
+
+      const request = {
+        json: async () => ({
+          query: 'CREATE TABLE employees (id SERIAL PRIMARY KEY, name TEXT NOT NULL)',
+        }),
+      };
+
+      const response = await POST(request, mockContext, mockUser, mockProject);
+      const data = await response.json();
+
+      expect(data.success).toBe(true);
+      expect(mockExecuteQuery).toHaveBeenCalledWith(
+        mockProject.connection_string,
+        'CREATE TABLE employees (id SERIAL PRIMARY KEY, name TEXT NOT NULL)'
+      );
+    });
+
+    it('should allow CREATE INDEX statement to execute', async () => {
+      mockExecuteQuery.mockResolvedValue({ rows: [] });
+
+      const request = {
+        json: async () => ({
+          query: 'CREATE INDEX idx_user_email ON users (email)',
+        }),
+      };
+
+      const response = await POST(request, mockContext, mockUser, mockProject);
+      const data = await response.json();
+
+      expect(data.success).toBe(true);
+      expect(mockExecuteQuery).toHaveBeenCalled();
+    });
+
+    it('should block DELETE statement', async () => {
+      const request = {
+        json: async () => ({
+          query: 'DELETE FROM users WHERE inactive = true',
+        }),
+      };
+
+      const response = await POST(request, mockContext, mockUser, mockProject);
+      const data = await response.json();
+
+      expect(response.status).toBe(403);
+      expect(data.error).toContain('dangerous');
+      expect(mockExecuteQuery).not.toHaveBeenCalled();
+    });
+
+    it('should block TRUNCATE statement', async () => {
+      const request = {
+        json: async () => ({
+          query: 'TRUNCATE TABLE sessions',
+        }),
+      };
+
+      const response = await POST(request, mockContext, mockUser, mockProject);
+      const data = await response.json();
+
+      expect(response.status).toBe(403);
+      expect(data.error).toContain('dangerous');
+    });
+
+    it('should return execution time in all successful responses', async () => {
+      mockExecuteQuery.mockResolvedValue({ rows: [] });
+      mockCreateTimer.mockReturnValue({ elapsed: () => 250 });
+
+      const request = {
+        json: async () => ({
+          query: 'SELECT COUNT(*) FROM orders',
+        }),
+      };
+
+      const response = await POST(request, mockContext, mockUser, mockProject);
+      const data = await response.json();
+
+      expect(data.executionTime).toBe(250);
+    });
+
+    it('should return execution time in all error responses', async () => {
+      mockExecuteQuery.mockRejectedValue(new Error('Timeout'));
+      mockCreateTimer.mockReturnValue({ elapsed: () => 5000 });
+
+      const request = {
+        json: async () => ({
+          query: 'SELECT * FROM huge_table',
+        }),
+      };
+
+      const response = await POST(request, mockContext, mockUser, mockProject);
+      const data = await response.json();
+
+      expect(data.executionTime).toBe(5000);
+      expect(data.success).toBe(false);
+    });
   });
 });

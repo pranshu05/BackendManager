@@ -777,4 +777,163 @@ describe('GET /api/admin/tickets', () => {
       expect(mockPoolQuery.mock.calls[0][1]).toContain('high');
     });
   });
+
+  describe('Parameter Counting and Query Building', () => {
+    beforeEach(() => {
+      mockPoolQuery
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ total: '0' }] });
+    });
+
+    it('should not add filter when status is null', async () => {
+      const mockRequest = {
+        url: 'http://localhost:3000/api/admin/tickets',
+      };
+
+      await GET(mockRequest);
+
+      const mainQuery = mockPoolQuery.mock.calls[0][0];
+      const countQuery = mockPoolQuery.mock.calls[1][0];
+      
+      expect(mainQuery).not.toContain('st.status = $');
+      expect(countQuery).not.toContain('st.status = $');
+      expect(mockPoolQuery.mock.calls[0][1]).not.toContain('active');
+    });
+
+    it('should not add filter when priority is null', async () => {
+      const mockRequest = {
+        url: 'http://localhost:3000/api/admin/tickets',
+      };
+
+      await GET(mockRequest);
+
+      const mainQuery = mockPoolQuery.mock.calls[0][0];
+      const countQuery = mockPoolQuery.mock.calls[1][0];
+      
+      expect(mainQuery).not.toContain('st.priority = $');
+      expect(countQuery).not.toContain('st.priority = $');
+    });
+
+    it('should not add filter when category is null', async () => {
+      const mockRequest = {
+        url: 'http://localhost:3000/api/admin/tickets',
+      };
+
+      await GET(mockRequest);
+
+      const mainQuery = mockPoolQuery.mock.calls[0][0];
+      const countQuery = mockPoolQuery.mock.calls[1][0];
+      
+      expect(mainQuery).not.toContain('st.category = $');
+      expect(countQuery).not.toContain('st.category = $');
+    });
+
+    it('should use correct parameter indices for status only', async () => {
+      const mockRequest = {
+        url: 'http://localhost:3000/api/admin/tickets?status=active',
+      };
+
+      await GET(mockRequest);
+
+      const mainQuery = mockPoolQuery.mock.calls[0][0];
+      expect(mainQuery).toContain('st.status = $1');
+      expect(mainQuery).toContain('LIMIT $2 OFFSET $3');
+      expect(mockPoolQuery.mock.calls[0][1]).toEqual(['active', 100, 0]);
+    });
+
+    it('should use correct parameter indices for priority only', async () => {
+      const mockRequest = {
+        url: 'http://localhost:3000/api/admin/tickets?priority=high',
+      };
+
+      await GET(mockRequest);
+
+      const mainQuery = mockPoolQuery.mock.calls[0][0];
+      expect(mainQuery).toContain('st.priority = $1');
+      expect(mainQuery).toContain('LIMIT $2 OFFSET $3');
+      expect(mockPoolQuery.mock.calls[0][1]).toEqual(['high', 100, 0]);
+    });
+
+    it('should use correct parameter indices for category only', async () => {
+      const mockRequest = {
+        url: 'http://localhost:3000/api/admin/tickets?category=technical',
+      };
+
+      await GET(mockRequest);
+
+      const mainQuery = mockPoolQuery.mock.calls[0][0];
+      expect(mainQuery).toContain('st.category = $1');
+      expect(mainQuery).toContain('LIMIT $2 OFFSET $3');
+      expect(mockPoolQuery.mock.calls[0][1]).toEqual(['technical', 100, 0]);
+    });
+
+    it('should use correct parameter indices for two filters', async () => {
+      const mockRequest = {
+        url: 'http://localhost:3000/api/admin/tickets?status=solved&priority=low',
+      };
+
+      await GET(mockRequest);
+
+      const mainQuery = mockPoolQuery.mock.calls[0][0];
+      expect(mainQuery).toContain('st.status = $1');
+      expect(mainQuery).toContain('st.priority = $2');
+      expect(mainQuery).toContain('LIMIT $3 OFFSET $4');
+      expect(mockPoolQuery.mock.calls[0][1]).toEqual(['solved', 'low', 100, 0]);
+    });
+
+    it('should use correct parameter indices for all three filters', async () => {
+      const mockRequest = {
+        url: 'http://localhost:3000/api/admin/tickets?status=active&priority=urgent&category=billing',
+      };
+
+      await GET(mockRequest);
+
+      const mainQuery = mockPoolQuery.mock.calls[0][0];
+      expect(mainQuery).toContain('st.status = $1');
+      expect(mainQuery).toContain('st.priority = $2');
+      expect(mainQuery).toContain('st.category = $3');
+      expect(mainQuery).toContain('LIMIT $4 OFFSET $5');
+      expect(mockPoolQuery.mock.calls[0][1]).toEqual(['active', 'urgent', 'billing', 100, 0]);
+    });
+
+    it('should use correct count parameter indices for status only', async () => {
+      const mockRequest = {
+        url: 'http://localhost:3000/api/admin/tickets?status=inactive',
+      };
+
+      await GET(mockRequest);
+
+      const countQuery = mockPoolQuery.mock.calls[1][0];
+      expect(countQuery).toContain('st.status = $1');
+      expect(countQuery).not.toContain('st.status = $2');
+      expect(mockPoolQuery.mock.calls[1][1]).toEqual(['inactive']);
+    });
+
+    it('should use correct count parameter indices for two filters', async () => {
+      const mockRequest = {
+        url: 'http://localhost:3000/api/admin/tickets?status=solved&category=support',
+      };
+
+      await GET(mockRequest);
+
+      const countQuery = mockPoolQuery.mock.calls[1][0];
+      expect(countQuery).toContain('st.status = $1');
+      expect(countQuery).toContain('st.category = $2');
+      expect(mockPoolQuery.mock.calls[1][1]).toEqual(['solved', 'support']);
+    });
+
+    it('should have non-empty count query base', async () => {
+      const mockRequest = {
+        url: 'http://localhost:3000/api/admin/tickets',
+      };
+
+      await GET(mockRequest);
+
+      const countQuery = mockPoolQuery.mock.calls[1][0];
+      expect(countQuery).toContain('SELECT COUNT(*) as total');
+      expect(countQuery).toContain('FROM support_tickets st');
+      expect(countQuery).toContain('WHERE 1=1');
+      expect(countQuery.length).toBeGreaterThan(50);
+    });
+  });
 });

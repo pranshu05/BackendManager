@@ -29,6 +29,9 @@ jest.mock('next/server', () => ({
   },
 }));
 
+// Ensure NextResponse variable is available for spies
+const { NextResponse } = require('next/server');
+
 const { GET } = require('@/app/api/projects/[projectId]/diagram/route');
 
 describe('Project Diagram API Route', () => {
@@ -43,6 +46,8 @@ describe('Project Diagram API Route', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockWithProjectAuth.mockImplementation((handler) => handler);
+    // Reset mockProject to default state
+    mockProject.connection_string = 'mongodb://localhost:27017/test';
   });
 
   describe('GET - Generate UML diagram', () => {
@@ -88,6 +93,7 @@ users "1" -- "*" posts
 
       expect(data.plantuml).toBe(mockUML);
       expect(response.status).toBe(200);
+      expect(data).toEqual({ plantuml: mockUML });
       expect(mockGetDatabaseSchema).toHaveBeenCalledWith(mockProject.connection_string);
       expect(mockSchemaToUML).toHaveBeenCalledWith(mockSchema);
     });
@@ -131,5 +137,129 @@ users "1" -- "*" posts
       // The actual error message depends on the catch block - could be either
       expect(data.error).toBeDefined();
     });
+
+    it('should return database schema error when getDatabaseSchema fails', async () => {
+  mockGetDatabaseSchema.mockRejectedValue(new Error('Database connection failed'));
+
+  const request = {};
+
+  const response = await GET(request, mockContext, mockUser, mockProject);
+  const data = await response.json();
+
+  expect(response.status).toBe(500);
+  expect(data.error).toBe('Failed to load project database schema');
+  
+  });
+
+  it('should handle invalid UML output from schemaToUML', async () => {
+  const mockSchema = [{ name: 'users', columns: [] }];
+
+  mockGetDatabaseSchema.mockResolvedValue(mockSchema);
+  mockSchemaToUML.mockResolvedValue(undefined); // simulate invalid UML
+
+  const request = {};
+
+  const response = await GET(request, mockContext, mockUser, mockProject);
+  const data = await response.json();
+
+  expect(response.status).toBe(200);
+  expect(data.plantuml).toBeUndefined();
+  
+  });
+
+  it('should handle non-error throws during UML generation', async () => {
+  const mockSchema = [{ name: 'users', columns: [] }];
+
+  mockGetDatabaseSchema.mockResolvedValue(mockSchema);
+  mockSchemaToUML.mockImplementation(() => {
+    throw "UML crash"; // non-Error throw
+  });
+
+  const request = {};
+
+  const response = await GET(request, mockContext, mockUser, mockProject);
+  const data = await response.json();
+
+  expect(response.status).toBe(500);
+  expect(data.error).toBeDefined();
+  });
+
+  it('should return status 200 when UML is generated successfully', async () => {
+    const mockSchema = [{ name: 'users', columns: [{ name: 'id', type: 'integer' }] }];
+    const mockUML = '@startuml\nclass users\n@enduml';
+
+    mockGetDatabaseSchema.mockResolvedValue(mockSchema);
+    mockSchemaToUML.mockResolvedValue(mockUML);
+
+    const request = {};
+
+    const response = await GET(request, mockContext, mockUser, mockProject);
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data).toHaveProperty('plantuml');
+    expect(data.plantuml).toBe(mockUML);
+  });
+
+  it('should verify console.log is called with success message', async () => {
+    const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+    const mockSchema = [{ name: 'users', columns: [] }];
+    const mockUML = '@startuml\nclass users\n@enduml';
+
+    mockGetDatabaseSchema.mockResolvedValue(mockSchema);
+    mockSchemaToUML.mockResolvedValue(mockUML);
+
+    await GET({}, mockContext, mockUser, mockProject);
+
+    expect(consoleSpy).toHaveBeenCalledWith('Generated the UML code');
+    consoleSpy.mockRestore();
+  });
+
+  it('should verify console.error is called when schema loading fails', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+    const error = new Error('Schema error');
+    
+    mockGetDatabaseSchema.mockRejectedValue(error);
+
+    await GET({}, mockContext, mockUser, mockProject);
+
+    expect(consoleSpy).toHaveBeenCalledWith('Failed to load schema for project DB:', error);
+    consoleSpy.mockRestore();
+  });
+
+  it('should trigger outer catch block when accessing project properties fails', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+    const error = new Error('Property access error');
+    
+    // Create a project object with a getter that throws
+    const faultyProject = Object.create(mockProject);
+    Object.defineProperty(faultyProject, 'connection_string', {
+      get() { throw error; }
+    });
+
+    const response = await GET({}, mockContext, mockUser, faultyProject);
+    const data = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(data.error).toBe('Internal server error');
+    expect(consoleSpy).toHaveBeenCalledWith('Error in GET /diagram:', error);
+    consoleSpy.mockRestore();
+  });
+
+  it('should verify outer catch returns correct status and error object', async () => {
+    const error = new Error('Outer error');
+    
+    const faultyProject = Object.create(mockProject);
+    Object.defineProperty(faultyProject, 'connection_string', {
+      get() { throw error; }
+    });
+
+    const response = await GET({}, mockContext, mockUser, faultyProject);
+    const data = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(data).toEqual({ error: 'Internal server error' });
+  });
+
   });
 });
