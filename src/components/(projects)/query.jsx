@@ -30,10 +30,6 @@ export default function Query({ initialQuery, onQueryMounted }) {
             }
         }
     }, [initialQuery, onQueryMounted]);
-
-  useEffect(()=>{
-    console.log("Query Result Updated: ", queryResult);
-  },[queryResult])
     const handleExport = async (format) => {
     if(!queryResult || queryResult.length === 0) {
       showToast.warning("No data to export", {
@@ -175,8 +171,9 @@ export default function Query({ initialQuery, onQueryMounted }) {
             body: JSON.stringify({ operations, naturalLanguageInput }),
         });
         const resultData = await result.json();
-        console.log("Query Result:", resultData);
-        if (resultData.errors && resultData.errors.length > 0) {
+        console.log("Query Result Data:", resultData);
+        if (!resultData.success || (resultData.errors && resultData.errors.length > 0)) {
+
           const firstError = resultData.errors[0];
           try {
             const parseResponse = await fetch(`/api/ai/parse-error/${projectid}`,{
@@ -207,9 +204,45 @@ export default function Query({ initialQuery, onQueryMounted }) {
           
           setQueryResult(null);
         } else {
+          console.log("Cehck1");
+          const queryData = resultData.results[0]?.queryResult;
+          const operationType = (resultData.results[0]?.type || '').toUpperCase();
+          console.log("Operation Type:", operationType, "Query Data:", queryData);
+          const isSelectQuery = operationType.includes('SELECT');
+          console.log("Is Select Query:", isSelectQuery);
+          if (operationType && !isSelectQuery) {
+            let successMessage = '';
+            let detailMessage = '';
+            if (operationType.includes('CREATE')) {
+              successMessage = 'Table created successfully';
+              detailMessage = 'Your table has been created in the database.';
+            } else if (operationType.includes('DROP') || operationType.includes('DELETE')) {
+              successMessage = 'Operation completed successfully';
+              detailMessage = resultData.message || 'The delete/drop operation was executed successfully.';
+            } else if (operationType.includes('UPDATE')) {
+              successMessage = 'Records updated successfully';
+              detailMessage = resultData.message || 'Your data has been updated in the database.';
+            } else if (operationType.includes('INSERT')) {
+              successMessage = 'Records inserted successfully';
+              detailMessage = resultData.message || 'New data has been added to your database.';
+            } 
+            setParsedError({
+              errorType: 'Success',
+              summary: successMessage,
+              userFriendlyExplanation: detailMessage,
+              FKexp: null,
+              techdetail: {
+                originalError: `Operation: ${operationType}, Execution Time: ${resultData.totalExecutionTime || 0}ms`
+              }
+            });
+            setShowError(true);
+            setQueryResult(null);
+            setdisplayquery(query);
+            setQuery("");
+          } 
 
-          const queryData = resultData.results[0].queryResult;
-          if (!queryData || queryData.length === 0) {
+          else if (!queryData || queryData.length === 0) {
+
             setParsedError({
               errorType: 'No Data Found',
               summary: 'No matching data found in your database',
@@ -224,6 +257,7 @@ export default function Query({ initialQuery, onQueryMounted }) {
             setQueryResult(null);
             setdisplayquery(query);
           } else {
+            // SELECT query with results - display table
             setQueryResult(queryData);
             setdisplayquery(query);
             setQuery("");
@@ -320,7 +354,9 @@ export default function Query({ initialQuery, onQueryMounted }) {
                       {
                         showError && parsedError ? (
                           <div className={`mx-10 mt-6 rounded-lg p-6 ${
-                            parsedError.errorType === 'No Data Found' 
+                            parsedError.errorType === 'Success' 
+                              ? 'bg-green-50 border border-green-200 [@media(max-width:480px)]:mx-0'
+                              : parsedError.errorType === 'No Data Found' 
                               ? 'bg-yellow-50 border border-yellow-200 [@media(max-width:480px)]:mx-0' 
                               : 'bg-red-50 border border-red-200 [@media(max-width:480px)]:mx-0'
                           }`}>
@@ -329,11 +365,16 @@ export default function Query({ initialQuery, onQueryMounted }) {
                               <div className="flex-1">
                                 <div className="flex items-center justify-between mb-2">
                                   <h3 className={`text-lg font-semibold ${
-                                    parsedError.errorType === 'No Data Found' ? 'text-yellow-800' : 'text-red-800'
+                                    parsedError.errorType === 'Success' 
+                                      ? 'text-green-800'
+                                      : parsedError.errorType === 'No Data Found' ? 'text-yellow-800' : 'text-red-800'
                                   }`}>{parsedError.errorType}</h3>
                                   <button 
                                     onClick={() => setShowError(false)}
-                                    className={`cursor-pointer ${parsedError.errorType === 'No Data Found' 
+                                    className={`cursor-pointer ${
+                                      parsedError.errorType === 'Success'
+                                        ? 'text-green-500 hover:text-green-700'
+                                        : parsedError.errorType === 'No Data Found' 
                                         ? 'text-yellow-500 hover:text-yellow-700' 
                                         : 'text-red-500 hover:text-red-700'
                                     }`}
@@ -343,14 +384,12 @@ export default function Query({ initialQuery, onQueryMounted }) {
                                     </svg>
                                   </button>
                                 </div>
-                                <p className={`font-medium mb-2 ${
-                                  parsedError.errorType === 'No Data Found' ? 'text-yellow-700' : 'text-red-700'
+                                <p className={`font-medium mb-2 ${parsedError.errorType === 'Success' ? 'text-green-700'
+                                    : parsedError.errorType === 'No Data Found' ? 'text-yellow-700' : 'text-red-700'
                                 }`}>{parsedError.summary}</p>
                                 <p className="text-gray-700 mb-3">{parsedError.userFriendlyExplanation}</p>
-                                
-                                {parsedError.foreignKeyExplanation && (
-                                  <div className={`bg-white rounded-md p-3 mb-3 border ${
-                                    parsedError.errorType === 'No Data Found' ? 'border-yellow-200' : 'border-red-200'
+                                {parsedError.foreignKeyExplanation && (<div className={`bg-white rounded-md p-3 mb-3 border 
+                                ${parsedError.errorType === 'Success'? 'border-green-200': parsedError.errorType === 'No Data Found' ? 'border-yellow-200' : 'border-red-200'
                                   }`}>
                                     <p className="text-sm font-medium text-gray-800 mb-1">Understanding Dependencies:</p>
                                     <p className="text-sm text-gray-600">{parsedError.foreignKeyExplanation}</p>

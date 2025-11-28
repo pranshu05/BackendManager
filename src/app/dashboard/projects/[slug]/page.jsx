@@ -752,7 +752,7 @@ const fetchtabledata = async (tablename, recordLimit = limit) => {
           </div>
 
           <div className="ml-auto flex items-center">
-            <Button onClick={() => setShowSummary(true)} className="generate-btn">
+            <Button onClick={() => setShowSummary(true)} className="generate-btn cursor-pointer">
               <Sparkles className="w-4 h-4 mr-1" />
               Summary
             </Button>
@@ -784,8 +784,8 @@ const fetchtabledata = async (tablename, recordLimit = limit) => {
                 />
               </div>
 
-              <div className="mockbutton  h-28 gap-2 bg-white items-center flex-col  max-[510]:h-65   min-[820]:flex-row min-[820]:h-19 flex p-4 justify-between">
-               <div className="frontbtn flex flex-row gap-2 max-[510]:flex-col max-[510]:w-full max-[510]:gap-3">
+              <div className="mockbutton  h-28 gap-2 bg-white items-center flex-col  max-[830]:h-65   min-[830]:flex-row min-[830]:h-19 flex p-4 justify-between">
+               <div className="frontbtn flex flex-row gap-2 max-[830]:flex-col max-[830]:w-full max-[830]:gap-3">
                     <Button className="max-[510]:w-full" disabled={insertLoading} onClick={async ()=>{
                    
                     await handleinsertrow();
@@ -814,7 +814,7 @@ const fetchtabledata = async (tablename, recordLimit = limit) => {
                   </Button>
                 </div>
 
-            <div className="endbtn flex gap-4 max-[510]:gap-2 max-[510]:flex-col max-[510]:w-full">
+            <div className="endbtn flex gap-4 max-[830]:gap-2 max-[830]:flex-col max-[830]:w-full">
                   <MockDataGenerator
                  
                     projectId={projectid}
@@ -1173,7 +1173,7 @@ const fetchtabledata = async (tablename, recordLimit = limit) => {
 
       {showSummary && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/30 z-50">
-          <SummaryCard projectId={projectid} onClose={() => setShowSummary(false)} />
+          <SummaryCard projectId={projectid}  onClose={() => setShowSummary(false)} />
         </div>
       )}
     </div>
