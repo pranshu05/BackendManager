@@ -5,6 +5,7 @@ export default {
       testEnvironment: 'node',
       testMatch: ['**/__tests__/**/*.test.js'],
       testPathIgnorePatterns: ['\\.test\\.jsx$'],
+      testTimeout: 10000,
       setupFilesAfterEnv: ['<rootDir>/jest.setup.cjs'],
       moduleNameMapper: {
         '^@/(.*)$': '<rootDir>/src/$1',
@@ -32,6 +33,7 @@ export default {
       displayName: 'components',
       testEnvironment: 'jsdom',
       testMatch: ['**/__tests__/**/*.test.jsx'],
+      testTimeout: 10000,
       setupFilesAfterEnv: ['<rootDir>/jest.setup.cjs'],
       moduleNameMapper: {
         '^@/(.*)$': '<rootDir>/src/$1',

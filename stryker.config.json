@@ -5,8 +5,10 @@
     "configFile": "jest.config.mjs"
   },
   "mutate": [
-    "src/lib/auth-helpers.js"
+    "src/lib/ai.js"
   ],
   "reporters": ["html", "clear-text", "progress"],
-  "coverageAnalysis": "off"
+  "coverageAnalysis": "off",
+  "timeoutMS": 10000,
+  "maxTestRunnerReuse": 1
 }

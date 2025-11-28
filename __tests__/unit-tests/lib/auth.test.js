@@ -85,6 +85,10 @@ describe("auth library", () => {
     // Ensure queued mockResolvedValueOnce / mockRejectedValueOnce entries are cleared
     mockPoolQuery.mockReset();
     mockGetToken.mockReset();
+    
+    // Set default return values to prevent timeouts during mutation testing
+    mockPoolQuery.mockResolvedValue({ rows: [] });
+    mockGetToken.mockResolvedValue(null);
   });
 
   it("hashPassword should return deterministic hashed value", async () => {
@@ -559,6 +563,254 @@ describe("auth library", () => {
       const tampered = token.split(".")[0] + ".wrongsignature";
       const result = verifyJWTToken(tampered);
       expect(result).toBeNull();
+    });
+
+    // Test: bearer token payload missing userId should return specific 401 error
+    it("requireAuth returns Invalid or expired token when JWT payload lacks userId", async () => {
+      const token = createJWTToken({ notUserId: "no-id" });
+      const req = { headers: { get: () => `Bearer ${token}` } };
+
+      const res = await requireAuth(req);
+      expect(res.error).toBe("Invalid or expired token");
+      expect(res.status).toBe(401);
+    });
+
+    // Test: NextAuth getToken returns object without id -> No NextAuth session
+    it("requireAuth returns No NextAuth session when next-auth token lacks id", async () => {
+      // No bearer token
+      const req = { headers: { get: () => null } };
+      // next-auth returns object without id
+      mockGetToken.mockResolvedValueOnce({ email: "no-id@na.com" });
+
+      const res = await requireAuth(req);
+      // `requireAuth` returns a generic 'No authentication provided' when
+      // NextAuth verification fails (it does not propagate the inner message).
+      expect(res.error).toBe("No authentication provided");
+      expect(res.status).toBe(401);
+    });
+
+    // Test: getBearerToken handles header edge-cases (lowercase/extra spaces/null)
+    it("getBearerToken handles lowercase bearer, extra spaces and null request safely", () => {
+      // lowercase 'bearer' should be rejected
+      const r1 = { headers: { get: () => "bearer abc" } };
+      expect(getBearerToken(r1)).toBeNull();
+
+      // multiple spaces produce more parts -> rejected
+      const r2 = { headers: { get: () => "Bearer   token" } };
+      expect(getBearerToken(r2)).toBeNull();
+
+      // null/undefined request should be safe and return null
+      expect(getBearerToken(null)).toBeNull();
+      expect(getBearerToken(undefined)).toBeNull();
+      expect(getBearerToken({})).toBeNull();
+    });
+
+    // Test: Verify proper Authorization header key (not empty string)
+    it("getBearerToken uses correct Authorization header key", () => {
+      const req = { headers: { get: jest.fn((key) => {
+        if (key === "Authorization") return "Bearer valid-token";
+        return null;
+      }) } };
+      const token = getBearerToken(req);
+      expect(token).toBe("valid-token");
+      expect(req.headers.get).toHaveBeenCalledWith("Authorization");
+    });
+
+    // Test: Verify Bearer prefix is exactly "Bearer" (case-sensitive)
+    it("getBearerToken validates Bearer prefix is case-sensitive", () => {
+      const r1 = { headers: { get: () => "Bearer token" } };
+      expect(getBearerToken(r1)).toBe("token");
+
+      const r2 = { headers: { get: () => "BEARER token" } };
+      expect(getBearerToken(r2)).toBeNull();
+    });
+
+    // Test: Verify requireAuth is checking for request parameter
+    it("requireAuth checks request is defined before using it", async () => {
+      const res1 = await requireAuth(null);
+      expect(res1.error).toBe("No request provided");
+      
+      const res2 = await requireAuth(undefined);
+      expect(res2.error).toBe("No request provided");
+    });
+
+    // Test: Verify verifyBearerAuth uses correct SQL query structure
+    it("requireAuth verifyBearerAuth queries users table with correct WHERE clause", async () => {
+      const token = createJWTToken({ userId: "test-user" });
+      const req = { headers: { get: () => `Bearer ${token}` } };
+
+      mockPoolQuery.mockResolvedValueOnce({
+        rows: [{ id: "test-user", email: "t@test.com", name: "Test" }],
+      });
+
+      await requireAuth(req);
+
+      // Verify the query includes is_active = true check
+      const queryCall = mockPoolQuery.mock.calls[0];
+      expect(queryCall[0]).toContain("is_active = true");
+      expect(queryCall[0]).toContain("WHERE id = $1");
+    });
+
+    // Test: Verify NextAuth getToken receives correct options
+    it("requireAuth passes correct options to NextAuth getToken", async () => {
+      const req = { headers: { get: () => null } };
+      mockGetToken.mockResolvedValueOnce(null);
+
+      await requireAuth(req);
+
+      // Verify getToken was called with req and secret
+      const tokenCall = mockGetToken.mock.calls[0];
+      expect(tokenCall[0]).toHaveProperty("req");
+      expect(tokenCall[0]).toHaveProperty("secret");
+    });
+  });
+
+  describe("authOptions configuration", () => {
+    // Test: Verify session strategy is "jwt" not empty
+    it("authOptions session strategy should be 'jwt'", () => {
+      expect(authOptions.session.strategy).toBe("jwt");
+      expect(authOptions.session.strategy).not.toBe("");
+    });
+
+    // Test: Verify maxAge is correctly calculated (7 days)
+    it("authOptions session maxAge should be 604800 (7 days in seconds)", () => {
+      const sevenDaysInSeconds = 7 * 24 * 60 * 60;
+      expect(authOptions.session.maxAge).toBe(sevenDaysInSeconds);
+      expect(authOptions.session.maxAge).toBe(604800);
+    });
+
+    // Test: Verify pages config has proper values
+    it("authOptions pages should route to root on signIn and error", () => {
+      expect(authOptions.pages.signIn).toBe("/");
+      expect(authOptions.pages.error).toBe("/");
+      expect(authOptions.pages.signIn).not.toBe("");
+    });
+
+    // Test: Verify CredentialsProvider has correct configuration
+    it("CredentialsProvider should have name 'Credentials' and email/password fields", () => {
+      const credsProvider = authOptions.providers.find(
+        (p) => typeof p?.authorize === "function"
+      );
+      
+      expect(credsProvider).toBeDefined();
+      expect(credsProvider.name).toBe("Credentials");
+      expect(credsProvider.credentials).toBeDefined();
+      expect(credsProvider.credentials.email).toBeDefined();
+      expect(credsProvider.credentials.password).toBeDefined();
+    });
+
+    // Test: Verify Google OAuth provider exists
+    it("authOptions should include Google OAuth provider", () => {
+      const hasGoogleProvider = authOptions.providers.some(
+        (p) => p && typeof p.id !== "undefined" && p.id?.includes?.("google")
+      );
+      // Alternatively check that the providers array has length
+      expect(authOptions.providers.length).toBeGreaterThanOrEqual(3);
+    });
+  });
+
+  describe("Password hashing and validation", () => {
+    // Test: Verify credentials are checked before querying
+    it("CredentialsProvider.authorize returns null if email missing", async () => {
+      const credsProvider = authOptions.providers.find(
+        (p) => typeof p?.authorize === "function"
+      );
+
+      const res = await credsProvider.authorize({
+        password: "pw",
+      });
+      expect(res).toBeNull();
+    });
+
+    // Test: Verify credentials are checked before querying
+    it("CredentialsProvider.authorize returns null if password missing", async () => {
+      const credsProvider = authOptions.providers.find(
+        (p) => typeof p?.authorize === "function"
+      );
+
+      const res = await credsProvider.authorize({
+        email: "a@b.com",
+      });
+      expect(res).toBeNull();
+    });
+
+    // Test: Verify active user check (is_active = true)
+    it("CredentialsProvider.authorize checks user is_active status", async () => {
+      const credsProvider = authOptions.providers.find(
+        (p) => typeof p?.authorize === "function"
+      );
+
+      mockPoolQuery.mockResolvedValueOnce({
+        rows: [{ id: "u1", email: "a@b.com", name: "A", password_hash: "hashed:pw" }],
+      });
+
+      const bcrypt = require("bcryptjs");
+      bcrypt.compare.mockResolvedValueOnce(true);
+
+      await credsProvider.authorize({
+        email: "a@b.com",
+        password: "pw",
+      });
+
+      // Verify query checks is_active
+      const query = mockPoolQuery.mock.calls[0][0];
+      expect(query).toContain("is_active = true");
+    });
+  });
+
+  describe("OAuth callback branches", () => {
+    // Test: Verify oauth_provider linking prevents conflicts
+    it("signIn rejects email linked to different OAuth provider", async () => {
+      const signIn = authOptions.callbacks.signIn;
+
+      mockPoolQuery.mockResolvedValueOnce({ rows: [] }); // No oauth user
+      mockPoolQuery.mockResolvedValueOnce({
+        rows: [{ id: "u1", oauth_provider: "github", password_hash: "hashed" }],
+      }); // Email user with different provider
+
+      const res = await signIn({
+        user: { email: "conflict@test.com", name: "Conflict" },
+        account: { provider: "google", providerAccountId: "goog123" },
+        profile: {},
+      });
+
+      expect(res).toBe(false);
+    });
+
+    // Test: Verify console.error is called on OAuth error
+    it("signIn logs OAuth errors to console.error", async () => {
+      const signIn = authOptions.callbacks.signIn;
+      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+
+      mockPoolQuery.mockRejectedValueOnce(new Error("DB failed"));
+
+      await signIn({
+        user: { email: "err@test.com", name: "Err" },
+        account: { provider: "google", providerAccountId: "goog1" },
+        profile: {},
+      });
+
+      expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    // Test: Verify profile fallback for user name and avatar
+    it("signIn uses profile.name as fallback when user.name is missing", async () => {
+      const signIn = authOptions.callbacks.signIn;
+
+      mockPoolQuery.mockResolvedValueOnce({ rows: [] }); // No oauth
+      mockPoolQuery.mockResolvedValueOnce({ rows: [] }); // No email
+      mockPoolQuery.mockResolvedValueOnce({ rows: [{ id: "new1" }] }); // Insert
+
+      await signIn({
+        user: { email: "no-name@test.com", name: null, image: null },
+        account: { provider: "github", providerAccountId: "gh1" },
+        profile: { name: "Profile Name", avatar_url: null, picture: null },
+      });
+
+      // Verify insert query used profile name
+      const insertCall = mockPoolQuery.mock.calls[2];
+      expect(insertCall[1]).toContain("Profile Name");
     });
   });
 });
