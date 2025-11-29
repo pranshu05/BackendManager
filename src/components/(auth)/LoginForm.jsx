@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
 import { FaGithub } from "react-icons/fa";
+import { showToast } from "nextjs-toast-notify";
 
 export default function LoginForm() {
     const [form, setForm] = useState({ email: "", password: "" });
@@ -19,6 +20,19 @@ export default function LoginForm() {
         e.preventDefault();
         setLoading(true);
         setError("");
+        
+        // Email Validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(form.email)) {
+            showToast.error("Invalid Email/Password", {
+                duration: 3000,
+                progress: true,
+                position: "top-center",
+                transition: "bounceIn",
+            });
+            setLoading(false);
+            return;
+        }
 
         try {
             const result = await signIn("credentials", {
@@ -28,12 +42,34 @@ export default function LoginForm() {
             });
 
             if (result?.error) {
-                setError(result.error);
+                showToast.error("Invalid Email/Password", {
+                    duration: 3000,
+                    progress: true,
+                    position: "top-center",
+                    transition: "bounceIn",
+                });
+                setError("Invalid Email/Password");
             } else {
-                window.location.href = "/dashboard";
+                showToast.success("Login Successful", {
+                    duration: 3000,
+                    progress: true,
+                    position: "top-center",
+                    transition: "bounceIn",
+                });
+                
+                // Slight delay to allow toast to be visible
+                setTimeout(() => {
+                    window.location.href = "/dashboard";
+                }, 1000);
             }
         } catch (err) {
-            setError(err.message || "An error occurred during login");
+            showToast.error("Invalid Email/Password", {
+                duration: 3000,
+                progress: true,
+                position: "top-center",
+                transition: "bounceIn",
+            });
+            setError("Invalid Email/Password");
         } finally {
             setLoading(false);
         }
@@ -61,7 +97,7 @@ export default function LoginForm() {
                         type="email"
                         placeholder="Enter your email"
                         value={form.email}
-                        onChange={(e) => setForm({ ...form, email: e.target.value })}
+                        onChange={(e) => setForm({ ...form, email: e.target.value.trim() })}
                     />
                 </div>
                 <div className="space-y-2">
@@ -84,7 +120,7 @@ export default function LoginForm() {
                     </div>
                     <a href="/reset" className="text-sm flex justify-end">Forgot Password?</a>
                 </div>
-                <Button type="submit" className="w-full cursor-pointer" disabled={loading || oauthLoading}>
+                <Button type="submit" className="w-full cursor-pointer" disabled={loading || oauthLoading || !form.email || !form.password}>
                     {loading ? "Signing in..." : "Sign In"}
                 </Button>
             </form>
