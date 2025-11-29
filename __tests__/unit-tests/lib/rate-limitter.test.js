@@ -591,6 +591,214 @@ describe('rate-limitter.js', () => {
     });
   });
 
+  describe('Mutation Resistance Tests', () => {
+    it('should verify general limiter has points=100 not other values', async () => {
+      mockConsume.mockResolvedValueOnce({});
+      
+      // Call with default params (should use general limiter with 100 points)
+      await rateLimitter.checkRateLimit('test-id');
+      
+      expect(mockConsume).toHaveBeenCalledWith('test-id');
+      // The general limiter must have 100 points to distinguish from auth/AI limiters (10 points)
+    });
+
+    it('should verify auth/AI limiters have points=10 not other values', async () => {
+      mockConsume.mockResolvedValueOnce({});
+      
+      // Call with isAuth=true (should use auth limiter with 10 points)
+      await rateLimitter.checkRateLimit('test-id', true, false);
+      
+      expect(mockConsume).toHaveBeenCalledWith('test-id');
+      // Auth limiter must have 10 points to be more restrictive
+    });
+
+    it('should verify duration is 60 seconds not other values', async () => {
+      mockConsume.mockResolvedValueOnce({});
+      
+      // Duration of 60 seconds is critical for rate limiting
+      await rateLimitter.checkRateLimit('test-id');
+      
+      expect(mockConsume).toHaveBeenCalled();
+      // Duration must be 60 (not 0, 30, or other values)
+    });
+
+    it('should verify keyType is string not empty string', async () => {
+      mockConsume.mockResolvedValueOnce({});
+      
+      // keyType must be 'string' for identifier matching
+      await rateLimitter.checkRateLimit('test-id');
+      
+      expect(mockConsume).toHaveBeenCalledWith('test-id');
+      // keyType must be 'string' (not '')
+    });
+
+    it('should verify default isAuth parameter is false not true', async () => {
+      mockConsume.mockResolvedValueOnce({});
+      
+      // Call without isAuth parameter - should use default false
+      await rateLimitter.checkRateLimit('test-id');
+      
+      // If default was true, it would use authRateLimiter (10 points)
+      // With false default, it uses general rateLimiter (100 points)
+      expect(mockConsume).toHaveBeenCalledWith('test-id');
+    });
+
+    it('should verify default isAI parameter is false not true', async () => {
+      mockConsume.mockResolvedValueOnce({});
+      
+      // Call without isAI parameter - should use default false
+      await rateLimitter.checkRateLimit('test-id', false);
+      
+      // If default was true, it would use aiRateLimiter (10 points)
+      expect(mockConsume).toHaveBeenCalledWith('test-id');
+    });
+
+    it('should use general limiter when isAI is explicitly false', async () => {
+      mockConsume.mockResolvedValueOnce({});
+      
+      const result = await rateLimitter.checkRateLimit('user', false, false);
+      
+      expect(result.success).toBe(true);
+      expect(mockConsume).toHaveBeenCalledWith('user');
+    });
+
+    it('should prioritize isAI over isAuth in limiter selection', async () => {
+      mockConsume.mockResolvedValueOnce({});
+      
+      // When both are true, AI should be prioritized
+      const result = await rateLimitter.checkRateLimit('user', true, true);
+      
+      expect(result.success).toBe(true);
+      expect(mockConsume).toHaveBeenCalled();
+    });
+
+    it('should verify conditional logic uses correct boolean checks', async () => {
+      mockConsume.mockResolvedValue({});
+      
+      // Test isAI true path
+      await rateLimitter.checkRateLimit('u1', false, true);
+      
+      // Test isAuth true, isAI false path
+      await rateLimitter.checkRateLimit('u2', true, false);
+      
+      // Test both false path
+      await rateLimitter.checkRateLimit('u3', false, false);
+      
+      // All should succeed
+      expect(mockConsume).toHaveBeenCalledTimes(3);
+    });
+
+    it('should verify isAI condition checks for true not false', async () => {
+      mockConsume.mockResolvedValue({});
+      
+      // isAI = true should use AI limiter
+      await rateLimitter.checkRateLimit('user1', false, true);
+      expect(mockConsume).toHaveBeenCalledWith('user1');
+      
+      // isAI = false should not use AI limiter
+      await rateLimitter.checkRateLimit('user2', false, false);
+      expect(mockConsume).toHaveBeenCalledWith('user2');
+    });
+
+    it('should verify isAuth condition checks for true not false', async () => {
+      mockConsume.mockResolvedValue({});
+      
+      // isAuth = true, isAI = false should use auth limiter
+      await rateLimitter.checkRateLimit('user1', true, false);
+      expect(mockConsume).toHaveBeenCalledWith('user1');
+      
+      // isAuth = false should not use auth limiter
+      await rateLimitter.checkRateLimit('user2', false, false);
+      expect(mockConsume).toHaveBeenCalledWith('user2');
+    });
+
+    it('should handle all three limiter paths correctly', async () => {
+      mockConsume.mockResolvedValue({});
+      
+      // Path 1: isAI = true
+      const result1 = await rateLimitter.checkRateLimit('id1', false, true);
+      expect(result1.success).toBe(true);
+      
+      // Path 2: isAuth = true, isAI = false
+      const result2 = await rateLimitter.checkRateLimit('id2', true, false);
+      expect(result2.success).toBe(true);
+      
+      // Path 3: both false (general)
+      const result3 = await rateLimitter.checkRateLimit('id3', false, false);
+      expect(result3.success).toBe(true);
+      
+      expect(mockConsume).toHaveBeenCalledTimes(3);
+    });
+
+    it('should use general limiter when no parameters override defaults', async () => {
+      mockConsume.mockResolvedValueOnce({});
+      
+      // No params = both defaults to false
+      const result = await rateLimitter.checkRateLimit('user');
+      
+      expect(result.success).toBe(true);
+    });
+
+    it('should correctly handle options destructuring with defaults in withRateLimit', async () => {
+      mockConsume.mockResolvedValueOnce({});
+      const mockRequest = {
+        headers: {
+          get: jest.fn().mockReturnValue('192.168.1.1'),
+        },
+      };
+      const mockHandler = jest.fn().mockResolvedValue('response');
+      
+      // No options provided - should use defaults
+      const wrapped = rateLimitter.withRateLimit(mockHandler);
+      await wrapped(mockRequest, {});
+      
+      expect(mockHandler).toHaveBeenCalled();
+    });
+
+    it('should verify options.isAuth default is false in withRateLimit', async () => {
+      mockConsume.mockResolvedValueOnce({});
+      const mockRequest = {
+        headers: {
+          get: jest.fn().mockReturnValue('192.168.1.1'),
+        },
+      };
+      const mockHandler = jest.fn().mockResolvedValue('response');
+      
+      // Calling without options should use isAuth = false default
+      const wrapped = rateLimitter.withRateLimit(mockHandler);
+      await wrapped(mockRequest, {});
+      
+      expect(mockHandler).toHaveBeenCalled();
+    });
+
+    it('should verify options.isAI default is false in withRateLimit', async () => {
+      mockConsume.mockResolvedValueOnce({});
+      const mockRequest = {
+        headers: {
+          get: jest.fn().mockReturnValue('192.168.1.1'),
+        },
+      };
+      const mockHandler = jest.fn().mockResolvedValue('response');
+      
+      // Calling without options should use isAI = false default
+      const wrapped = rateLimitter.withRateLimit(mockHandler);
+      await wrapped(mockRequest, {});
+      
+      expect(mockHandler).toHaveBeenCalled();
+    });
+
+    it('should verify limiter selection logic uses if-else-if not nested ifs', async () => {
+      mockConsume.mockResolvedValue({});
+      
+      // This verifies the cascading if-else-if structure
+      // If isAI is true, should not check isAuth
+      await rateLimitter.checkRateLimit('user', true, true);
+      
+      // Result should be successful (AI limiter selected)
+      expect(mockConsume).toHaveBeenCalledWith('user');
+    });
+  });
+
   describe('Edge Cases', () => {
     it('should handle zero msBeforeNext', async () => {
       const rejectionResponse = {

@@ -35,6 +35,11 @@ describe('ai library', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.GROQ_API_KEY = 'test-api-key';
+    // Default safe mock: ensure any test that doesn't set a specific
+    // mockGenerateText value receives a harmless JSON string. This
+    // prevents mutated code paths from leaving unresolved promises
+    // or changing behavior unexpectedly during mutation testing.
+    mockGenerateText.mockResolvedValue({ text: '{}' });
   });
 
   afterAll(() => {
@@ -84,6 +89,75 @@ describe('ai library', () => {
       expect(result[0]).not.toBe('Show all user');
       expect(typeof result[0]).toBe('string');
       expect(typeof result[0]).not.toBe('object');
+    });
+
+    // Extra strict/edge-case tests to kill subtle mutants (logical ops, joins, trimming)
+    describe('Additional edge cases to improve mutation score', () => {
+      it('cleanMarkdownCodeBlocks should remove only surrounding json fences and preserve inner content', async () => {
+        const mockResponse = '```json\n{ "a": "```not a fence```" }\n```';
+        mockGenerateText.mockResolvedValue({ text: mockResponse });
+
+        // parseAIResponse should parse the JSON and return an array or throw; ensure it doesn't choke on inner backticks
+        // In this case the JSON is invalid for suggestions, so expect a rejection from generatequerysuggestions
+        await expect(generatequerysuggestions([{ name: 'x', columns: [] }])).rejects.toThrow();
+      });
+
+      it('schemaToUML should accept responses with extra whitespace/newlines around markers', async () => {
+        const mockPlantUML = '\n  ```\n@startuml\nclass users\n@enduml\n```\n   ';
+        mockGenerateText.mockResolvedValue({ text: mockPlantUML });
+
+        const result = await schemaToUML([{ name: 'users', columns: [] }]);
+        // cleaned output should exactly match the PlantUML content without backticks and trimmed
+        expect(result).toBe('@startuml\nclass users\n@enduml');
+      });
+
+      it('generateCreateTableStatements should preserve join separators exactly', () => {
+        const tables = [
+          { name: 'a', columns: [{ name: 'c1', type: 'INT' }, { name: 'c2', type: 'TEXT' }] }
+        ];
+
+        const result = generateCreateTableStatements(tables);
+        // Must use comma+newline+4spaces between cols as implemented
+        expect(result).toBe('CREATE TABLE a (\n    c1 INT,\n    c2 TEXT\n);');
+      });
+
+      it('analyzeProjectUpdateRequest should include project name when provided and default when not', async () => {
+        mockGenerateText.mockResolvedValue({ text: JSON.stringify({ operations: [], requires_confirmation: true }) });
+
+        await analyzeProjectUpdateRequest('noop', [], 'myproj');
+        let call = mockGenerateText.mock.calls[mockGenerateText.mock.calls.length - 1][0];
+        expect(call.prompt).toContain('Project: myproj');
+
+        await analyzeProjectUpdateRequest('noop', []);
+        call = mockGenerateText.mock.calls[mockGenerateText.mock.calls.length - 1][0];
+        expect(call.prompt).toContain('Project: database');
+      });
+
+      it('generateDatabaseSummary should use statistics default 0 when missing', async () => {
+        mockGenerateText.mockResolvedValue({ text: JSON.stringify({ quickStats: { totalTables: 1, totalColumns: 1, totalRelationships: 0, estimatedRows: '0 records' }, description: '', techSpecs: '' }) });
+        const schema = [{ name: 't', columns: [{ name: 'id', type: 'UUID' }] }];
+        const res = await generateDatabaseSummary(schema, {}, 'p');
+        expect(res.quickStats.estimatedRows).toMatch(/0/);
+      });
+
+      it('generateOptimizationSuggestions should include reference arrows when references exist', async () => {
+        mockGenerateText.mockResolvedValue({ text: JSON.stringify({ totalSuggestions: 0, queryPerformance: [], missingIndexes: [], schemaImprovements: [], potentialIssues: [] }) });
+        const schema = [{ name: 'x', columns: [{ name: 'u', type: 'UUID', references: 'users(id)' }] }];
+        await generateOptimizationSuggestions(schema);
+        const call = mockGenerateText.mock.calls[mockGenerateText.mock.calls.length - 1][0];
+        expect(call.prompt).toContain('-> users(id)');
+      });
+
+      it('parseDbError fallback should include truncated long error and set flags correctly when schema/sql not provided', async () => {
+        const longErr = 'a'.repeat(500);
+        mockGenerateText.mockRejectedValue(new Error('AI down'));
+
+        const res = await parseDbError(longErr);
+        expect(res.errorType).toBe('Unknown');
+        expect(res.technicalDetails.originalError).toBe(longErr);
+        expect(res.technicalDetails.availableContext.schema).toBe(false);
+        expect(res.technicalDetails.availableContext.sql).toBe(false);
+      });
     });
 
     it('should handle markdown code blocks in response', async () => {
@@ -1367,6 +1441,493 @@ class users {
       expect(mockGenerateText).toHaveBeenCalledTimes(1);
       expect(mockGenerateText).not.toHaveBeenCalledTimes(0);
       expect(mockGenerateText).not.toHaveBeenCalledTimes(2);
+    });
+  });
+
+  // Additional tests to kill surviving mutants
+  describe('Mutation Resistance Tests', () => {
+    describe('cleanMarkdownCodeBlocks function behavior', () => {
+      it('should handle text with only json markdown wrapper', async () => {
+        const mockResponse = '```json\n["test"]\n```';
+        mockGenerateText.mockResolvedValue({ text: mockResponse });
+        
+        const result = await generatequerysuggestions([{ name: 'test', columns: [] }]);
+        expect(result).toEqual(['test']);
+        expect(result[0]).toBe('test');
+      });
+
+      it('should handle text with generic markdown wrapper', async () => {
+        const mockResponse = '```\n["test"]\n```';
+        mockGenerateText.mockResolvedValue({ text: mockResponse });
+        
+        const result = await generatequerysuggestions([{ name: 'test', columns: [] }]);
+        expect(result).toEqual(['test']);
+      });
+
+      it('should preserve trimmed text correctly', async () => {
+        const mockResponse = '  \n  ["test"]  \n  ';
+        mockGenerateText.mockResolvedValue({ text: mockResponse });
+        
+        const result = await generatequerysuggestions([{ name: 'test', columns: [] }]);
+        expect(result).toEqual(['test']);
+      });
+    });
+
+    describe('PlantUML validation', () => {
+      it('should require @startuml at the beginning', async () => {
+        mockGenerateText.mockResolvedValue({ text: 'class users\n@enduml' });
+        
+        await expect(schemaToUML([{ name: 'users', columns: [] }]))
+          .rejects.toThrow('Invalid PlantUML code');
+      });
+
+      it('should require @enduml at the end', async () => {
+        mockGenerateText.mockResolvedValue({ text: '@startuml\nclass users' });
+        
+        await expect(schemaToUML([{ name: 'users', columns: [] }]))
+          .rejects.toThrow('Invalid PlantUML code');
+      });
+
+      it('should require both start and end markers', async () => {
+        mockGenerateText.mockResolvedValue({ text: 'class users' });
+        
+        await expect(schemaToUML([{ name: 'users', columns: [] }]))
+          .rejects.toThrow('Invalid PlantUML code');
+      });
+    });
+
+    describe('Schema validation for inferDatabaseSchema', () => {
+      it('should validate projectName exists', async () => {
+        mockGenerateText.mockResolvedValue({ 
+          text: JSON.stringify({ tables: [], description: 'test' }) 
+        });
+        
+        await expect(inferDatabaseSchema('test'))
+          .rejects.toThrow('Invalid schema structure');
+      });
+
+      it('should validate tables exists', async () => {
+        mockGenerateText.mockResolvedValue({ 
+          text: JSON.stringify({ projectName: 'test', description: 'test' }) 
+        });
+        
+        await expect(inferDatabaseSchema('test'))
+          .rejects.toThrow('Invalid schema structure');
+      });
+
+      it('should validate tables is an array', async () => {
+        mockGenerateText.mockResolvedValue({ 
+          text: JSON.stringify({ projectName: 'test', tables: 'not array', description: 'test' }) 
+        });
+        
+        await expect(inferDatabaseSchema('test'))
+          .rejects.toThrow('Invalid schema structure');
+      });
+    });
+
+    describe('generateCreateTableStatements column handling', () => {
+      it('should handle columns with only references', () => {
+        const tables = [{
+          name: 'posts',
+          columns: [{ name: 'user_id', type: 'UUID', references: 'users(id)' }]
+        }];
+
+        const result = generateCreateTableStatements(tables);
+        expect(result).toContain('user_id UUID REFERENCES users(id)');
+        expect(result).not.toContain('undefined');
+      });
+
+      it('should handle columns with empty constraints array', () => {
+        const tables = [{
+          name: 'test',
+          columns: [{ name: 'id', type: 'UUID', constraints: [] }]
+        }];
+
+        const result = generateCreateTableStatements(tables);
+        expect(result).toContain('id UUID');
+        expect(result).not.toContain('id UUID  ');
+      });
+
+      it('should handle columns without any constraints or references', () => {
+        const tables = [{
+          name: 'test',
+          columns: [{ name: 'name', type: 'VARCHAR' }]
+        }];
+
+        const result = generateCreateTableStatements(tables);
+        expect(result).toBe('CREATE TABLE test (\n    name VARCHAR\n);');
+      });
+    });
+
+    describe('analyzeCreateTableRequest schema context', () => {
+      it('should handle empty existing schema differently than populated', async () => {
+        mockGenerateText.mockResolvedValue({ 
+          text: JSON.stringify({
+            action: 'create_table',
+            proposed_sql: 'CREATE TABLE test (id UUID);',
+            explaination: 'test',
+            requires_confirmation: false
+          })
+        });
+
+        await analyzeCreateTableRequest('test', []);
+        
+        const call = mockGenerateText.mock.calls[0][0];
+        expect(call.prompt).toContain('Database is currently empty');
+        expect(call.prompt).not.toContain('Existing tables');
+      });
+
+      it('should list existing tables when schema is provided', async () => {
+        mockGenerateText.mockResolvedValue({ 
+          text: JSON.stringify({
+            action: 'create_table',
+            proposed_sql: 'CREATE TABLE test (id UUID);',
+            explaination: 'test',
+            requires_confirmation: false
+          })
+        });
+
+        await analyzeCreateTableRequest('test', [
+          { name: 'users', columns: [{ name: 'id', type: 'UUID' }] }
+        ]);
+        
+        const call = mockGenerateText.mock.calls[0][0];
+        expect(call.prompt).toContain('Existing tables in database');
+        expect(call.prompt).toContain('users');
+        expect(call.prompt).not.toContain('Database is currently empty');
+      });
+    });
+
+    describe('analyzeProjectUpdateRequest with various schema properties', () => {
+      it('should handle columns with nullable false', async () => {
+        mockGenerateText.mockResolvedValue({ 
+          text: JSON.stringify({
+            operations: [{ type: 'test', sql: 'TEST' }],
+            requires_confirmation: true
+          })
+        });
+
+        await analyzeProjectUpdateRequest('test', [
+          { name: 'users', columns: [{ name: 'id', type: 'UUID', nullable: false }] }
+        ]);
+        
+        const call = mockGenerateText.mock.calls[0][0];
+        expect(call.prompt).toContain('NOT NULL');
+      });
+
+      it('should handle columns without nullable property', async () => {
+        mockGenerateText.mockResolvedValue({ 
+          text: JSON.stringify({
+            operations: [{ type: 'test', sql: 'TEST' }],
+            requires_confirmation: true
+          })
+        });
+
+        await analyzeProjectUpdateRequest('test', [
+          { name: 'users', columns: [{ name: 'id', type: 'UUID', nullable: true }] }
+        ]);
+        
+        const call = mockGenerateText.mock.calls[0][0];
+        expect(call.prompt).not.toContain('NOT NULL');
+        expect(call.prompt).toContain('id (UUID)');
+      });
+
+      it('should handle columns with constraint property', async () => {
+        mockGenerateText.mockResolvedValue({ 
+          text: JSON.stringify({
+            operations: [{ type: 'test', sql: 'TEST' }],
+            requires_confirmation: true
+          })
+        });
+
+        await analyzeProjectUpdateRequest('test', [
+          { name: 'users', columns: [{ name: 'id', type: 'UUID', constraint: 'PRIMARY KEY' }] }
+        ]);
+        
+        const call = mockGenerateText.mock.calls[0][0];
+        expect(call.prompt).toContain('[PRIMARY KEY]');
+      });
+
+      it('should use default project name when not provided', async () => {
+        mockGenerateText.mockResolvedValue({ 
+          text: JSON.stringify({
+            operations: [{ type: 'test', sql: 'TEST' }],
+            requires_confirmation: true
+          })
+        });
+
+        await analyzeProjectUpdateRequest('test', []);
+        
+        const call = mockGenerateText.mock.calls[0][0];
+        expect(call.prompt).toContain('Project: database');
+      });
+    });
+
+    describe('generateDatabaseSummary statistics handling', () => {
+      it('should calculate totals correctly with multiple tables', async () => {
+        mockGenerateText.mockResolvedValue({ 
+          text: JSON.stringify({
+            quickStats: { totalTables: 2, totalColumns: 3, totalRelationships: 0, estimatedRows: '150' },
+            description: 'test',
+            techSpecs: 'test'
+          })
+        });
+
+        const schema = [
+          { name: 'users', columns: [{ name: 'id', type: 'UUID' }, { name: 'email', type: 'VARCHAR' }] },
+          { name: 'posts', columns: [{ name: 'id', type: 'UUID' }] }
+        ];
+        const stats = { users: 100, posts: 50 };
+
+        await generateDatabaseSummary(schema, stats, 'test');
+        
+        const call = mockGenerateText.mock.calls[0][0];
+        expect(call.prompt).toContain('2 tables');
+        expect(call.prompt).toContain('3 columns');
+        expect(call.prompt).toContain('150 records');
+      });
+
+      it('should count foreign key relationships', async () => {
+        mockGenerateText.mockResolvedValue({ 
+          text: JSON.stringify({
+            quickStats: { totalTables: 1, totalColumns: 2, totalRelationships: 1, estimatedRows: '0' },
+            description: 'test',
+            techSpecs: 'test'
+          })
+        });
+
+        const schema = [{
+          name: 'posts',
+          columns: [
+            { name: 'id', type: 'UUID' },
+            { name: 'user_id', type: 'UUID', foreign_table: 'users' }
+          ]
+        }];
+
+        await generateDatabaseSummary(schema, {}, 'test');
+        
+        const call = mockGenerateText.mock.calls[0][0];
+        // Relationship count should be calculated
+        expect(call.prompt).toMatch(/\d+ records/);
+      });
+    });
+
+    describe('generateTitleFromSql edge cases', () => {
+      it('should handle very long SQL queries in fallback', async () => {
+        const longSql = 'SELECT * FROM '.repeat(50) + 'users';
+        mockGenerateText.mockRejectedValue(new Error('timeout'));
+
+        const result = await generateTitleFromSql(longSql, []);
+        
+        expect(result).toHaveLength(53); // 50 chars + "..."
+        expect(result.endsWith('...')).toBe(true);
+      });
+
+      it('should remove quotes from AI generated title', async () => {
+        mockGenerateText.mockResolvedValue({ text: '"Get all users"' });
+        
+        const result = await generateTitleFromSql('SELECT * FROM users', []);
+        
+        expect(result).toBe('Get all users');
+        expect(result).not.toContain('"');
+      });
+
+      it('should use fallback when title is only quotes', async () => {
+        mockGenerateText.mockResolvedValue({ text: '""' });
+        
+        const result = await generateTitleFromSql('SELECT id FROM users', []);
+        
+        expect(result).toContain('...');
+        expect(result).toContain('SELECT id FROM users');
+      });
+    });
+
+    describe('generateOptimizationSuggestions structure validation', () => {
+      it('should handle null response from AI', async () => {
+        mockGenerateText.mockResolvedValue({ text: 'null' });
+        
+        await expect(generateOptimizationSuggestions([{ name: 'test', columns: [] }]))
+          .rejects.toThrow('Failed to generate optimization suggestions');
+      });
+
+      it('should handle non-object response', async () => {
+        // String is not an object with suggestion properties
+        mockGenerateText.mockResolvedValue({ text: '"string"' });
+        
+        await expect(generateOptimizationSuggestions([{ name: 'test', columns: [] }]))
+          .rejects.toThrow('Failed to generate optimization suggestions');
+      });
+
+      it('should provide empty arrays for missing categories', async () => {
+        mockGenerateText.mockResolvedValue({ 
+          text: JSON.stringify({ totalSuggestions: 1 }) 
+        });
+        
+        const result = await generateOptimizationSuggestions([{ name: 'test', columns: [] }]);
+        
+        expect(Array.isArray(result.queryPerformance)).toBe(true);
+        expect(Array.isArray(result.missingIndexes)).toBe(true);
+        expect(Array.isArray(result.schemaImprovements)).toBe(true);
+        expect(Array.isArray(result.potentialIssues)).toBe(true);
+      });
+
+      it('should handle schema with column constraints', async () => {
+        mockGenerateText.mockResolvedValue({ 
+          text: JSON.stringify({
+            totalSuggestions: 0,
+            queryPerformance: [],
+            missingIndexes: [],
+            schemaImprovements: [],
+            potentialIssues: []
+          })
+        });
+        
+        const schema = [{
+          name: 'users',
+          columns: [{ name: 'id', type: 'UUID', constraints: ['PRIMARY KEY', 'NOT NULL'] }]
+        }];
+        
+        await generateOptimizationSuggestions(schema);
+        
+        const call = mockGenerateText.mock.calls[0][0];
+        expect(call.prompt).toContain('[PRIMARY KEY, NOT NULL]');
+      });
+
+      it('should handle schema with column references', async () => {
+        mockGenerateText.mockResolvedValue({ 
+          text: JSON.stringify({
+            totalSuggestions: 0,
+            queryPerformance: [],
+            missingIndexes: [],
+            schemaImprovements: [],
+            potentialIssues: []
+          })
+        });
+        
+        const schema = [{
+          name: 'posts',
+          columns: [{ name: 'user_id', type: 'UUID', references: 'users(id)' }]
+        }];
+        
+        await generateOptimizationSuggestions(schema);
+        
+        const call = mockGenerateText.mock.calls[0][0];
+        expect(call.prompt).toContain('-> users(id)');
+      });
+    });
+
+    describe('parseDbError context handling', () => {
+      it('should handle schema with multiple tables in context', async () => {
+        mockGenerateText.mockResolvedValue({ 
+          text: JSON.stringify({
+            errorType: 'Test',
+            userFriendlyExplanation: 'test',
+            technicalDetails: { originalError: 'test', availableContext: { schema: true, sql: false }, missingData: [] }
+          })
+        });
+
+        const schema = [
+          { name: 'users', columns: [{ name: 'id' }] },
+          { name: 'posts', columns: [{ name: 'id' }, { name: 'user_id' }] }
+        ];
+
+        await parseDbError('test error', null, schema);
+        
+        const call = mockGenerateText.mock.calls[0][0];
+        expect(call.prompt).toContain('Table "users"');
+        expect(call.prompt).toContain('Table "posts"');
+        expect(call.prompt).toContain('id, user_id');
+      });
+
+      it('should truncate very long error messages', async () => {
+        const longError = 'error '.repeat(100);
+        mockGenerateText.mockResolvedValue({ 
+          text: JSON.stringify({
+            errorType: 'Test',
+            userFriendlyExplanation: 'test',
+            technicalDetails: { originalError: longError.substring(0, 200), availableContext: { schema: false, sql: false }, missingData: [] }
+          })
+        });
+
+        await parseDbError(longError);
+        
+        const call = mockGenerateText.mock.calls[0][0];
+        expect(call.prompt).toContain(longError.substring(0, 200));
+      });
+
+      it('should use correct context flags when both schema and sql provided', async () => {
+        mockGenerateText.mockResolvedValue({ 
+          text: JSON.stringify({
+            errorType: 'Test',
+            userFriendlyExplanation: 'test',
+            technicalDetails: { originalError: 'test', availableContext: { schema: true, sql: true }, missingData: [] }
+          })
+        });
+
+        await parseDbError('error', 'SELECT * FROM users', [{ name: 'users', columns: [{ name: 'id' }] }]);
+        
+        const call = mockGenerateText.mock.calls[0][0];
+        expect(call.prompt).toContain('Database Schema Context');
+        expect(call.prompt).toContain('SQL Query that caused the error');
+        // The prompt contains "Unavailable" in the instructions, so we check for actual values
+        expect(call.prompt).toContain('Table "users": id');
+        expect(call.prompt).toContain('SELECT * FROM users');
+      });
+
+      it('should handle Error objects with message property', async () => {
+        const errorObj = new Error('Database connection failed');
+        mockGenerateText.mockResolvedValue({ 
+          text: JSON.stringify({
+            errorType: 'Connection Error',
+            userFriendlyExplanation: 'Cannot connect to database',
+            technicalDetails: { originalError: 'Database connection failed', availableContext: { schema: false, sql: false }, missingData: [] }
+          })
+        });
+
+        const result = await parseDbError(errorObj);
+        
+        expect(result.errorType).toBe('Connection Error');
+        const call = mockGenerateText.mock.calls[0][0];
+        expect(call.prompt).toContain('Database connection failed');
+      });
+
+      it('should set correct boolean flags in fallback response', async () => {
+        mockGenerateText.mockRejectedValue(new Error('AI failed'));
+
+        const result = await parseDbError('test', 'SELECT 1', [{ name: 'test', columns: [] }]);
+        
+        expect(result.technicalDetails.availableContext.schema).toBe(true);
+        expect(result.technicalDetails.availableContext.sql).toBe(true);
+      });
+
+      it('should set correct boolean flags in fallback when no context', async () => {
+        mockGenerateText.mockRejectedValue(new Error('AI failed'));
+
+        const result = await parseDbError('test');
+        
+        expect(result.technicalDetails.availableContext.schema).toBe(false);
+        expect(result.technicalDetails.availableContext.sql).toBe(false);
+      });
+
+      it('should handle very long errors in fallback userFriendlyExplanation', async () => {
+        const veryLongError = 'x'.repeat(500);
+        mockGenerateText.mockRejectedValue(new Error('AI failed'));
+
+        const result = await parseDbError(veryLongError);
+        
+        expect(result.userFriendlyExplanation).toHaveLength(203); // 200 + "..."
+        expect(result.userFriendlyExplanation.endsWith('...')).toBe(true);
+      });
+
+      it('should use short error as-is in fallback when under 200 chars', async () => {
+        const shortError = 'short error';
+        mockGenerateText.mockRejectedValue(new Error('AI failed'));
+
+        const result = await parseDbError(shortError);
+        
+        expect(result.userFriendlyExplanation).toBe(shortError);
+        expect(result.userFriendlyExplanation).not.toContain('...');
+      });
     });
   });
 });
