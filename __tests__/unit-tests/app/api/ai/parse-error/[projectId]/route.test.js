@@ -87,6 +87,22 @@ describe('POST /api/ai/parse-error/[projectId]', () => {
         mockParseDbError.mockResolvedValue(mockParsedError);
     });
 
+    it('wraps the handler with rate limiter using isAI: true', () => {
+        // Re-import the route to trigger the wrapper call after mock counters are cleared
+        jest.resetModules();
+        mockWithRateLimit.mockClear();
+
+        // Re-require with mocks still in effect
+        // eslint-disable-next-line global-require
+        require('@/app/api/ai/parse-error/[projectId]/route');
+
+        expect(mockWithRateLimit).toHaveBeenCalled();
+        const [wrappedHandler, options] = mockWithRateLimit.mock.calls[0];
+        expect(typeof wrappedHandler).toBe('function');
+        expect(options).toBeDefined();
+        expect(options.isAI).toBe(true);
+    });
+
     describe('Input Validation', () => {
         it('should reject missing error field', async () => {
             const request = mockRequest({});
@@ -936,5 +952,178 @@ describe('POST /api/ai/parse-error/[projectId]', () => {
 
             expect(typeof data.parsed.userFriendlyExplanation).toBe('string');
         });
+    });
+});
+
+// =========================
+// MUTATION-KILLER TESTS
+// These tests detect mutations that replace console.error string literals with empty strings
+// or remove logging entirely. They also add coverage for error branches (schema load fail,
+// parseDbError rejection, and JSON parse rejection) that commonly survive mutation testing.
+// Paste this block inside the top-level describe(...) for the route tests.
+// =========================
+describe('Mutation killers: logging & error branches', () => {
+    let mockReq;
+        const mockUser = {
+            id: 'user-123',
+            email: 'test@example.com'
+        };
+
+        const mockProject = {
+            id: 'project-456',
+            connection_string: 'postgresql://test:test@localhost:5432/testdb',
+            database_name: 'testdb',
+            project_name: 'Test Project'
+        };
+
+        const mockContext = {
+            params: Promise.resolve({ projectId: 'project-456' })
+        };
+
+    const mockSchema = [
+        {
+            name: 'users',
+            columns: [
+                { name: 'id', type: 'INTEGER', nullable: false },
+                { name: 'name', type: 'VARCHAR', nullable: false }
+            ]
+        }
+    ];
+
+    const mockParsedError = {
+        errorType: 'Missing Data',
+        summary: 'Table does not exist',
+        userFriendlyExplanation: 'The table you are trying to access does not exist in the database.',
+        foreignKeyExplanation: null,
+        technicalDetails: {
+            originalError: 'relation "users" does not exist',
+            availableContext: {
+                schema: true,
+                sql: true
+            },
+            missingData: []
+        }
+    };
+
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+
+        // Initialize mockReq
+        mockReq = {
+            json: jest.fn().mockResolvedValue({
+                error: 'dummy error'
+            })
+        };
+
+        // baseline happy schema
+        mockGetDatabaseSchema.mockResolvedValue(mockSchema);
+        mockParseDbError.mockResolvedValue(mockParsedError);
+    });
+
+    // Helper: check that console.error was invoked with at least one non-empty string argument
+    const expectConsoleErrorHasNonEmptyString = (spy) => {
+        expect(spy).toHaveBeenCalled();
+        // Find any call that contains a non-empty string argument
+        const found = spy.mock.calls.some(callArgs =>
+            callArgs.some(arg => typeof arg === 'string' && arg.trim().length > 0)
+        );
+        expect(found).toBe(true);
+    };
+
+    it('logs a non-empty message when getDatabaseSchema fails (mutation killer)', async () => {
+        const schemaError = new Error('schema connection failed');
+        mockGetDatabaseSchema.mockRejectedValueOnce(schemaError);
+
+        const spy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+        mockReq.json.mockResolvedValue({
+            error: 'relation "users" does not exist'
+        });
+
+        const response = await POST(mockReq, mockContext, mockUser, mockProject);
+        const data = await response.json();
+
+        // route should still return success 200 and attempt parse (schema was null)
+        expect(response.status).toBe(200);
+        expect(mockParseDbError).toHaveBeenCalledWith('relation "users" does not exist', undefined, null);
+
+        // detect mutations that empty the string literal passed to console.warn
+        expect(spy).toHaveBeenCalled();
+        const found = spy.mock.calls.some(callArgs =>
+            callArgs.some(arg => typeof arg === 'string' && arg.trim().length > 0)
+        );
+        expect(found).toBe(true);
+
+        spy.mockRestore();
+    });
+
+    it('logs a non-empty message when parseDbError rejects (mutation killer)', async () => {
+        const aiError = new Error('AI service down');
+        mockParseDbError.mockRejectedValueOnce(aiError);
+
+        const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+        mockReq.json.mockResolvedValue({
+            error: 'some db error'
+        });
+
+        const response = await POST(mockReq, mockContext, mockUser, mockProject);
+        const data = await response.json();
+
+        // on parse failure the route should respond 500 and include details
+        expect(response.status).toBe(500);
+        expect(data.success).toBe(false);
+        expect(data.error).toBe('Failed to parse database error');
+        expect(typeof data.details).toBe('string');
+
+        // detect mutated/empty console.error message
+        expectConsoleErrorHasNonEmptyString(spy);
+
+        spy.mockRestore();
+    });
+
+    it('logs a non-empty message when request.json() throws (JSON parse error)', async () => {
+        const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+        const badRequest = {
+            json: jest.fn().mockRejectedValue(new Error('Invalid JSON'))
+        };
+
+        const response = await POST(badRequest, mockContext, mockUser, mockProject);
+        const data = await response.json();
+
+        // ensure route returns 500 + failure shape
+        expect(response.status).toBe(500);
+        expect(data.success).toBe(false);
+        expect(data.error).toBe('Failed to parse database error');
+
+        // logging must include a non-empty string argument (kills console.error string -> "")
+        expectConsoleErrorHasNonEmptyString(spy);
+
+        spy.mockRestore();
+    });
+
+    it('ensures console.error messages are non-empty across other error branches', async () => {
+        // Trigger DB schema load (ok), then trigger parseDbError rejection again to cover additional path
+        const aiError = new Error('Another AI fail');
+        mockParseDbError.mockRejectedValueOnce(aiError);
+
+        const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+        mockReq.json.mockResolvedValue({
+            error: 'duplicate key value violates unique constraint',
+            sql: 'INSERT INTO x VALUES (1)'
+        });
+
+        const response = await POST(mockReq, mockContext, mockUser, mockProject);
+
+        // Should be server error and log present
+        expect(response.status).toBe(500);
+
+        // Assert that at least one console.error call contained a non-empty string
+        expectConsoleErrorHasNonEmptyString(spy);
+
+        spy.mockRestore();
     });
 });

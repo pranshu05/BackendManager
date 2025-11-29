@@ -2,18 +2,11 @@
  * @jest-environment node
  */
 
-// Mock modules before imports
-const mockCookieStore = {
-    set: jest.fn()
-};
-
+const mockCookieStore = { set: jest.fn() };
 const mockCookies = jest.fn().mockResolvedValue(mockCookieStore);
 
-jest.mock('next/headers', () => ({
-    cookies: mockCookies
-}));
+jest.mock('next/headers', () => ({ cookies: mockCookies }));
 
-// Import after mocks
 const { POST } = require('@/app/api/auth/logout/route');
 
 describe('POST /api/auth/logout', () => {
@@ -28,628 +21,235 @@ describe('POST /api/auth/logout', () => {
         process.env = originalEnv;
     });
 
-    describe('Successful Logout', () => {
-        it('should logout successfully', async () => {
+    // Helper to get cookie call by name
+    const getCookieCall = (name) => mockCookieStore.set.mock.calls.find(c => c[0] === name);
+
+    describe('Success Path - Cookie Mutations', () => {
+        it('should set both cookies with exact empty string value (not "Stryker was here!")', async () => {
             const response = await POST();
             const data = await response.json();
 
             expect(response.status).toBe(200);
-            expect(data.success).toBe(true);
-            expect(data.message).toBe('Logout successful');
+            expect(data).toEqual({ success: true, message: 'Logout successful', redirect: '/' });
+
+            const sessionCall = getCookieCall('next-auth.session-token');
+            const secureCall = getCookieCall('__Secure-next-auth.session-token');
+
+            // Kill cookie value mutations
+            expect(sessionCall[1]).toBe('');
+            expect(sessionCall[1]).not.toBe('Stryker was here!');
+            expect(secureCall[1]).toBe('');
+            expect(secureCall[1]).not.toBe('Stryker was here!');
         });
 
-        it('should return redirect path', async () => {
-            const response = await POST();
-            const data = await response.json();
-
-            expect(data.redirect).toBe('/');
-        });
-
-        it('should clear session token cookie', async () => {
+        it('should use non-empty cookie options object with all 6 properties', async () => {
             await POST();
 
-            const sessionTokenCalls = mockCookieStore.set.mock.calls.filter(
-                call => call[0] === 'next-auth.session-token'
-            );
+            const sessionCall = getCookieCall('next-auth.session-token');
+            const secureCall = getCookieCall('__Secure-next-auth.session-token');
 
-            expect(sessionTokenCalls.length).toBeGreaterThanOrEqual(1);
+            // Kill empty object mutation
+            expect(sessionCall[2]).not.toEqual({});
+            expect(secureCall[2]).not.toEqual({});
+            expect(Object.keys(sessionCall[2])).toEqual(['httpOnly', 'secure', 'sameSite', 'path', 'maxAge', 'expires']);
+            expect(Object.keys(secureCall[2])).toEqual(['httpOnly', 'secure', 'sameSite', 'path', 'maxAge', 'expires']);
         });
 
-        it('should clear secure session token cookie', async () => {
+        it('should set httpOnly to true (not false) for both cookies', async () => {
             await POST();
 
-            const secureTokenCalls = mockCookieStore.set.mock.calls.filter(
-                call => call[0] === '__Secure-next-auth.session-token'
-            );
+            const sessionCall = getCookieCall('next-auth.session-token');
+            const secureCall = getCookieCall('__Secure-next-auth.session-token');
 
-            expect(secureTokenCalls.length).toBe(1);
+            // Kill httpOnly false mutation
+            expect(sessionCall[2].httpOnly).toBe(true);
+            expect(sessionCall[2].httpOnly).not.toBe(false);
+            expect(secureCall[2].httpOnly).toBe(true);
+            expect(secureCall[2].httpOnly).not.toBe(false);
         });
 
-        it('should set session token to empty string', async () => {
+        it('should set sameSite to "lax" (not empty string)', async () => {
             await POST();
 
-            const sessionTokenCall = mockCookieStore.set.mock.calls.find(
-                call => call[0] === 'next-auth.session-token'
-            );
+            const sessionCall = getCookieCall('next-auth.session-token');
+            const secureCall = getCookieCall('__Secure-next-auth.session-token');
 
-            expect(sessionTokenCall[1]).toBe('');
+            // Kill sameSite empty string mutation
+            expect(sessionCall[2].sameSite).toBe('lax');
+            expect(sessionCall[2].sameSite).not.toBe('');
+            expect(secureCall[2].sameSite).toBe('lax');
+            expect(secureCall[2].sameSite).not.toBe('');
         });
 
-        it('should set secure session token to empty string', async () => {
+        it('should set path to "/" (not empty string)', async () => {
             await POST();
 
-            const secureTokenCall = mockCookieStore.set.mock.calls.find(
-                call => call[0] === '__Secure-next-auth.session-token'
-            );
+            const sessionCall = getCookieCall('next-auth.session-token');
+            const secureCall = getCookieCall('__Secure-next-auth.session-token');
 
-            expect(secureTokenCall[1]).toBe('');
+            // Kill path empty string mutation
+            expect(sessionCall[2].path).toBe('/');
+            expect(sessionCall[2].path).not.toBe('');
+            expect(secureCall[2].path).toBe('/');
+            expect(secureCall[2].path).not.toBe('');
         });
 
-        it('should call cookies function', async () => {
-            await POST();
-
-            expect(mockCookies).toHaveBeenCalled();
-        });
-    });
-
-    describe('Cookie Configuration - Development', () => {
-        beforeEach(() => {
-            process.env.NODE_ENV = 'development';
-        });
-
-        it('should set httpOnly to true for session token', async () => {
-            await POST();
-
-            const sessionTokenCall = mockCookieStore.set.mock.calls.find(
-                call => call[0] === 'next-auth.session-token'
-            );
-
-            expect(sessionTokenCall[2].httpOnly).toBe(true);
-        });
-
-        it('should set secure to false in development', async () => {
-            await POST();
-
-            const sessionTokenCall = mockCookieStore.set.mock.calls.find(
-                call => call[0] === 'next-auth.session-token'
-            );
-
-            expect(sessionTokenCall[2].secure).toBe(false);
-        });
-
-        it('should set sameSite to lax for session token', async () => {
-            await POST();
-
-            const sessionTokenCall = mockCookieStore.set.mock.calls.find(
-                call => call[0] === 'next-auth.session-token'
-            );
-
-            expect(sessionTokenCall[2].sameSite).toBe('lax');
-        });
-
-        it('should set path to root for session token', async () => {
-            await POST();
-
-            const sessionTokenCall = mockCookieStore.set.mock.calls.find(
-                call => call[0] === 'next-auth.session-token'
-            );
-
-            expect(sessionTokenCall[2].path).toBe('/');
-        });
-
-        it('should set maxAge to 0 for session token', async () => {
-            await POST();
-
-            const sessionTokenCall = mockCookieStore.set.mock.calls.find(
-                call => call[0] === 'next-auth.session-token'
-            );
-
-            expect(sessionTokenCall[2].maxAge).toBe(0);
-        });
-
-        it('should set expires to epoch for session token', async () => {
-            await POST();
-
-            const sessionTokenCall = mockCookieStore.set.mock.calls.find(
-                call => call[0] === 'next-auth.session-token'
-            );
-
-            expect(sessionTokenCall[2].expires).toEqual(new Date(0));
-        });
-    });
-
-    describe('Cookie Configuration - Production', () => {
-        beforeEach(() => {
+        it('should use conditional secure for session cookie (=== operator, "production" string)', async () => {
+            // Test production
             process.env.NODE_ENV = 'production';
-        });
-
-        it('should set secure to true in production', async () => {
             await POST();
-
-            const sessionTokenCall = mockCookieStore.set.mock.calls.find(
-                call => call[0] === 'next-auth.session-token'
-            );
-
-            expect(sessionTokenCall[2].secure).toBe(true);
-        });
-
-        it('should set httpOnly to true in production', async () => {
-            await POST();
-
-            const sessionTokenCall = mockCookieStore.set.mock.calls.find(
-                call => call[0] === 'next-auth.session-token'
-            );
-
-            expect(sessionTokenCall[2].httpOnly).toBe(true);
-        });
-    });
-
-    describe('Secure Cookie Configuration', () => {
-        it('should always set secure to true for __Secure cookie', async () => {
-            process.env.NODE_ENV = 'development';
+            let sessionCall = getCookieCall('next-auth.session-token');
             
+            // Kill: secure true mutation, !== operator mutation, empty string mutation
+            expect(sessionCall[2].secure).toBe(true);
+
+            // Test development
+            mockCookieStore.set.mockClear();
+            process.env.NODE_ENV = 'development';
             await POST();
+            sessionCall = getCookieCall('next-auth.session-token');
+            
+            // Kill: secure false mutation
+            expect(sessionCall[2].secure).toBe(false);
 
-            const secureTokenCall = mockCookieStore.set.mock.calls.find(
-                call => call[0] === '__Secure-next-auth.session-token'
-            );
-
-            expect(secureTokenCall[2].secure).toBe(true);
+            // Test empty string NODE_ENV
+            mockCookieStore.set.mockClear();
+            process.env.NODE_ENV = '';
+            await POST();
+            sessionCall = getCookieCall('next-auth.session-token');
+            
+            // Kill: NODE_ENV === "" mutation
+            expect(sessionCall[2].secure).toBe(false);
         });
 
-        it('should set httpOnly to true for secure cookie', async () => {
+        it('should set secure to always true for __Secure cookie regardless of NODE_ENV', async () => {
+            process.env.NODE_ENV = 'development';
             await POST();
-
-            const secureTokenCall = mockCookieStore.set.mock.calls.find(
-                call => call[0] === '__Secure-next-auth.session-token'
-            );
-
-            expect(secureTokenCall[2].httpOnly).toBe(true);
-        });
-
-        it('should set sameSite to lax for secure cookie', async () => {
-            await POST();
-
-            const secureTokenCall = mockCookieStore.set.mock.calls.find(
-                call => call[0] === '__Secure-next-auth.session-token'
-            );
-
-            expect(secureTokenCall[2].sameSite).toBe('lax');
-        });
-
-        it('should set path to root for secure cookie', async () => {
-            await POST();
-
-            const secureTokenCall = mockCookieStore.set.mock.calls.find(
-                call => call[0] === '__Secure-next-auth.session-token'
-            );
-
-            expect(secureTokenCall[2].path).toBe('/');
-        });
-
-        it('should set maxAge to 0 for secure cookie', async () => {
-            await POST();
-
-            const secureTokenCall = mockCookieStore.set.mock.calls.find(
-                call => call[0] === '__Secure-next-auth.session-token'
-            );
-
-            expect(secureTokenCall[2].maxAge).toBe(0);
-        });
-
-        it('should set expires to epoch for secure cookie', async () => {
-            await POST();
-
-            const secureTokenCall = mockCookieStore.set.mock.calls.find(
-                call => call[0] === '__Secure-next-auth.session-token'
-            );
-
-            expect(secureTokenCall[2].expires).toEqual(new Date(0));
+            
+            const secureCall = getCookieCall('__Secure-next-auth.session-token');
+            expect(secureCall[2].secure).toBe(true);
         });
     });
 
-    describe('Error Handling', () => {
-        it('should handle cookies function error', async () => {
-            mockCookies.mockRejectedValueOnce(new Error('Cookies unavailable'));
-
-            const response = await POST();
-            const data = await response.json();
-
-            expect(response.status).toBe(500);
-            expect(data.success).toBe(false);
-            expect(data.error).toBe('Logout failed');
-        });
-
-        it('should return redirect path on error', async () => {
-            mockCookies.mockRejectedValueOnce(new Error('Error'));
-
-            const response = await POST();
-            const data = await response.json();
-
-            expect(data.redirect).toBe('/');
-        });
-
-        it('should attempt to clear cookies in error handler', async () => {
+    describe('Error Path - Cookie Mutations in Error Handler', () => {
+        beforeEach(() => {
             let callCount = 0;
             mockCookies.mockImplementation(() => {
                 callCount++;
-                if (callCount === 1) {
-                    throw new Error('First call fails');
-                }
+                if (callCount === 1) throw new Error('First call fails');
                 return Promise.resolve(mockCookieStore);
             });
-
-            await POST();
-
-            expect(mockCookies).toHaveBeenCalledTimes(2);
         });
 
-        it('should handle cookie set error gracefully', async () => {
-            mockCookieStore.set.mockImplementationOnce(() => {
-                throw new Error('Set cookie failed');
-            });
-
+        it('should handle error and still attempt cookie clear with exact values', async () => {
+            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+            
             const response = await POST();
             const data = await response.json();
 
             expect(response.status).toBe(500);
-            expect(data.success).toBe(false);
+            expect(data).toEqual({ success: false, error: 'Logout failed', redirect: '/' });
+
+            // Verify console.error called with non-empty message
+            expect(consoleErrorSpy.mock.calls[0][0]).toBe('Logout error:');
+            expect(consoleErrorSpy.mock.calls[0][0]).not.toBe('');
+
+            consoleErrorSpy.mockRestore();
         });
 
-        it('should handle nested error in error handler', async () => {
+        it('should use exact cookie parameters in error handler (kill all error path mutations)', async () => {
+            process.env.NODE_ENV = 'production';
+            await POST();
+
+            const errorCall = mockCookieStore.set.mock.calls[0];
+
+            // Kill all error handler mutations
+            expect(errorCall[0]).toBe('next-auth.session-token');
+            expect(errorCall[1]).toBe('');
+            expect(errorCall[1]).not.toBe('Stryker was here!');
+            expect(errorCall[2]).not.toEqual({});
+            expect(errorCall[2].httpOnly).toBe(true);
+            expect(errorCall[2].httpOnly).not.toBe(false);
+            expect(errorCall[2].secure).toBe(true);
+            expect(errorCall[2].sameSite).toBe('lax');
+            expect(errorCall[2].sameSite).not.toBe('');
+            expect(errorCall[2].path).toBe('/');
+            expect(errorCall[2].path).not.toBe('');
+
+            // Test development
+            mockCookieStore.set.mockClear();
+            process.env.NODE_ENV = 'development';
+            await POST();
+
+            const devErrorCall = mockCookieStore.set.mock.calls[0];
+            expect(devErrorCall[2].secure).toBe(false);
+
+            // Test empty string NODE_ENV
+            mockCookieStore.set.mockClear();
+            process.env.NODE_ENV = '';
+            await POST();
+
+            const emptyErrorCall = mockCookieStore.set.mock.calls[0];
+            expect(emptyErrorCall[2].secure).toBe(false);
+        });
+
+        it('should execute nested catch block and log with non-empty message', async () => {
+            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+            
             mockCookies
                 .mockRejectedValueOnce(new Error('First error'))
                 .mockRejectedValueOnce(new Error('Second error'));
 
-            const response = await POST();
-            const data = await response.json();
+            await POST();
 
-            expect(response.status).toBe(500);
-            expect(data.error).toBe('Logout failed');
+            // Kill empty catch block and console.error empty string mutations
+            expect(consoleErrorSpy).toHaveBeenCalledTimes(2);
+            expect(consoleErrorSpy.mock.calls[1][0]).toBe('Failed to clear cookies:');
+            expect(consoleErrorSpy.mock.calls[1][0]).not.toBe('');
+
+            consoleErrorSpy.mockRestore();
         });
     });
 
-    describe('Response Structure', () => {
-        it('should have success field', async () => {
-            const response = await POST();
-            const data = await response.json();
-
-            expect(data).toHaveProperty('success');
+    describe('Additional Mutation Killers', () => {
+        beforeEach(() => {
+            // Reset mocks to normal behavior for this suite
+            mockCookies.mockResolvedValue(mockCookieStore);
         });
 
-        it('should have message field on success', async () => {
-            const response = await POST();
-            const data = await response.json();
-
-            expect(data).toHaveProperty('message');
-        });
-
-        it('should have redirect field', async () => {
-            const response = await POST();
-            const data = await response.json();
-
-            expect(data).toHaveProperty('redirect');
-        });
-
-        it('should have error field on failure', async () => {
-            mockCookies.mockRejectedValueOnce(new Error('Error'));
-
-            const response = await POST();
-            const data = await response.json();
-
-            expect(data).toHaveProperty('error');
-        });
-
-        it('should not have message field on failure', async () => {
-            mockCookies.mockRejectedValueOnce(new Error('Error'));
-
-            const response = await POST();
-            const data = await response.json();
-
-            expect(data.message).toBeUndefined();
-        });
-
-        it('should not have error field on success', async () => {
-            const response = await POST();
-            const data = await response.json();
-
-            expect(data.error).toBeUndefined();
-        });
-    });
-
-    describe('Mutation Resistance', () => {
-        it('should validate success status is exactly 200', async () => {
-            const response = await POST();
-
-            expect(response.status).toBe(200);
-            expect(response.status).not.toBe(201);
-            expect(response.status).not.toBe(204);
-        });
-
-        it('should validate error status is exactly 500', async () => {
-            mockCookies.mockRejectedValueOnce(new Error('Error'));
-
-            const response = await POST();
-
-            expect(response.status).toBe(500);
-            expect(response.status).not.toBe(400);
-            expect(response.status).not.toBe(503);
-        });
-
-        it('should validate success field is exactly true', async () => {
-            const response = await POST();
-            const data = await response.json();
-
-            expect(data.success).toBe(true);
-            expect(data.success).not.toBe(1);
-            expect(data.success).not.toBe('true');
-        });
-
-        it('should validate success field is exactly false on error', async () => {
-            mockCookies.mockRejectedValueOnce(new Error('Error'));
-
-            const response = await POST();
-            const data = await response.json();
-
-            expect(data.success).toBe(false);
-            expect(data.success).not.toBe(0);
-            expect(data.success).not.toBe('false');
-        });
-
-        it('should validate exact success message', async () => {
-            const response = await POST();
-            const data = await response.json();
-
-            expect(data.message).toBe('Logout successful');
-            expect(data.message).not.toBe('Logout Successful');
-            expect(data.message).not.toBe('logout successful');
-            expect(data.message).not.toBe('Logout success');
-        });
-
-        it('should validate exact error message', async () => {
-            mockCookies.mockRejectedValueOnce(new Error('Error'));
-
-            const response = await POST();
-            const data = await response.json();
-
-            expect(data.error).toBe('Logout failed');
-            expect(data.error).not.toBe('Logout Failed');
-            expect(data.error).not.toBe('logout failed');
-            expect(data.error).not.toBe('Failed to logout');
-        });
-
-        it('should validate exact redirect path', async () => {
-            const response = await POST();
-            const data = await response.json();
-
-            expect(data.redirect).toBe('/');
-            expect(data.redirect).not.toBe('');
-            expect(data.redirect).not.toBe('/login');
-        });
-
-        it('should validate redirect path on error', async () => {
-            mockCookies.mockRejectedValueOnce(new Error('Error'));
-
-            const response = await POST();
-            const data = await response.json();
-
-            expect(data.redirect).toBe('/');
-        });
-
-        it('should validate session token cookie name', async () => {
+        it('should verify exact cookie names (not empty strings)', async () => {
             await POST();
 
-            const sessionTokenCalls = mockCookieStore.set.mock.calls.filter(
-                call => call[0] === 'next-auth.session-token'
-            );
-
-            expect(sessionTokenCalls.length).toBeGreaterThanOrEqual(1);
-            expect(sessionTokenCalls[0][0]).toBe('next-auth.session-token');
-            expect(sessionTokenCalls[0][0]).not.toBe('nextauth.session-token');
-        });
-
-        it('should validate secure cookie name has __Secure prefix', async () => {
-            await POST();
-
-            const secureTokenCall = mockCookieStore.set.mock.calls.find(
-                call => call[0] === '__Secure-next-auth.session-token'
-            );
-
-            expect(secureTokenCall[0]).toBe('__Secure-next-auth.session-token');
-            expect(secureTokenCall[0]).not.toBe('__secure-next-auth.session-token');
-            expect(secureTokenCall[0]).not.toBe('Secure-next-auth.session-token');
-        });
-
-        it('should validate empty string value not null', async () => {
-            await POST();
-
-            const sessionTokenCall = mockCookieStore.set.mock.calls.find(
-                call => call[0] === 'next-auth.session-token'
-            );
-
-            expect(sessionTokenCall[1]).toBe('');
-            expect(sessionTokenCall[1]).not.toBe(null);
-            expect(sessionTokenCall[1]).not.toBe(undefined);
-        });
-
-        it('should validate httpOnly is boolean true', async () => {
-            await POST();
-
-            const sessionTokenCall = mockCookieStore.set.mock.calls.find(
-                call => call[0] === 'next-auth.session-token'
-            );
-
-            expect(sessionTokenCall[2].httpOnly).toBe(true);
-            expect(sessionTokenCall[2].httpOnly).not.toBe(1);
-            expect(sessionTokenCall[2].httpOnly).not.toBe('true');
-        });
-
-        it('should validate sameSite is lowercase lax', async () => {
-            await POST();
-
-            const sessionTokenCall = mockCookieStore.set.mock.calls.find(
-                call => call[0] === 'next-auth.session-token'
-            );
-
-            expect(sessionTokenCall[2].sameSite).toBe('lax');
-            expect(sessionTokenCall[2].sameSite).not.toBe('Lax');
-            expect(sessionTokenCall[2].sameSite).not.toBe('LAX');
-            expect(sessionTokenCall[2].sameSite).not.toBe('strict');
-        });
-
-        it('should validate path is exactly /', async () => {
-            await POST();
-
-            const sessionTokenCall = mockCookieStore.set.mock.calls.find(
-                call => call[0] === 'next-auth.session-token'
-            );
-
-            expect(sessionTokenCall[2].path).toBe('/');
-            expect(sessionTokenCall[2].path).not.toBe('');
-        });
-
-        it('should validate maxAge is number 0', async () => {
-            await POST();
-
-            const sessionTokenCall = mockCookieStore.set.mock.calls.find(
-                call => call[0] === 'next-auth.session-token'
-            );
-
-            expect(sessionTokenCall[2].maxAge).toBe(0);
-            expect(sessionTokenCall[2].maxAge).not.toBe('0');
-            expect(sessionTokenCall[2].maxAge).not.toBe(-1);
-        });
-
-        it('should validate expires is Date object', async () => {
-            await POST();
-
-            const sessionTokenCall = mockCookieStore.set.mock.calls.find(
-                call => call[0] === 'next-auth.session-token'
-            );
-
-            expect(sessionTokenCall[2].expires).toBeInstanceOf(Date);
-        });
-
-        it('should validate expires is exactly epoch', async () => {
-            await POST();
-
-            const sessionTokenCall = mockCookieStore.set.mock.calls.find(
-                call => call[0] === 'next-auth.session-token'
-            );
-
-            expect(sessionTokenCall[2].expires.getTime()).toBe(0);
-            expect(sessionTokenCall[2].expires.getTime()).not.toBe(1);
-        });
-
-        it('should validate success is boolean type', async () => {
-            const response = await POST();
-            const data = await response.json();
-
-            expect(typeof data.success).toBe('boolean');
-        });
-
-        it('should validate message is string type', async () => {
-            const response = await POST();
-            const data = await response.json();
-
-            expect(typeof data.message).toBe('string');
-        });
-
-        it('should validate redirect is string type', async () => {
-            const response = await POST();
-            const data = await response.json();
-
-            expect(typeof data.redirect).toBe('string');
-        });
-
-        it('should validate error is string type on failure', async () => {
-            mockCookies.mockRejectedValueOnce(new Error('Error'));
-
-            const response = await POST();
-            const data = await response.json();
-
-            expect(typeof data.error).toBe('string');
-        });
-
-        it('should call cookies at least once', async () => {
-            await POST();
-
-            expect(mockCookies.mock.calls.length).toBeGreaterThanOrEqual(1);
-        });
-
-        it('should set at least 2 cookies on success', async () => {
-            await POST();
-
-            expect(mockCookieStore.set.mock.calls.length).toBeGreaterThanOrEqual(2);
-        });
-
-        it('should have exactly 3 fields in success response', async () => {
-            const response = await POST();
-            const data = await response.json();
-
-            const keys = Object.keys(data);
-            expect(keys.length).toBe(3);
-            expect(keys).toContain('success');
-            expect(keys).toContain('message');
-            expect(keys).toContain('redirect');
-        });
-
-        it('should have exactly 3 fields in error response', async () => {
-            mockCookies.mockRejectedValueOnce(new Error('Error'));
-
-            const response = await POST();
-            const data = await response.json();
-
-            const keys = Object.keys(data);
-            expect(keys.length).toBe(3);
-            expect(keys).toContain('success');
-            expect(keys).toContain('error');
-            expect(keys).toContain('redirect');
-        });
-
-        it('should validate secure cookie configuration has 6 properties', async () => {
-            await POST();
-
-            const secureTokenCall = mockCookieStore.set.mock.calls.find(
-                call => call[0] === '__Secure-next-auth.session-token'
-            );
-
-            const configKeys = Object.keys(secureTokenCall[2]);
-            expect(configKeys.length).toBe(6);
-        });
-
-        it('should validate session token configuration has 6 properties', async () => {
-            await POST();
-
-            const sessionTokenCall = mockCookieStore.set.mock.calls.find(
-                call => call[0] === 'next-auth.session-token'
-            );
-
-            const configKeys = Object.keys(sessionTokenCall[2]);
-            expect(configKeys.length).toBe(6);
-        });
-
-        it('should validate secure is always true for __Secure cookie regardless of NODE_ENV', async () => {
-            process.env.NODE_ENV = 'development';
+            expect(mockCookieStore.set).toHaveBeenCalledTimes(2);
             
-            await POST();
-
-            const secureTokenCall = mockCookieStore.set.mock.calls.find(
-                call => call[0] === '__Secure-next-auth.session-token'
-            );
-
-            expect(secureTokenCall[2].secure).toBe(true);
-            expect(secureTokenCall[2].secure).not.toBe(false);
+            const sessionCall = getCookieCall('next-auth.session-token');
+            const secureCall = getCookieCall('__Secure-next-auth.session-token');
+            
+            expect(sessionCall).toBeDefined();
+            expect(secureCall).toBeDefined();
+            expect(sessionCall[0]).toBe('next-auth.session-token');
+            expect(sessionCall[0]).not.toBe('');
+            expect(secureCall[0]).toBe('__Secure-next-auth.session-token');
+            expect(secureCall[0]).not.toBe('');
         });
 
-        it('should clear both cookies even on partial failure', async () => {
-            const response = await POST();
+        it('should set maxAge and expires to exact values', async () => {
+            await POST();
 
-            expect(response.status).toBe(200);
-            
-            const cookieNames = mockCookieStore.set.mock.calls.map(call => call[0]);
-            expect(cookieNames).toContain('next-auth.session-token');
-            expect(cookieNames).toContain('__Secure-next-auth.session-token');
+            const sessionCall = getCookieCall('next-auth.session-token');
+            const secureCall = getCookieCall('__Secure-next-auth.session-token');
+
+            expect(sessionCall[2].maxAge).toBe(0);
+            expect(sessionCall[2].expires).toEqual(new Date(0));
+            expect(secureCall[2].maxAge).toBe(0);
+            expect(secureCall[2].expires).toEqual(new Date(0));
+        });
+
+        it('should call cookies() and set() the correct number of times', async () => {
+            await POST();
+
+            expect(mockCookies).toHaveBeenCalledTimes(1);
+            expect(mockCookieStore.set).toHaveBeenCalledTimes(2);
         });
     });
 });

@@ -1211,3 +1211,177 @@ describe('POST /api/ai/create-project', () => {
         });
     });
 });
+
+// ============================================================================
+// ADDITIONAL TESTS TO KILL REMAINING STRYKER MUTANTS
+// These tests specifically target:
+//   - console.error() mutations
+//   - SQL query string mutations
+//   - .filter(stmt => stmt.trim() !== '') mutation
+//   - Logging mutations inside catch blocks
+// ============================================================================
+
+describe("Mutation Killers (console.error + SQL string + filter logic)", () => {
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        
+        mockRequest = {
+            json: jest.fn().mockResolvedValue({ naturalLanguageInput: "test" }),
+        };
+
+        inferDatabaseSchema.mockResolvedValue({
+            projectName: "test_project",
+            description: "desc",
+            tables: [],
+        });
+
+        mockPool.query
+            .mockResolvedValueOnce({ rows: [] }) // check existing project
+            .mockResolvedValueOnce({
+                rows: [{
+                    id: "proj-123",
+                    project_name: "test_project",
+                    database_name: "db_test",
+                    description: "desc",
+                    created_at: new Date().toISOString(),
+                }],
+            });
+
+        createUserDatabase.mockResolvedValue({
+            databaseName: "db_test",
+            connectionString: "postgres://test",
+        });
+
+        waitForDatabaseReady.mockResolvedValue(true);
+        getUserDatabaseConnection.mockResolvedValue(mockUserPool);
+        generateCreateTableStatements.mockReturnValue("");
+    });
+
+    // ------------------------------------------------------------------------
+    // 1. Kill mutation in AI inference console.error()
+    // Mutation: console.error("AI schema...", err) -> console.error("", err)
+    // ------------------------------------------------------------------------
+    it("should log AI schema inference errors (mutation killer)", async () => {
+        const spy = jest.spyOn(console, "error").mockImplementation(() => {});
+
+        const err = new Error("AI fail");
+        inferDatabaseSchema.mockRejectedValue(err);
+
+        await POST(mockRequest);
+
+        expect(spy).toHaveBeenCalled();
+        expect(spy.mock.calls[0][0]).toContain("AI schema inference error");
+        expect(spy.mock.calls[0][1]).toBe(err);
+
+        spy.mockRestore();
+    });
+
+    // ------------------------------------------------------------------------
+    // 2. Kill mutation on SQL string replaced by ""
+    // Mutation: "SELECT id..." -> ""
+    // ------------------------------------------------------------------------
+    it("should run correct SQL for project existence check (mutation killer)", async () => {
+        await POST(mockRequest);
+
+        expect(mockPool.query.mock.calls[0][0]).toContain(
+            "SELECT id FROM user_projects WHERE user_id = $1 AND project_name = $2"
+        );
+    });
+
+    // ------------------------------------------------------------------------
+    // 3. Kill mutation inside DB creation console.error()
+    // Mutation: console.error("Database creation error:", err) -> console.error("", err)
+    // ------------------------------------------------------------------------
+    it("should log DB creation errors (mutation killer)", async () => {
+        const spy = jest.spyOn(console, "error").mockImplementation(() => {});
+        const err = new Error("DB create error");
+
+        createUserDatabase.mockRejectedValue(err);
+
+        await POST(mockRequest);
+
+        expect(spy).toHaveBeenCalled();
+        expect(spy.mock.calls[0][0]).toContain("Database creation error");
+        expect(spy.mock.calls[0][1]).toBe(err);
+
+        spy.mockRestore();
+    });
+
+    // ------------------------------------------------------------------------
+    // 4. Kill mutation inside readiness check console.error()
+    // Mutation: console.error("Database readiness...", err) -> console.error("", err)
+    // ------------------------------------------------------------------------
+    it("should log database readiness errors (mutation killer)", async () => {
+        const spy = jest.spyOn(console, "error").mockImplementation(() => {});
+        const err = new Error("Readiness fail");
+
+        // Reset and reconfigure mocks for this specific test
+        mockPool.query.mockReset();
+        mockPool.query
+            .mockResolvedValueOnce({ rows: [] }) // SELECT check existing project
+            .mockResolvedValueOnce({  // INSERT INTO user_projects
+                rows: [{
+                    id: "proj-123",
+                    project_name: "test_project",
+                    database_name: "db_test",
+                    description: "desc",
+                    created_at: new Date().toISOString(),
+                }],
+            });
+        
+        createUserDatabase.mockResolvedValue({
+            databaseName: "db_test",
+            connectionString: "postgres://test",
+        });
+        
+        waitForDatabaseReady.mockRejectedValue(err);
+
+        await POST(mockRequest);
+
+        expect(spy).toHaveBeenCalled();
+        expect(spy.mock.calls[0][0]).toContain("Database readiness check failed");
+        expect(spy.mock.calls[0][1]).toBe(err);
+
+        spy.mockRestore();
+    });
+
+    // ------------------------------------------------------------------------
+    // 5. Kill mutation inside SQL .filter(stmt => stmt.trim() !== '')
+    // Mutation: stmt.trim() !== ''  -> stmt !== ''
+    // ------------------------------------------------------------------------
+    it("should correctly filter empty SQL statements (mutation killer)", async () => {
+        generateCreateTableStatements.mockReturnValue(
+            "CREATE TABLE a(); ; CREATE TABLE b();"
+        );
+
+        mockUserPool.query.mockResolvedValue({});
+
+        await POST(mockRequest);
+
+        const queries = mockUserPool.query.mock.calls.map(c => c[0]);
+
+        expect(queries).toContain("CREATE TABLE a()");
+        expect(queries).toContain("CREATE TABLE b()");
+        expect(queries).not.toContain("");
+    });
+
+    // ------------------------------------------------------------------------
+    // 6. Kill mutant: console.error in SQL execution error block
+    // Mutation: console.error("Failed to execute...", err) -> console.error("", err)
+    // ------------------------------------------------------------------------
+    it("should log SQL execution errors (mutation killer)", async () => {
+        const spy = jest.spyOn(console, "error").mockImplementation(() => {});
+
+        generateCreateTableStatements.mockReturnValue("CREATE TABLE invalid;");
+        const err = new Error("SQL fail");
+        mockUserPool.query.mockRejectedValue(err);
+
+        await POST(mockRequest);
+
+        expect(spy).toHaveBeenCalled();
+        expect(spy.mock.calls[0][0]).toContain("Failed to execute");
+        spy.mockRestore();
+    });
+
+});
