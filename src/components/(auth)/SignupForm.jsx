@@ -8,6 +8,8 @@ import { registerUser } from "@/lib/auth-helpers";
 import { Eye, EyeOff } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
 import { FaGithub } from "react-icons/fa";
+import { showToast } from "nextjs-toast-notify";
+import Link from "next/link";
 
 export default function SignupForm() {
     const [form, setForm] = useState({ name: "", email: "", password: "", confirmPassword: "" });
@@ -36,10 +38,62 @@ export default function SignupForm() {
         e.preventDefault();
         setLoading(true);
         setError("");
+        // TC_REG_07: Validate Name (Cannot be empty or just spaces)
+        if (!form.name.trim()) {
+            showToast.error("Name cannot be empty.", {
+                duration: 3000,
+                progress: true,
+                position: "top-center",
+                transition: "bounceIn",
+            });
+            setLoading(false);
+            return;
+        }
+        // Validate Email Format (Must have text, @, text, dot, text)
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(form.email)) {
+            showToast.error("Invalid email format.", {
+                duration: 3000,
+                progress: true,
+                position: "top-center",
+                transition: "bounceIn",
+            });
+            setLoading(false);
+            return;
+        }
+        // Validate Email Case (Must be lowercase to prevent duplicates)
+        if (/[A-Z]/.test(form.email)) {
+            showToast.error("Email must be in lowercase.", {
+                duration: 3000,
+                progress: true,
+                position: "top-center",
+                transition: "bounceIn",
+            });
+            setLoading(false);
+            return;
+        }
 
-        // Validate password confirmation
+        // 1. Validate: Check if password contains at least one number
+        // If NO number -> Red Error Toast
+        if (!/\d/.test(form.password)) {
+            showToast.error("Password must contain at least one number.", {
+                duration: 3000,
+                progress: true,
+                position: "top-center",
+                transition: "bounceIn",
+            });
+            setLoading(false);
+            return;
+        }
+
+        // 2. Validate: Check if passwords match
         if (form.password !== form.confirmPassword) {
-            setError("Passwords do not match");
+            showToast.error("Passwords do not match", {
+                duration: 3000,
+                progress: true,
+                position: "top-center",
+                transition: "bounceIn",
+            });
             setLoading(false);
             return;
         }
@@ -47,6 +101,14 @@ export default function SignupForm() {
          try {
             await registerUser(form);
             setEmailSent(true);
+            
+            // 3. Success: Account created -> Green Success Toast (Like your screenshot)
+            showToast.success("Account created successfully! Verification email sent.", {
+                duration: 3000,
+                progress: true,
+                position: "top-center",
+                transition: "bounceIn",
+            });
             
             // Start cooldown for resend (60 seconds)
             setCanResend(false);
@@ -64,12 +126,18 @@ export default function SignupForm() {
             }, 1000);
            
         } catch (err) {
-            // If it's a rate limit error (429), show the email sent state
+            // Handle Rate Limit or other errors with Red Toast
             if (err.statusCode === 429) {
                 setEmailSent(true);
-                setError(""); // Clear error since email was already sent
+                setError(""); 
                 
-                // Set cooldown based on remaining time from server
+                showToast.error(err.message, {
+                    duration: 4000,
+                    progress: true,
+                    position: "top-center",
+                    transition: "bounceIn",
+                });
+
                 const initialCooldown = err.remainingTime ? Math.ceil(err.remainingTime * 60) : 120;
                 setCanResend(false);
                 setResendCooldown(initialCooldown);
@@ -86,6 +154,12 @@ export default function SignupForm() {
                 }, 1000);
             } else {
                 setError(err.message);
+                showToast.error(err.message || "Registration failed", {
+                    duration: 3000,
+                    progress: true,
+                    position: "top-center",
+                    transition: "bounceIn",
+                });
             }
         } finally {
             setLoading(false);
@@ -110,6 +184,7 @@ export default function SignupForm() {
                         value={form.name}
                         onChange={(e) => setForm({ ...form, name: e.target.value })}
                         disabled={emailSent}
+                        autoFocus
                     />
                 </div>
                 <div className="space-y-2">
@@ -176,9 +251,13 @@ export default function SignupForm() {
                         {!loading && !canResend && `Resend in ${resendCooldown}s`}
                     </Button>
                 ) : (
-                    <Button type="submit" className="w-full cursor-pointer" disabled={loading || oauthLoading}>
-                        {loading ? "Creating account..." : "Create Account"}
-                    </Button>
+                    <Button 
+    type="submit" 
+    className="w-full cursor-pointer" 
+    disabled={loading || oauthLoading || !form.name || !form.email || !form.password || !form.confirmPassword}
+>
+    {loading ? "Creating account..." : "Create Account"}
+</Button>
                 )}
             </form>
 

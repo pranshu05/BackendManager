@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import LoginForm from '@/components/(auth)/LoginForm';
 import * as nextAuth from 'next-auth/react';
+import { showToast } from "nextjs-toast-notify";
 
 // Mock next-auth
 jest.mock('next-auth/react');
