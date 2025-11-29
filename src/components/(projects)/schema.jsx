@@ -131,7 +131,7 @@ return (
                                                                             <div className="text-red-600 font-medium">Failed to load schema diagram: {diagramError}</div>
                                                                             <div className="text-sm text-gray-500">Try again — if the problem persists, check your database connection.</div>
                                                                             <div className="mt-4">
-                                                                                <button onClick={() => getdiagram()} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Retry</button>
+                                                                                <button onClick={() => getdiagram()} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 cursor-pointer">Retry</button>
                                                                             </div>
                                                                         </div>
                                                                     ) : (

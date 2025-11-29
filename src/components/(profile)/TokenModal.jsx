@@ -70,7 +70,7 @@ export default function TokenModal({ onClose, showToast }) {
                             <button
                                 onClick={handleGenerateToken}
                                 disabled={loadingToken}
-                                className="w-full bg-[#1e4a8a] text-white py-3 rounded-lg hover:bg-[#1e3a6a] transition font-semibold disabled:opacity-50">
+                                className="w-full bg-[#1e4a8a] text-white py-3 rounded-lg hover:bg-[#1e3a6a] transition font-semibold disabled:opacity-50 cursor-pointer">
                                 {loadingToken ? "Generating..." : "Generate Token"}
                             </button>
                         </div>
@@ -117,7 +117,7 @@ export default function TokenModal({ onClose, showToast }) {
                             <button
                                 onClick={handleGenerateToken}
                                 disabled={loadingToken}
-                                className="w-full bg-gray-500 text-white py-2 rounded-lg hover:bg-gray-600 transition font-semibold disabled:opacity-50">
+                                className="w-full bg-gray-500 text-white py-2 rounded-lg hover:bg-gray-600 transition font-semibold disabled:opacity-50 cursor-pointer">
                                 {loadingToken ? "Generating..." : "Regenerate Token"}
                             </button>
                         </div>
